@@ -71,6 +71,8 @@
     <Compile Include="Core\Message.cs" />
     <Compile Include="Core\Server.cs" />
     <Compile Include="Core\Service.cs" />
+    <Compile Include="Core\Services\CoreService.cs" />
+    <Compile Include="Core\Services\DebugService.cs" />
     <Compile Include="Libs\BakaLite\BakaTest.cs" />
     <Compile Include="Libs\BakaLite\FNode\FNodeTests.cs" />
     <Compile Include="Libs\BakaLite\SimpleCrypto.cs" />

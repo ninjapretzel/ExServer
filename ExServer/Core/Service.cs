@@ -25,7 +25,7 @@ namespace Core {
 		public virtual void OnConnected(Client client) { }
 		/// <summary> Called with a client when that client has disconnected. </summary>
 		/// <param name="client"> Client that has disconnected. </param>
-		public virtual void OnClosed(Client client) { } 
+		public virtual void OnDisconnected(Client client) { } 
 
 		/// <summary> Delegate type used to search for messages to invoke from network messages </summary>
 		/// <param name="Client"> Client whomst'd've sent the message </param>

@@ -99,7 +99,15 @@ namespace Core {
 			Stopping = false;
 			Running = false;
 		}
-		
+
+		public void Start() {
+			Running = true;
+			globalUpdateThread = StartThread(Update);
+			listenThread = StartThread(Listen);
+			mainSendThread = StartThread(SendLoop);
+			mainRecrThread = StartThread(RecrLoop);
+		}
+
 		public void Stop() {
 			if (Stopping) { return; }
 			Stopping = true;
@@ -117,12 +125,29 @@ namespace Core {
 			Stopping = false;
 		}
 
-		public void Start() {
-			Running = true;
-			globalUpdateThread = StartThread(Update);
-			listenThread = StartThread(Listen);
-			mainSendThread = StartThread(SendLoop);
-			mainRecrThread = StartThread(RecrLoop);
+		/// <summary> Hooks up details of client so server can handle communication.
+		/// Exposed to allow slave clients to explicitly connect to their server. </summary>
+		/// <param name="client"> Slave client to connect. </param>
+		public void OnConnected(Client client) {
+			connections[client.id] = client;
+			foreach (var service in services.Values) {
+				service.OnConnected(client);
+			}
+
+			sendCheckQueue.Enqueue(client);
+			recrCheckQueue.Enqueue(client);
+		}
+
+		/// <summary> Removes client from being tracked by the server. 
+		/// Exposed to allow slave clients to explicitly disconnect from their server. </summary>
+		/// <param name="client"> Slave client to connect. </param>
+		public void Close(Client client) {
+			connections.Remove(client.id);
+
+			foreach (var service in services.Values) {
+				service.OnDisconnected(client);
+			}
+			client.Close();
 		}
 
 		private void Listen() {
@@ -135,14 +160,7 @@ namespace Core {
 					while (true) {
 						TcpClient tcpClient = listener.AcceptTcpClient();
 						Client client = new Client(tcpClient, this);
-
-						connections[client.id] = client;
-						foreach (var pair in services) {
-							pair.Value.OnConnected(client);
-						}
-
-						sendCheckQueue.Enqueue(client);
-						recrCheckQueue.Enqueue(client);
+						OnConnected(client);
 					}
 					
 				}
@@ -175,7 +193,7 @@ namespace Core {
 					Client c;
 					if (sendCheckQueue.TryDequeue(out c)) {
 						SendData(c);
-						sendCheckQueue.Enqueue(c);
+						if (!c.closed) { sendCheckQueue.Enqueue(c); }
 					}
 
 				} catch (Exception e) {
@@ -192,7 +210,7 @@ namespace Core {
 					Client c;
 					if (recrCheckQueue.TryDequeue(out c)) {
 						RecieveData(c);
-						recrCheckQueue.Enqueue(c);
+						if (!c.closed) { recrCheckQueue.Enqueue(c); } 
 					}
 					
 				} catch (Exception e) {
@@ -221,6 +239,9 @@ namespace Core {
 				}
 			} catch (IOException e) {
 				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
+			} catch (ObjectDisposedException e) {
+				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
 			} catch (InvalidOperationException e) {
 				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
@@ -266,6 +287,9 @@ namespace Core {
 			} catch (IOException e) {
 				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
+			} catch (ObjectDisposedException e) {
+				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
 			} catch (InvalidOperationException e) {
 				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
@@ -277,14 +301,7 @@ namespace Core {
 			}
 		}
 
-		private void Close(Client client) {
-			connections.Remove(client.id);
 
-			foreach (var pair in services) {
-				pair.Value.OnClosed(client);
-			}
-			client.Close();
-		}
 
 		#region SERVICES
 
@@ -297,7 +314,7 @@ namespace Core {
 		/// <returns> Service that was added. </returns>
 		/// <exception cref="Exception"> if any service with conflicting type or name exists. </exception>
 		public T AddService<T>() where T : Service {
-			if (SET_OWNER_METHODINFO == null) { SET_OWNER_METHODINFO = typeof(Service).GetProperty("server", BindingFlags.NonPublic | BindingFlags.Instance).GetSetMethod(); }
+			if (SET_OWNER_METHODINFO == null) { SET_OWNER_METHODINFO = typeof(Service).GetProperty("server", typeof(Server)).GetSetMethod(true); }
 			if (SETOWNER_ARGS == null) { SETOWNER_ARGS = new object[] { this }; }
 			Type type = typeof(T);
 			if (services.ContainsKey(type)) {
@@ -356,6 +373,15 @@ namespace Core {
 
 			public override void OnTick(float delta) {
 				Log.Verbose("Debug Service Tick " + delta);
+			}
+
+
+			public override void OnConnected(Client client) {
+				Log.Verbose($"Connected {client.identity}");
+			}
+
+			public override void OnDisconnected(Client client) {
+				Log.Verbose($"Disconnected {client.identity}");
 			}
 
 			public void Ping(Client sender, Message message) {

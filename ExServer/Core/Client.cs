@@ -59,6 +59,7 @@ namespace Core {
 
 		/// <summary> Encryption </summary>
 		public Crypt enc = (b) => b;
+		/// <summary> Decryption </summary>
 		public Crypt dec = (b) => b;
 
 		#endregion
@@ -75,6 +76,20 @@ namespace Core {
 
 			Log.Info("\\eClient \\y" + id + "\\e connected from \\y" + connection.Client.RemoteEndPoint);
 			buffer = new byte[4096];
+		}
+
+		/// <summary> If a slave, this client connects to the server. </summary>
+		public void ConnectSlave() {
+			if (isSlave) {
+				server.OnConnected(this);
+			}
+		}
+
+		/// <summary> If a slave, this client disconnects from the server. </summary>
+		public void DisconnectSlave() {
+			if (isSlave) {
+				server.Close(this);
+			}
 		}
 
 		/// <summary> Sends an RPCMessage to the connected client </summary>
@@ -117,6 +132,23 @@ namespace Core {
 			}
 
 		}
+
+		#region Services
+		/// <summary> Adds service of type <typeparamref name="T"/>. </summary>
+		/// <typeparam name="T"> Type of service to add. </typeparam>
+		/// <returns> Service that was added. </returns>
+		/// <exception cref="Exception"> if any service with conflicting type or name exists. </exception>
+		public T AddService<T>() where T : Service { return server.AddService<T>(); }
+
+		/// <summary> Removes service of type <typeparamref name="T"/>. </summary>
+		/// <typeparam name="T"> Type of service to remove </typeparam>
+		/// <returns> True if removed, false otherwise. </returns>
+		public bool RemoveService<T>() where T : Service { return server.RemoveService<T>(); }
+		/// <summary> Gets a service with type <typeparamref name="T"/> </summary>
+		/// <typeparam name="T"> Type of service to get </typeparam>
+		/// <returns> Service of type <typeparamref name="T"/> if present, otherwise null. </returns>
+		public T GetService<T>() where T : Service { return server.GetService<T>(); }
+		#endregion
 
 	}
 

@@ -47,6 +47,7 @@ namespace Core {
 
 			Console.WriteLine(Directory.GetCurrentDirectory());
 			SetupLogger();
+			SetupServer();
 
 			server.Start();
 			Console.WriteLine("Server started, showing window.");
@@ -79,6 +80,12 @@ namespace Core {
 			Log.Info("Color Test." +
 				"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp\\aa\\ss\\dd" +
 				"\n\\ff\\gg\\hh\\jj\\kk\\ll\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
+		}
+
+		private static void SetupServer() {
+
+			server.AddService<Server.DebugService>();
+
 		}
 
 		static void SelfTest() {

@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using Core.Libs;
+using Ex.Libs;
 using System.IO;
 using System.Runtime.CompilerServices;
 
-namespace Core {
+namespace Ex {
 
 	public static class Program {
 		public static string SourceFileDirectory([CallerFilePath] string callerPath = "[NO PATH]") {

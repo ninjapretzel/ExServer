@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core {
+namespace Ex {
 
 	/// <summary> Service that includes core functionality. Always on a server by default. </summary>
 	public class CoreService : Service {

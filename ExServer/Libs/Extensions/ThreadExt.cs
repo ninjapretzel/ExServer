@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Core.Libs {
+namespace Ex.Libs {
 	public static class ThreadExt {
 		public static void TerminateIfNotActive(this Thread t) {
 			if (t != null && t != Thread.CurrentThread) {

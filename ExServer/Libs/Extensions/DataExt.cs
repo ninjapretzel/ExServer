@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core.Libs {
+namespace Ex.Libs {
 	/// <summary> Misc extensions for handling different generic types of data. </summary>
 	public static class DataExt {
 

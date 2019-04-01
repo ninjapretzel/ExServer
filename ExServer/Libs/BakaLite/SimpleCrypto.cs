@@ -2,7 +2,7 @@
 #define UNITY
 using UnityEngine;
 #endif
-using Core.Libs;
+using Ex.Libs;
 using System;
 using System.Collections.Generic;
 using System.Linq;

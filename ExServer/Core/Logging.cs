@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core {
+namespace Ex {
 
 	/// <summary> Enum of log levels. </summary>
 	public enum LogLevel {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core {
+namespace Ex {
 
 	/// <summary> Type used to add custom services to a Server </summary>
 	public abstract class Service {

@@ -1,4 +1,4 @@
-namespace Core {
+namespace Ex {
 	partial class MainForm {
 		/// <summary>
 		/// Required designer variable.

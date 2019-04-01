@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core{
+namespace Ex{
 
 	/// <summary> Service providing network debugging messages when common events occur. </summary>
 	public class DebugService : Service {

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using SDColor = System.Drawing.Color;
 
-namespace Core.Libs {
+namespace Ex.Libs {
 	public static class ColorExt {
 
 		/// <summary> Colors with names. </summary>

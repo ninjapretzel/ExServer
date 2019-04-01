@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace Core.Properties {
+namespace Ex.Properties {
 
 
 	/// <summary>

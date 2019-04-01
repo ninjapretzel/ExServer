@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Core {
+namespace Ex {
 
 	public class Message {
 		/// <summary>Separator character to separate segments of transmissions</summary>

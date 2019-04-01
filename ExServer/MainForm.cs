@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace Core {
+namespace Ex {
 
 	public partial class MainForm : Form {
 		

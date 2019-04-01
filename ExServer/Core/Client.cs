@@ -45,7 +45,22 @@ namespace Core {
 		/// <summary> Can this client expected to be open? </summary>
 		/// <remarks> Closed connections do not remain in Server.connections </remarks>
 		public bool closed { get; private set; }
-		
+
+		#region subRegion "struct ReadState"
+		/// <summary> Holds intermediate message data between reads </summary>
+		public StringBuilder held = "";
+		/// <summary> Last number of bytes read from stream </summary>
+		public int bytesRead = -1;
+		/// <summary> Buffer for reading from stream </summary>
+		public byte[] buffer;
+		/// <summary> Buffer for chopping messages from stream </summary>
+		public byte[] message;
+		#endregion
+
+		/// <summary> Encryption </summary>
+		public Crypt enc = (b) => b;
+		public Crypt dec = (b) => b;
+
 		#endregion
 
 		public Client(TcpClient tcpClient, Server server = null) {
@@ -59,6 +74,7 @@ namespace Core {
 			outgoing = new ConcurrentQueue<string>();
 
 			Log.Info("\\eClient \\y" + id + "\\e connected from \\y" + connection.Client.RemoteEndPoint);
+			buffer = new byte[4096];
 		}
 
 		/// <summary> Sends an RPCMessage to the connected client </summary>

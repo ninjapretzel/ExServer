@@ -9,8 +9,11 @@ namespace Core {
 	public class Message {
 		/// <summary>Separator character to separate segments of transmissions</summary>
 		public const char SEPARATOR = (char)0x07; // 'Bell'
-												  /// <summary> End Of Transmission </summary>
+		/// <summary> End Of Transmission </summary>
 		public const char EOT = (char)0x1F; // 'Unit Separator'
+
+		/// <summary> Client message was recieved from </summary>
+		public Client sender;
 
 		/// <summary> Raw message sent </summary>
 		public string rawMessage { get; private set; }
@@ -35,14 +38,14 @@ namespace Core {
 
 		/// <summary> Constructs a message around the given string array. </summary>
 		/// <param name="prams"> </param>
-		public Message(params string[] prams) {
+		public Message(Client client, params string[] prams) {
 			if (content.Length >= FIXED_SIZE) {
 				content = prams;
 			} else {
 				throw new Exception($"Message: Required parameters not provided. Must be {FIXED_SIZE} or more, was provided {prams.Length}.");
 			}
 		}
-		public Message(string str) {
+		public Message(Client client, string str) {
 			rawMessage = str;
 			recievedAt = DateTime.Now;
 			content = rawMessage.Split(SEPARATOR);

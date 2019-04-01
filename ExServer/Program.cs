@@ -43,7 +43,7 @@ namespace Core {
 			Application.SetCompatibleTextRenderingDefault(false);
 
 			mainForm = new MainForm();
-			mainForm.FormClosed += (s, e) => { server.Stop(); };
+			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Console.WriteLine(Directory.GetCurrentDirectory());
 			SetupLogger();
@@ -55,7 +55,7 @@ namespace Core {
 			Application.Run(mainForm);
 
 			Console.WriteLine("Window closed, Terminating server.");
-			// server.Stop();
+			server.Stop();
 		}
 
 		private static void SetupLogger() {

@@ -1,4 +1,3 @@
-using Core.Libs;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,7 +12,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace Core {
-	
+
+	public delegate byte[] Crypt(byte[] source);
+
 	/// <summary> Primary class for ExServer </summary>
 	public class Server {
 		
@@ -53,6 +54,9 @@ namespace Core {
 		/// <summary> Queue used to hold all clients for checking for recieving data </summary>
 		public ConcurrentQueue<Client> recrCheckQueue;
 
+		/// <summary> Incoming messages. </summary>
+		public ConcurrentQueue<Message> incoming;
+
 		/// <summary> Command runner </summary>
 		// public Cmdr commander { get; private set; }
 
@@ -75,8 +79,7 @@ namespace Core {
 
 		/// <summary> TCP listener </summary>
 		private TcpListener listener;
-
-
+		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
 		public Server(int port = 32055, float tick = 100) {
 			sendCheckQueue = new ConcurrentQueue<Client>();
@@ -101,15 +104,15 @@ namespace Core {
 			if (Stopping) { return; }
 			Stopping = true;
 			listener?.Stop();
+			
+			// Aborting seems to cause more of a problem than not.
 			//ThreadExt.TerminateAll(mainSendThread, mainRecrThread, listenThread, globalUpdateThread);
-
+			
 			// Cleanup work
 			List<Client> toClose = new List<Client>();
 			foreach (var pair in connections) { toClose.Add(pair.Value); }
 			foreach (var client in toClose) { Close(client); }
 			
-
-
 			Running = false;
 			Stopping = false;
 		}
@@ -145,7 +148,7 @@ namespace Core {
 				}
 				catch (ThreadAbortException) { return; }
 				catch (Exception e) {
-					Log.Error(e, "Socket listen had internal failure. Retrying.");
+					Log.Error(e, "Socket Listener had internal failure. Retrying.");
 				}
 			}
 		}
@@ -158,73 +161,120 @@ namespace Core {
 				}
 				catch (ThreadAbortException) { return; }
 				catch (Exception e) {
-
+					Log.Error("Failure in Server.Update", e);
 				}
 				Thread.Sleep(1);
 			}
 		}
 
 
+		/// <summary> Loop for sending data to connected clients. @Todo: Pool this. </summary>
 		private void SendLoop() {
 			while (Running) {
 				try {
 					Client c;
 					if (sendCheckQueue.TryDequeue(out c)) {
 						SendData(c);
+						sendCheckQueue.Enqueue(c);
 					}
 
-				} 
-				catch (ThreadAbortException) { return; } 
-				catch (Exception e) {
-
+				} catch (Exception e) {
+					Log.Error("Failure in Server.SendLoop", e);
 				}
 				Thread.Sleep(1);
 			}
 		}
 
+		/// <summary> Loop for recieving data from connected clients. @Todo: Pool this. </summary>
 		private void RecrLoop() {
 			while (Running) {
 				try {
 					Client c;
 					if (recrCheckQueue.TryDequeue(out c)) {
 						RecieveData(c);
+						recrCheckQueue.Enqueue(c);
 					}
-
-				} catch (ThreadAbortException) { return; } 
-				catch (Exception e) {
-
+					
+				} catch (Exception e) {
+					Log.Error("Failure in Server.RecrLoop", e);
 				}
 				Thread.Sleep(1);
 			}
 		}
 
+		/// <summary> Sends all pending messages to a client. </summary>
+		/// <param name="client"> Client to send data for </param>
 		private void SendData(Client client) {
-			DateTime now = DateTime.UtcNow;
+			// Todo: Enable Pokeing client with 0 bytes occasionally.
+			// DateTime now = DateTime.UtcNow;
 			string msg = null;
 
 			try {
 				while (client.outgoing.TryDequeue(out msg)) {
-					Log.Info($"Client {client.identity} sent message {msg}");
+					Log.Info($"Client {client.identity} sending message {msg}");
 
+					msg += Message.EOT;
+					byte[] message = msg.ToBytesUTF8();
+					message = client.enc(message);
+					
+					client.stream.Write(message, 0, message.Length);
 				}
 			} catch (IOException e) {
-				Log.Info($"\\hServer.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}");
+				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
 			} catch (InvalidOperationException e) {
-				Log.Info($"\\hServer.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}");
+				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
 			} catch (SocketException e) {
-				Log.Info($"\\hServer.SendData(Client):  {client.identity} Probably disconnected. {e.GetType()}");
+				Log.Debug($"Server.SendData(Client):  {client.identity} Probably disconnected. {e.GetType()}", e);
 				Close(client);
 			} catch (Exception e) {
-				Log.Warning("\\rServer.SendData(Client): ");
+				Log.Warning("Server.SendData(Client): ", e);
 			}
 
 
 		}
 
-		private void RecieveData(Client c) {
+		/// <summary> Attempts to read data from a client once </summary>
+		/// <param name="client"> Client information to read data for </param>
+		private void RecieveData(Client client) {
 
+			try {
+				client.bytesRead = client.stream.Read(client.buffer, 0, client.buffer.Length);
+				if (client.bytesRead > 0) {
+					client.message = client.buffer.Chop(client.bytesRead);
+					client.message = client.dec(client.message);
+					string str = client.message.GetStringUTF8();
+
+					client.held += str;
+					int index = client.held.IndexOf(Message.EOT);
+					while (index >= 0) {
+						string pulled = client.held.Substring(0, index);
+						client.held = client.held.Remove(0, index+1);
+						index = client.held.IndexOf(Message.EOT);
+
+						if (pulled.Length > 0) {
+							Message msg = new Message(client, pulled);
+							incoming.Enqueue(msg);
+						}
+					}
+
+
+				}
+
+
+			} catch (IOException e) {
+				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
+			} catch (InvalidOperationException e) {
+				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
+			} catch (SocketException e) {
+				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
+				Close(client);
+			} catch (Exception e) {
+				Log.Warning($"Server.RecieveData(Client): ", e);
+			}
 		}
 
 		private void Close(Client client) {
@@ -317,6 +367,52 @@ namespace Core {
 				Log.Verbose($"Pong'd by {sender.identity}");
 			}
 
+		}
+	}
+	public static class NetworkUtils {
+		/// <summary> Take a copy of a sub-region of a byte[] </summary>
+		/// <param name="array"> byte[] to chop </param>
+		/// <param name="size"> maximum size of resulting sub-array </param>
+		/// <param name="start"> start index </param>
+		/// <returns> sub-region from given byte[], of max length <paramref name="size"/> starting from index <paramref name="start"/> in the original <paramref name="array"/>. </returns>
+		public static byte[] Chop(this byte[] array, int size, int start = 0) {
+			if (start >= array.Length) { return null; }
+			if (size + start > array.Length) {
+				size = array.Length - start;
+			}
+			byte[] chopped = new byte[size];
+			for (int i = 0; i < size; i++) {
+				chopped[i] = array[i + start];
+			}
+			return chopped;
+		}
+		static Encoding utf8 = Encoding.UTF8;
+		static Encoding ascii = Encoding.ASCII;
+		/// <summary> Turns a string into a byte[] using ASCII </summary>
+		/// <param name="s"> String to convert </param>
+		/// <returns> Internal byte[] by ASCII encoding </returns>
+		public static byte[] ToBytes(this string s) { return ascii.GetBytes(s); }
+		/// <summary> Turns a string into a byte[] using UTF8 </summary>
+		/// <param name="s"> String to convert </param>
+		/// <returns> Internal byte[] by UTF8 encoding </returns>
+		public static byte[] ToBytesUTF8(this string s) { return utf8.GetBytes(s); }
+
+		/// <summary> Reads a byte[] as if it is an ASCII encoded string </summary>
+		/// <param name="b"> byte[] to read </param>
+		/// <param name="length"> length to read </param>
+		/// <returns> ASCII string created from the byte[] </returns>
+		public static string GetString(this byte[] b, int length = -1) {
+			if (length == -1) { length = b.Length; }
+			return ascii.GetString(b, 0, length);
+		}
+
+		/// <summary> Reads a byte[] as if it is a UTF8 encoded string </summary>
+		/// <param name="b"> byte[] to read </param>
+		/// <param name="length"> length to read </param>
+		/// <returns> UTF8 string created from the byte[] </returns>
+		public static string GetStringUTF8(this byte[] b, int length = -1) {
+			if (length == -1) { length = b.Length; }
+			return utf8.GetString(b, 0, length);
 		}
 	}
 }

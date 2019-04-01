@@ -140,8 +140,12 @@ namespace Core {
 				SendData(localClient);
 				Close(localClient);
 			} else {
-				// @Todo: Cleanup master by telling all clients server is closed
 
+				// @Todo: Cleanup master by telling all clients server is closed
+				List<Client> toClose = connections.Values.ToList();
+				foreach (var client in toClose) {
+					Close(client);
+				}
 			}
 			
 			Stopping = false;
@@ -261,7 +265,7 @@ namespace Core {
 
 		/// <summary> Sends all pending messages to a client. </summary>
 		/// <param name="client"> Client to send data for </param>
-		private void SendData(Client client) {
+		public void SendData(Client client) {
 			// Todo: Enable Pokeing client with 0 bytes occasionally.
 			// DateTime now = DateTime.UtcNow;
 			string msg = null;
@@ -297,7 +301,7 @@ namespace Core {
 
 		/// <summary> Attempts to read data from a client once </summary>
 		/// <param name="client"> Client information to read data for </param>
-		private void RecieveData(Client client) {
+		public void RecieveData(Client client) {
 
 			try {
 				

@@ -103,7 +103,14 @@ namespace Core {
 				client.Call(Syn, client.id);
 			}
 		}
-		
+
+		public override void OnDisconnected(Client client) {
+			if (server.isMaster) {
+				client.Call(Closed);
+				server.SendData(client);
+			}
+		}
+
 		/// <summary> RPC sent by a client when it explicitly disconnects. </summary>
 		public void Closed(Client sender, Message message) {
 			Log.Debug($"Closing Client {sender.identity} isSlave?{sender.isSlave}");

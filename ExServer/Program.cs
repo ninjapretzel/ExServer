@@ -23,10 +23,6 @@ namespace Core {
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread] static void Main() {
 			try {
-				server = new Server();
-				//context = new CompSys<Server>(server);
-
-				// Testing...
 				SelfTest();
 
 				ActualProgram();
@@ -83,8 +79,9 @@ namespace Core {
 		}
 
 		private static void SetupServer() {
+			server = new Server();
 
-			server.AddService<Server.DebugService>();
+			server.AddService<DebugService>();
 
 		}
 

@@ -73,8 +73,9 @@ namespace Core {
 			stream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
 			
 			outgoing = new ConcurrentQueue<string>();
+			
 
-			Log.Info("\\eClient \\y" + id + "\\e connected from \\y" + connection.Client.RemoteEndPoint);
+			Log.Info($"\\eClient \\y {identity}\\e connected from \\y{connection.Client.RemoteEndPoint}");
 			buffer = new byte[4096];
 		}
 
@@ -82,14 +83,33 @@ namespace Core {
 		public void ConnectSlave() {
 			if (isSlave) {
 				server.OnConnected(this);
+				server.Start();
 			}
 		}
 
 		/// <summary> If a slave, this client disconnects from the server. </summary>
 		public void DisconnectSlave() {
 			if (isSlave) {
-				server.Close(this);
+
+				Call(Members<CoreService>.i.Closed);
+				
+				
+				server.Stop();
 			}
+		}
+
+		public void Call(Message.Handler callback, params System.Object[] stuff) {
+			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
+			string methodName = callback.Method.Name;
+			string typeName = callback.Method.DeclaringType.ShortName();
+			string msg;
+			if (stuff.Length > 0) {
+				string rest = FormatMessage(stuff);
+				msg = String.Join("" + Message.SEPARATOR, typeName, methodName, rest);
+			} else {
+				msg = String.Join("" + Message.SEPARATOR, typeName, methodName);
+			}
+			outgoing.Enqueue(msg);
 		}
 
 		/// <summary> Sends an RPCMessage to the connected client </summary>
@@ -99,6 +119,7 @@ namespace Core {
 		///		Enqueues the resulting string into <see cref="outgoing"/>. 
 		///	</remarks>
 		public void Send(params System.Object[] stuff) {
+			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
 			string msg = FormatMessage(stuff);
 			outgoing.Enqueue(msg);
 		}
@@ -116,6 +137,7 @@ namespace Core {
 		/// <summary> Enqueues a (hopefully, properly formatted) message directly into the outgoing queue. </summary>
 		/// <param name="message"> Message to enqueue. </param>
 		public void SendMessageDirectly(string message) {
+			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
 			outgoing.Enqueue(message);
 		}
 
@@ -125,8 +147,8 @@ namespace Core {
 
 				try { 
 					connection.Close();
-				} 
-				catch (Exception e) {
+					Log.Verbose($"Client {identity} closed.");
+				} catch (Exception e) {
 					Log.Error("Failed to close connection", e);
 				}
 			}

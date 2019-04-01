@@ -9,7 +9,7 @@ namespace Core {
 	public class Message {
 		/// <summary>Separator character to separate segments of transmissions</summary>
 		public const char SEPARATOR = (char)0x07; // 'Bell'
-		/// <summary> End Of Transmission </summary>
+												  /// <summary> End Of Transmission </summary>
 		public const char EOT = (char)0x1F; // 'Unit Separator'
 
 		/// <summary> Client message was recieved from </summary>
@@ -23,6 +23,8 @@ namespace Core {
 		public string serviceName { get { return content[0]; } }
 		/// <summary> Method name to look up method </summary>
 		public string methodName { get { return content[1]; } }
+		/// <summary> Name of RPC to call (serviceName.methodName)</summary>
+		public string rpcName { get { return $"{content[0]}.{content[1]}"; } }
 		/// <summary> Raw content of message </summary>
 		public string[] content { get; private set; }
 		/// <summary> Number of arguments, besides service name/method name </summary>
@@ -39,6 +41,7 @@ namespace Core {
 		/// <summary> Constructs a message around the given string array. </summary>
 		/// <param name="prams"> </param>
 		public Message(Client client, params string[] prams) {
+			sender = client;
 			if (content.Length >= FIXED_SIZE) {
 				content = prams;
 			} else {
@@ -46,11 +49,17 @@ namespace Core {
 			}
 		}
 		public Message(Client client, string str) {
+			sender = client;
 			rawMessage = str;
 			recievedAt = DateTime.Now;
 			content = rawMessage.Split(SEPARATOR);
 		}
 
+
+		/// <summary> Delegate type used to search for messages to invoke from network messages </summary>
+		/// <param name="Client"> Client whomst'd've sent the message </param>
+		/// <param name="message"> Message that was sent </param>
+		public delegate void Handler(Client Client, Message message);
 	}
 
 }

@@ -47,7 +47,7 @@ namespace Core {
 		/// <summary> Connections, keyed by client ID </summary>
 		public Dictionary<Guid, Client> connections { get; private set; }
 		/// <summary> Cache of message delegates </summary>
-		public Dictionary<string, Service.OnMessage> rpcCache { get; private set; }
+		public Dictionary<string, Message.Handler> rpcCache { get; private set; }
 
 		/// <summary> Queue used to hold all clients for checking for sending data </summary>
 		public ConcurrentQueue<Client> sendCheckQueue;
@@ -84,10 +84,11 @@ namespace Core {
 		public Server(int port = 32055, float tick = 100) {
 			sendCheckQueue = new ConcurrentQueue<Client>();
 			recrCheckQueue = new ConcurrentQueue<Client>();
+			incoming = new ConcurrentQueue<Message>();
 
 			servicesByName = new Dictionary<string, Service>();
 			services = new Dictionary<Type, Service>();
-			rpcCache = new Dictionary<string, Service.OnMessage>();
+			rpcCache = new Dictionary<string, Message.Handler>();
 
 			connections = new Dictionary<Guid, Client>();
 			//commander = new Cmdr();
@@ -98,12 +99,18 @@ namespace Core {
 			
 			Stopping = false;
 			Running = false;
+
+			AddService<CoreService>();
 		}
 
 		public void Start() {
+			
 			Running = true;
+			if (isMaster) {
+				listenThread = StartThread(Listen);
+			}
+
 			globalUpdateThread = StartThread(Update);
-			listenThread = StartThread(Listen);
 			mainSendThread = StartThread(SendLoop);
 			mainRecrThread = StartThread(RecrLoop);
 		}
@@ -111,18 +118,31 @@ namespace Core {
 		public void Stop() {
 			if (Stopping) { return; }
 			Stopping = true;
-			listener?.Stop();
-			
-			// Aborting seems to cause more of a problem than not.
-			//ThreadExt.TerminateAll(mainSendThread, mainRecrThread, listenThread, globalUpdateThread);
 			
 			// Cleanup work
-			List<Client> toClose = new List<Client>();
-			foreach (var pair in connections) { toClose.Add(pair.Value); }
-			foreach (var client in toClose) { Close(client); }
+			if (isMaster) {
+				listener?.Stop();
 			
+				// Aborting seems to cause more of a problem than not.
+				//ThreadExt.TerminateAll(mainSendThread, mainRecrThread, listenThread, globalUpdateThread);\
+				// Turns out just these two should be stopped here for master.
+				globalUpdateThread.Join();
+				listenThread.Join();
+
+			} else {
+				
+			}
+			
+			// Set flags and push to RAM.
 			Running = false;
 			Stopping = false;
+			Thread.MemoryBarrier();
+			
+			// Ensure send/recieve threads finish.
+			mainSendThread.Join();
+			mainRecrThread.Join();
+			
+
 		}
 
 		/// <summary> Hooks up details of client so server can handle communication.
@@ -151,7 +171,7 @@ namespace Core {
 		}
 
 		private void Listen() {
-			while (Running) {
+			while (Running && !Stopping) {
 				try {
 					listener = new TcpListener(IPAddress.Any, port);
 					listener.Start();
@@ -173,8 +193,17 @@ namespace Core {
 
 
 		private void Update() {
-			while (Running) {
+			while (Running && !Stopping) {
 				try {
+
+					Message msg;
+					while (incoming.TryDequeue(out msg)) {
+						if (msg.sender.closed) {
+							
+						}
+						HandleMessage(msg);
+
+					}
 
 				}
 				catch (ThreadAbortException) { return; }
@@ -183,6 +212,9 @@ namespace Core {
 				}
 				Thread.Sleep(1);
 			}
+
+			Log.Info("Server stopping updates and cleaning up.");
+			//Todo: Cleanup work
 		}
 
 
@@ -261,7 +293,11 @@ namespace Core {
 		private void RecieveData(Client client) {
 
 			try {
-				client.bytesRead = client.stream.Read(client.buffer, 0, client.buffer.Length);
+				
+				client.bytesRead = client.stream.CanRead && client.stream.DataAvailable
+					? client.stream.Read(client.buffer, 0, client.buffer.Length)
+					: -1;
+
 				if (client.bytesRead > 0) {
 					client.message = client.buffer.Chop(client.bytesRead);
 					client.message = client.dec(client.message);
@@ -301,35 +337,96 @@ namespace Core {
 			}
 		}
 
+		private void HandleMessage(Message msg) {
+			Message.Handler handler = GetHandler(msg);
+			
+			try {
+				handler?.Invoke(msg.sender, msg);
+			} catch (Exception e) {
+				Log.Warning($"Error occurred during {msg.rpcName}: ", e);
+			}
+			
+		}
 
+		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(Client), typeof(Message) };
+
+		private void LoadCache(Service service) {
+			Type t = service.GetType();
+			var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+
+			foreach (var method in methods) {
+				
+				if (MatchesSig(method, SIGNATURE_OF_MESSAGEHANDLER)) {
+					var handler = (Message.Handler)method.CreateDelegate(typeof(Message.Handler), service);
+					var rpcName = t.ShortName() + "." + method.Name;
+					rpcCache[rpcName] = handler;
+					Log.Verbose($"Loaded RPC {rpcName}");
+				}
+
+			}
+		}
+		private static bool MatchesSig(MethodInfo method, Type[] signature) {
+			var param = method.GetParameters();
+			if (param.Length != signature.Length) { return false; }
+			for (int i = 0; i < signature.Length; i++) {
+				if (signature[i] != param[i].ParameterType) { return false; }
+			}
+			return true;
+		}
+
+		private Message.Handler GetHandler(Message msg) {
+			string rpcName = msg.rpcName;
+			if (rpcCache.ContainsKey(rpcName)) {
+				return rpcCache[rpcName];
+			}
+
+			if (!servicesByName.ContainsKey(msg.serviceName)) {
+				Log.Warning($"No service for name [{msg.serviceName}] is registered.");
+				return null;
+			}
+
+			Service service = servicesByName[msg.serviceName];
+			Type type = service.GetType();
+			MethodInfo method = type.GetMethod(msg.methodName);
+
+			if (method != null) {
+				var handler = (Message.Handler)method.CreateDelegate(typeof(Message.Handler), service);
+				rpcCache[rpcName] = handler;
+
+			}
+			
+			Log.Warning($"No method [{msg.rpcName}] found.");
+			return null;
+		}
 
 		#region SERVICES
 
 		/// <summary> MethodInfo pointing to setter on the <see cref="Service.server"/> propert </summary>
-		private static MethodInfo SET_OWNER_METHODINFO;
+		private static MethodInfo SET_OWNER_METHODINFO = typeof(Service).GetProperty("server", typeof(Server)).GetSetMethod(true);
 		/// <summary> Cached object array for MethodInfo invocation without extra garbage collection. </summary>
-		private object[] SETOWNER_ARGS;
+		private object[] SET_OWNER_ARGS;
 		/// <summary> Adds service of type <typeparamref name="T"/>. </summary>
 		/// <typeparam name="T"> Type of service to add. </typeparam>
 		/// <returns> Service that was added. </returns>
 		/// <exception cref="Exception"> if any service with conflicting type or name exists. </exception>
 		public T AddService<T>() where T : Service {
-			if (SET_OWNER_METHODINFO == null) { SET_OWNER_METHODINFO = typeof(Service).GetProperty("server", typeof(Server)).GetSetMethod(true); }
-			if (SETOWNER_ARGS == null) { SETOWNER_ARGS = new object[] { this }; }
+			if (SET_OWNER_ARGS == null) { SET_OWNER_ARGS = new object[] { this }; }
 			Type type = typeof(T);
+			string typeName = type.ShortName();
 			if (services.ContainsKey(type)) {
 				throw new Exception($"ExServer: Attempt made to add duplicate service {type}.");
 			}
-			if (servicesByName.ContainsKey(type.Name)) {
-				throw new Exception($"ExServer: Attempt made to add a service with a duplicate name [{type.Name}] by {type}.");
+			if (servicesByName.ContainsKey(typeName)) {
+				throw new Exception($"ExServer: Attempt made to add a service with a duplicate name [{typeName}] by {type}.");
 			}
 
 			T service = Activator.CreateInstance<T>();
-			SET_OWNER_METHODINFO.Invoke(service, SETOWNER_ARGS);
+			SET_OWNER_METHODINFO.Invoke(service, SET_OWNER_ARGS);
 			services[type] = service;
-			servicesByName[type.Name] = service;
-
+			servicesByName[typeName] = service;
 			service.OnEnable();
+			Log.Verbose($"Enabled Service with type=[{type}] name=[{typeName}]");
+			LoadCache(service);
 
 			return service;
 		}
@@ -343,7 +440,7 @@ namespace Core {
 				removed.OnDisable();
 
 				Type type = typeof(T);
-				servicesByName.Remove(type.Name);
+				servicesByName.Remove(type.ShortName());
 				services.Remove(type);
 
 				return true;
@@ -361,41 +458,17 @@ namespace Core {
 		#endregion
 
 
-		public class DebugService : Service {
-
-			public override void OnEnable() {
-				Log.Verbose("Debug Service Enabled");
-			}
-
-			public override void OnDisable() {
-				Log.Verbose("Debug Service Disabled");
-			}
-
-			public override void OnTick(float delta) {
-				Log.Verbose("Debug Service Tick " + delta);
-			}
-
-
-			public override void OnConnected(Client client) {
-				Log.Verbose($"Connected {client.identity}");
-			}
-
-			public override void OnDisconnected(Client client) {
-				Log.Verbose($"Disconnected {client.identity}");
-			}
-
-			public void Ping(Client sender, Message message) {
-				sender.Send("DebugService", "Pong");
-				Log.Verbose($"Ping'd by {sender.identity}");
-			}
-			public void Pong(Client sender, Message message) {
-				sender.Send("DebugService", "Pong");
-				Log.Verbose($"Pong'd by {sender.identity}");
-			}
-
-		}
 	}
-	public static class NetworkUtils {
+	public static class ServerUtils {
+
+		public static string ShortName(this Type t) {
+			string name = t.Name;
+			if (name.Contains('.')) {
+				return name.Substring(name.LastIndexOf('.'));
+			}
+			return name;
+		}
+
 		/// <summary> Take a copy of a sub-region of a byte[] </summary>
 		/// <param name="array"> byte[] to chop </param>
 		/// <param name="size"> maximum size of resulting sub-array </param>

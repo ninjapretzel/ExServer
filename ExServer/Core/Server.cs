@@ -79,6 +79,11 @@ namespace Core {
 
 		/// <summary> TCP listener </summary>
 		private TcpListener listener;
+
+		/// <summary> Hidden reference to local client for slave server </summary>
+		private Client _localClient;
+		/// <summary> Returns local client object, if this is a slave server. </summary>
+		public Client localClient { get { return isSlave ? _localClient : null; } }
 		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
 		public Server(int port = 32055, float tick = 100) {
@@ -116,32 +121,31 @@ namespace Core {
 		}
 
 		public void Stop() {
-			if (Stopping) { return; }
-			Stopping = true;
-			
-			// Cleanup work
-			if (isMaster) {
-				listener?.Stop();
-			
-				// Aborting seems to cause more of a problem than not.
-				//ThreadExt.TerminateAll(mainSendThread, mainRecrThread, listenThread, globalUpdateThread);\
-				// Turns out just these two should be stopped here for master.
-				globalUpdateThread.Join();
-				listenThread.Join();
-
-			} else {
-				
-			}
-			
+			if (!Running || Stopping) { return; }
 			// Set flags and push to RAM.
 			Running = false;
+			Stopping = true;
+			Thread.MemoryBarrier();
+
+			// Wait for threads to finish their work
+			listener?.Stop();
+			globalUpdateThread?.Join();
+			listenThread?.Join();
+			mainSendThread?.Join();
+			mainRecrThread?.Join();
+
+			// Clean up on slave: just tell the server you closed.
+			if (isSlave) {
+				localClient.Call(Members<CoreService>.i.Closed);
+				SendData(localClient);
+				Close(localClient);
+			} else {
+				// @Todo: Cleanup master by telling all clients server is closed
+
+			}
+			
 			Stopping = false;
 			Thread.MemoryBarrier();
-			
-			// Ensure send/recieve threads finish.
-			mainSendThread.Join();
-			mainRecrThread.Join();
-			
 
 		}
 
@@ -149,7 +153,12 @@ namespace Core {
 		/// Exposed to allow slave clients to explicitly connect to their server. </summary>
 		/// <param name="client"> Slave client to connect. </param>
 		public void OnConnected(Client client) {
-			connections[client.id] = client;
+			if (isMaster) {
+				connections[client.id] = client;
+			} else {
+				_localClient = client;
+			}
+
 			foreach (var service in services.Values) {
 				service.OnConnected(client);
 			}
@@ -171,7 +180,7 @@ namespace Core {
 		}
 
 		private void Listen() {
-			while (Running && !Stopping) {
+			while (Running) {
 				try {
 					listener = new TcpListener(IPAddress.Any, port);
 					listener.Start();
@@ -184,7 +193,6 @@ namespace Core {
 					}
 					
 				}
-				catch (ThreadAbortException) { return; }
 				catch (Exception e) {
 					Log.Error(e, "Socket Listener had internal failure. Retrying.");
 				}
@@ -193,7 +201,7 @@ namespace Core {
 
 
 		private void Update() {
-			while (Running && !Stopping) {
+			while (Running) {
 				try {
 
 					Message msg;
@@ -206,7 +214,6 @@ namespace Core {
 					}
 
 				}
-				catch (ThreadAbortException) { return; }
 				catch (Exception e) {
 					Log.Error("Failure in Server.Update", e);
 				}
@@ -260,7 +267,7 @@ namespace Core {
 			string msg = null;
 
 			try {
-				while (client.outgoing.TryDequeue(out msg)) {
+				while (!client.closed && client.outgoing.TryDequeue(out msg)) {
 					Log.Info($"Client {client.identity} sending message {msg}");
 
 					msg += Message.EOT;
@@ -269,17 +276,17 @@ namespace Core {
 					
 					client.stream.Write(message, 0, message.Length);
 				}
-			} catch (IOException e) {
-				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
-				Close(client);
 			} catch (ObjectDisposedException e) {
-				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
-				Close(client);
-			} catch (InvalidOperationException e) {
-				Log.Debug($"Server.SendData(Client):  {client.identity} Probably timed out. {e.GetType()}", e);
+				Log.Verbose($"Server.SendData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
 				Close(client);
 			} catch (SocketException e) {
-				Log.Debug($"Server.SendData(Client):  {client.identity} Probably disconnected. {e.GetType()}", e);
+				Log.Verbose($"Server.SendData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
+				Close(client);
+			} catch (IOException e) {
+				Log.Verbose($"Server.SendData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
+			} catch (InvalidOperationException e) {
+				Log.Verbose($"Server.SendData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
 			} catch (Exception e) {
 				Log.Warning("Server.SendData(Client): ", e);
@@ -294,7 +301,7 @@ namespace Core {
 
 			try {
 				
-				client.bytesRead = client.stream.CanRead && client.stream.DataAvailable
+				client.bytesRead = !client.closed && client.stream.CanRead && client.stream.DataAvailable
 					? client.stream.Read(client.buffer, 0, client.buffer.Length)
 					: -1;
 
@@ -320,17 +327,17 @@ namespace Core {
 				}
 
 
-			} catch (IOException e) {
-				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
-				Close(client);
 			} catch (ObjectDisposedException e) {
-				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
-				Close(client);
-			} catch (InvalidOperationException e) {
-				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
 				Close(client);
 			} catch (SocketException e) {
-				Log.Debug($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
+				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
+				Close(client);
+			} catch (IOException e) {
+				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
+				Close(client);
+			} catch (InvalidOperationException e) {
+				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably timed out. {e.GetType()}", e);
 				Close(client);
 			} catch (Exception e) {
 				Log.Warning($"Server.RecieveData(Client): ", e);
@@ -360,7 +367,7 @@ namespace Core {
 					var handler = (Message.Handler)method.CreateDelegate(typeof(Message.Handler), service);
 					var rpcName = t.ShortName() + "." + method.Name;
 					rpcCache[rpcName] = handler;
-					Log.Verbose($"Loaded RPC {rpcName}");
+					// Log.Verbose($"Loaded RPC {rpcName}");
 				}
 
 			}

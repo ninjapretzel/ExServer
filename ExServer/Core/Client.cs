@@ -90,10 +90,6 @@ namespace Core {
 		/// <summary> If a slave, this client disconnects from the server. </summary>
 		public void DisconnectSlave() {
 			if (isSlave) {
-
-				Call(Members<CoreService>.i.Closed);
-				
-				
 				server.Stop();
 			}
 		}

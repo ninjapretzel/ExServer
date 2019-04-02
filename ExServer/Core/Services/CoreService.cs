@@ -25,30 +25,30 @@ namespace Ex {
 		}
 
 		/// <summary> RPC sent by a client when it explicitly disconnects. </summary>
-		public void Closed(Client sender, Message message) {
-			Log.Debug($"Closing Client {sender.identity} isSlave?{sender.isSlave}");
+		public void Closed(Message msg) {
+			Log.Debug($"Closing Client {msg.sender.identity} isSlave?{msg.sender.isSlave}");
 			if (server.isMaster) {
 				// Single client was closed remotely.
-				server.Close(sender);
+				server.Close(msg.sender);
 			} else {
 				// Remote server was closed.
 				server.Stop();
 			}
 		}
 
-		public void Syn(Client sender, Message message) {
-			Log.Verbose($"Syn from {sender.identity}: {message[0]}");
-			sender.Call(SynAck, message[0]);
+		public void Syn(Message msg) {
+			Log.Verbose($"Syn from {msg.sender.identity}: {msg[0]}");
+			msg.sender.Call(SynAck, msg[0]);
 		}
 
-		public void SynAck(Client sender, Message message) {
-			Log.Verbose($"SynAck from {sender.identity}: {message[0]}");
-			sender.Call(Ack, message[0]);
+		public void SynAck(Message msg) {
+			Log.Verbose($"SynAck from {msg.sender.identity}: {msg[0]}");
+			msg.sender.Call(Ack, msg[0]);
 		}
 
 
-		public void Ack(Client sender, Message message) {
-			Log.Verbose($"Ack from {sender.identity}: {message[0]}");
+		public void Ack(Message msg) {
+			Log.Verbose($"Ack from {msg.sender.identity}: {msg[0]}");
 
 
 		}

@@ -59,7 +59,7 @@ namespace Ex {
 		/// <summary> Delegate type used to search for messages to invoke from network messages </summary>
 		/// <param name="Client"> Client whomst'd've sent the message </param>
 		/// <param name="message"> Message that was sent </param>
-		public delegate void Handler(Client Client, Message message);
+		public delegate void Handler(Message message);
 	}
 
 }

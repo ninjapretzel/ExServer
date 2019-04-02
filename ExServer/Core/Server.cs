@@ -352,14 +352,14 @@ namespace Ex {
 			Message.Handler handler = GetHandler(msg);
 			
 			try {
-				handler?.Invoke(msg.sender, msg);
+				handler?.Invoke(msg);
 			} catch (Exception e) {
 				Log.Warning($"Error occurred during {msg.rpcName}: ", e);
 			}
 			
 		}
 
-		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(Client), typeof(Message) };
+		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(Message) };
 
 		private void LoadCache(Service service) {
 			Type t = service.GetType();

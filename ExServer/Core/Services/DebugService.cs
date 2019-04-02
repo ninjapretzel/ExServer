@@ -29,19 +29,19 @@ namespace Ex{
 			Log.Verbose($"Disconnected {client.identity}");
 		}
 
-		public void Ping(Client sender, Message message) {
-			Log.Verbose($"Ping'd by {sender.identity}");
+		public void Ping(Message msg) {
+			Log.Verbose($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
-			sender.Call(Pong);
+			msg.sender.Call(Pong);
 
 			// If accessing another service's methods, this will help keep references during refactoring:
 			// sender.Call(Members<DebugService>.i.Pong);
 
 		}
-		public void Pong(Client sender, Message message) {
+		public void Pong(Message msg) {
 
-			Log.Verbose($"Pong'd by {sender.identity}");
+			Log.Verbose($"Pong'd by {msg.sender.identity}");
 
 		}
 

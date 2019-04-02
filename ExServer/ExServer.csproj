@@ -72,7 +72,9 @@
     <Compile Include="Core\Server.cs" />
     <Compile Include="Core\Service.cs" />
     <Compile Include="Core\Services\CoreService.cs" />
+    <Compile Include="Core\Services\DBService.cs" />
     <Compile Include="Core\Services\DebugService.cs" />
+    <Compile Include="Core\Services\LoginService.cs" />
     <Compile Include="Libs\BakaLite\BakaTest.cs" />
     <Compile Include="Libs\BakaLite\FNode\FNodeTests.cs" />
     <Compile Include="Libs\BakaLite\SimpleCrypto.cs" />
@@ -86,6 +88,7 @@
     <Compile Include="Libs\BakaLite\FNode\FNode.cs" />
     <Compile Include="Libs\Extensions\ThreadExt.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON.cs" />
+    <Compile Include="Macros\CopySourceMacro.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>

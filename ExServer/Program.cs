@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using Ex.Libs;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Net.Sockets;
 
 namespace Ex {
 
@@ -16,10 +17,11 @@ namespace Ex {
 		}
 
 		public static Server server;
+		public static Client admin;
 		public static MainForm mainForm;
 
 		public static CompSys<Server> context;
-
+		
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread] static void Main() {
 			try {
@@ -49,8 +51,9 @@ namespace Ex {
 			Console.WriteLine(Directory.GetCurrentDirectory());
 			SetupLogger();
 			SetupServer();
-
 			server.Start();
+
+			SetupAdminClient();
 			Console.WriteLine("Server started, showing window.");
 
 
@@ -58,6 +61,7 @@ namespace Ex {
 
 			Console.WriteLine("Window closed, Terminating server.");
 			server.Stop();
+			admin.server.Stop();
 		}
 
 		private static void SetupLogger() {
@@ -84,9 +88,23 @@ namespace Ex {
 		}
 
 		private static void SetupServer() {
-			server = new Server();
+			server = new Server(32055, 100);
 
 			server.AddService<DebugService>();
+			server.AddService<LoginService>();
+			server.AddService<DBService>().Connect().UseDatabase("Test1");
+
+
+		}
+
+		private static void SetupAdminClient() {
+			TcpClient connection = new TcpClient("localhost", 32055);
+			admin = new Client(connection);
+			admin.AddService<DebugService>();
+			admin.AddService<LoginService>();
+
+			admin.ConnectSlave();
+			admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
 
 		}
 

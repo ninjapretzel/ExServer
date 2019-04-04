@@ -14,7 +14,10 @@ public static class RichTextBoxHelpers {
 
 	/// <summary> Appends all messages to the box. </summary>
 	public static void Append(this RichTextBox box, IEnumerable<RichTextBoxMessage> messages) {
-		foreach (var message in messages) { box.Append(message); }
+		bool wasReadOnly = box.ReadOnly;
+		box.ReadOnly = false;
+		foreach (var message in messages) { box.AppendInternal(message); }
+		box.ReadOnly = wasReadOnly;
 	}
 	/*
 	/// <summary> Appends all messages to the box. </summary>
@@ -24,21 +27,38 @@ public static class RichTextBoxHelpers {
 	//*/
 	/// <summary> Appends the message to the box </summary>
 	public static void Append(this RichTextBox box, RichTextBoxMessage message) {
+		bool wasReadOnly = box.ReadOnly;
+		box.ReadOnly = false;
 		box.Append(message.message, message.color);
+		box.ReadOnly = wasReadOnly;
 	}
 
 	/// <summary> Appends the text to the box, optionally setting its color. </summary>
 	public static void Append(this RichTextBox box, string text, Color? color = null) {
+		bool wasReadOnly = box.ReadOnly;
+		box.ReadOnly = false;
+		box.AppendInternal(text, color);
+		box.ReadOnly = wasReadOnly;
+	}
+	/// <summary> Appends the text to the box, then appends a newline. </summary>
+	public static void AppendLn(this RichTextBox box, string text, Color? color = null) {
+		bool wasReadOnly = box.ReadOnly;
+		box.ReadOnly = false;
+		AppendInternal(box, text, color);
+		AppendInternal(box, "\n");
+		box.ReadOnly = wasReadOnly;
+	}
+
+	public static void AppendInternal(this RichTextBox box, RichTextBoxMessage message) {
+		box.Append(message.message, message.color);
+	}
+	private static void AppendInternal(this RichTextBox box, string text, Color? color = null) {
 		box.SelectionStart = box.TextLength;
 		box.SelectionLength = 0;
 		if (color != null) { box.SelectionColor = color.Value; }
 		box.SelectedText = text;
 	}
-	/// <summary> Appends the text to the box, then appends a newline. </summary>
-	public static void AppendLn(this RichTextBox box, string text, Color? color = null) {
-		Append(box, text, color);
-		Append(box, "\n");
-	}
+
 	/// <summary> Attempts to scroll the text box to bottom. </summary>
 	public static void ScrollToBottom(this RichTextBox box) {
 		box.SelectionStart = box.TextLength;

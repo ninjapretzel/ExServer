@@ -14,6 +14,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using BDoc = MongoDB.Bson.BsonDocument;
 using MDB = MongoDB.Driver.IMongoDatabase;
 using Coll = MongoDB.Driver.IMongoCollection<MongoDB.Bson.BsonDocument>;
+using MongoDB.Bson;
 #endif
 namespace Ex {
 
@@ -55,18 +56,27 @@ namespace Ex {
 
 		#if !UNITY
 		[BsonIgnoreExtraElements]
-		public class UserInfo {
+		public class UserInfo : DBEntry {
 			public Guid userId { get; set; }
 			public string userName { get; set; }
 			public string hash { get; set; }
 			public DateTime lastLogin { get; set; }
 		}
-		#endif
-
+		/// <summary> Pair of information about a logged in client </summary>
+		public struct Session {
+			public Credentials credentials { get; private set; }
+			public Client client { get; private set; }
+			public Session(Client client, Credentials credentials) {
+				this.client = client;
+				this.credentials = credentials;
+			}
+		}
+		
 		/// <summary> Serverside, maps client to user ID </summary>
-		private Dictionary<Client, Guid> loginsByClient;
+		private Dictionary<Client, Session> loginsByClient;
 		/// <summary> Serverside, maps user ID to client </summary>
-		private Dictionary<Guid, Client> loginsByUserId;
+		private Dictionary<Guid, Session> loginsByUserId;
+		#endif
 
 		/// <summary> Reference to login information that a local client can use. passhash of this is always "local" if it exists. </summary>
 		public Credentials localLogin { get; private set; } = null;
@@ -74,7 +84,7 @@ namespace Ex {
 		/// <summary> Is the local Client logged in? </summary>
 		public bool LoggedIn { get { return localLogin != null; } }
 		/// <summary> Version associated with login endpoint (client and server) must match to allow logins. </summary>
-		public string versionCode = null;
+		public string versionCode { get { return VersionInfo.VERSION; } }
 
 		/// <summary> Function used to check for valid usernames. </summary>
 		public Func<string, bool> usernameValidator = DefaultValidateUsername;
@@ -87,8 +97,8 @@ namespace Ex {
 		private static readonly string USER_INFO_COLLECTION = "userInfo";
 
 		public override void OnEnable() {
-			loginsByClient = new Dictionary<Client, Guid>();
-			loginsByUserId = new Dictionary<Guid, Client>();
+			loginsByClient = new Dictionary<Client, Session>();
+			loginsByUserId = new Dictionary<Guid, Session>();
 		}
 
 		public override void OnDisable() {
@@ -102,7 +112,7 @@ namespace Ex {
 
 		public override void OnDisconnected(Client client) {
 			if (loginsByClient.ContainsKey(client)) {
-				Guid guid = loginsByClient[client];
+				Guid guid = loginsByClient[client].credentials.userId;
 
 				loginsByClient.Remove(client);
 				loginsByUserId.Remove(guid);
@@ -110,18 +120,73 @@ namespace Ex {
 			
 		}
 
-		#if !UNITY
-		/// <summary> Client -> Server RPC </summary>
-		/// <param name="msg"></param>
+#if !UNITY
+		string _VERSION_MISMATCH = null;
+		string VERSION_MISMATCH {
+			get {
+				if (_VERSION_MISMATCH != null) { return _VERSION_MISMATCH; }
+				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
+			}
+		}
+
+		DBService dbService { get { return GetService<DBService>(); } }
+		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(Message)"/></summary>
+		/// <param name="msg"> RPC Info. </param>
 		public void Login(Message msg) {
 			string user = msg[0];
 			string hash = msg[1];
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
-			
+			// Login flow.
+			Credentials creds = null;
+			string reason = "none";
 
+			UserInfo userInfo = null; 
+			if (version != versionCode) {
+				reason = VERSION_MISMATCH;
+			} else if (!usernameValidator(user)) {
+				reason = "Invalid Username";
+			} else {
+				userInfo = dbService.Get<UserInfo>(USER_INFO_COLLECTION, nameof(userInfo.userName), user);
+				if (userInfo == null) {
+					// user doesn't exist, create them.
+					userInfo = new UserInfo();
+					userInfo.userName = user;
+					userInfo.hash = hash;
+					userInfo.userId = Guid.NewGuid();
+					creds = new Credentials(user, hash, userInfo.userId);
+					
+				} else {
+					// Check credentials against existing credentials.
+					if (hash != userInfo.hash) {
+						reason = "Bad credentials";
+					} else {
+						creds = new Credentials(user, hash, userInfo.userId);
+					}
+					
+
+				}
+			}
+
+
+			if (creds == null) {
+				msg.sender.Call(LoginResponse, "fail", reason);
+			} else {
+				var session = new Session(msg.sender, creds);
+				loginsByClient[msg.sender] = session;
+				loginsByUserId[creds.userId] = session;
+				userInfo.lastLogin = DateTime.UtcNow;
+
+				msg.sender.Call(LoginResponse, "succ", creds.userId);
+			}
 
 		}
-		#endif
+#endif
+		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
+		/// <param name="msg"> RPC Info. </param>
+		public void LoginResponse(Message msg) {
+			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
+
+		}
 
 		/// <summary> Simple quick check for valid usernames. </summary>
 		/// <param name="user"> Name to check </param>

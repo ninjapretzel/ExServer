@@ -14,12 +14,19 @@ using MongoDB.Bson;
 using BDoc = MongoDB.Bson.BsonDocument;
 using MDB = MongoDB.Driver.IMongoDatabase;
 using Coll = MongoDB.Driver.IMongoCollection<MongoDB.Bson.BsonDocument>;
+using MongoDB.Bson.Serialization.Attributes;
 #endif
 
 namespace Ex {
+
+#if !UNITY
+	public class DBEntry {
+		[BsonId] public ObjectId id { get; set; }
+	}
+#endif
 	public class DBService : Service {
 		
-		#if !UNITY
+#if !UNITY
 		// Server side code.
 		public MongoClient dbClient;
 		public MDB defaultDB;
@@ -29,28 +36,49 @@ namespace Ex {
 
 		/// <summary> Connects the database to a given mongodb server. </summary>
 		/// <param name="location"> Location to connect to, defaults to default mongodb port on localhost </param>
-		public void Connect(string location = "mongodb://localhost:27017") {
+		public DBService Connect(string location = "mongodb://localhost:27017") {
 			dbClient = new MongoClient(location);
+			return this;
 		}
 
 		/// <summary> Used to set the default database. </summary>
-		public void UseDatabase(string dbName) {
+		public DBService UseDatabase(string dbName) {
 			defaultDB = dbClient.GetDatabase(dbName);
+			return this;
 		}
 		
 
 		
-		public IMongoCollection<T> Collection<T>(string collectionName) {
+		public IMongoCollection<T> Collection<T>(string collectionName) where T : DBEntry {
 			return defaultDB.GetCollection<T>(collectionName);
 		}
 
-		public IMongoCollection<T> Collection<T>(string databaseName, string collectionName) {
+		public IMongoCollection<T> Collection<T>(string databaseName, string collectionName) where T : DBEntry {
 			return dbClient.GetDatabase(databaseName).GetCollection<T>(collectionName);
 		}
 
-		public T Get<T>(string collectionName, string idField, string id) {
-			var builder = Builders<T>.Filter.AnyEq(idField, new BsonString(id) );
-			return defaultDB.GetCollection<T>(collectionName).Find(builder).FirstOrDefault();
+		public T Get<T>(string collectionName, string idField, string id) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(idField, id);
+			return defaultDB.GetCollection<T>(collectionName).Find(filter).FirstOrDefault();
+		}
+
+		public void Save<T>(string collectionName, T item) where T : DBEntry {
+			var filter = Builders<T>.Filter.AnyEq(nameof(DBEntry.id), item.id);
+			var coll = defaultDB.GetCollection<T>(collectionName);
+			var check = coll.Find(filter).FirstOrDefault();
+			
+			try {
+				if (check == null) {
+					coll.InsertOne(item);
+				} else {
+					var result = coll.ReplaceOne(filter, item);
+				}
+
+			} catch (Exception e) {
+				Log.Error("Failed to save database entry", e);
+			}
+
+			// defaultDB.GetCollection<T>(collectionName).UpdateOne(, item);
 		}
 
 

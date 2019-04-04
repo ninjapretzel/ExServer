@@ -93,9 +93,6 @@ namespace Ex {
 		/// <summary> Hash function. Should be replaced with something more secure than the default. </summary>
 		public Func<string, string> Hash = DefaultHash;
 
-		/// <summary> Name of user info collection </summary>
-		private static readonly string USER_INFO_COLLECTION = "userInfo";
-
 		public override void OnEnable() {
 			loginsByClient = new Dictionary<Client, Session>();
 			loginsByUserId = new Dictionary<Guid, Session>();
@@ -142,12 +139,15 @@ namespace Ex {
 
 			UserInfo userInfo = null; 
 			if (version != versionCode) {
+				Log.Debug($"Version mismatch {version}, expected {versionCode}");
 				reason = VERSION_MISMATCH;
 			} else if (!usernameValidator(user)) {
+				Log.Debug($"Bad username {user}");
 				reason = "Invalid Username";
 			} else {
-				userInfo = dbService.Get<UserInfo>(USER_INFO_COLLECTION, nameof(userInfo.userName), user);
+				userInfo = dbService.Get<UserInfo>(nameof(userInfo.userName), user);
 				if (userInfo == null) {
+					Log.Debug($"User {user} not found");
 					// user doesn't exist, create them.
 					userInfo = new UserInfo();
 					userInfo.userName = user;
@@ -175,6 +175,7 @@ namespace Ex {
 				loginsByClient[msg.sender] = session;
 				loginsByUserId[creds.userId] = session;
 				userInfo.lastLogin = DateTime.UtcNow;
+				dbService.Save(userInfo);
 
 				msg.sender.Call(LoginResponse, "succ", creds.userId);
 			}

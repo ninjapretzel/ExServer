@@ -49,31 +49,36 @@ namespace Ex {
 		
 
 		
-		public IMongoCollection<T> Collection<T>(string collectionName) where T : DBEntry {
-			return defaultDB.GetCollection<T>(collectionName);
+		public IMongoCollection<T> Collection<T>() where T : DBEntry {
+			return defaultDB.GetCollection<T>(typeof(T).Name);
 		}
 
-		public IMongoCollection<T> Collection<T>(string databaseName, string collectionName) where T : DBEntry {
-			return dbClient.GetDatabase(databaseName).GetCollection<T>(collectionName);
+		public IMongoCollection<T> Collection<T>(string databaseName) where T : DBEntry {
+			return dbClient.GetDatabase(databaseName).GetCollection<T>(typeof(T).Name);
 		}
 
-		public T Get<T>(string collectionName, string idField, string id) where T : DBEntry {
-			var filter = Builders<T>.Filter.Eq(idField, id);
-			return defaultDB.GetCollection<T>(collectionName).Find(filter).FirstOrDefault();
+		public T Get<T>(string idField, string id) where T : DBEntry {
+			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
+			//var filter = Builders<T>.Filter.Eq(idField, id);
+			T result = defaultDB.GetCollection<T>(typeof(T).Name).Find(filter).FirstOrDefault();
+			Log.Verbose($"Got item of {typeof(T).Name}, {{{result}}})");
+			return result;
 		}
 
-		public void Save<T>(string collectionName, T item) where T : DBEntry {
-			var filter = Builders<T>.Filter.AnyEq(nameof(DBEntry.id), item.id);
-			var coll = defaultDB.GetCollection<T>(collectionName);
+		public void Save<T>(T item) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+
+			var coll = defaultDB.GetCollection<T>(typeof(T).Name);
 			var check = coll.Find(filter).FirstOrDefault();
 			
 			try {
 				if (check == null) {
 					coll.InsertOne(item);
+					Log.Verbose($"Inserted item of {typeof(T).Name}, {{{item}}}");
 				} else {
 					var result = coll.ReplaceOne(filter, item);
+					Log.Verbose($"Updated item of {typeof(T).Name}, {{{item}}}");
 				}
-
 			} catch (Exception e) {
 				Log.Error("Failed to save database entry", e);
 			}

@@ -43,7 +43,7 @@ namespace Ex {
 			// 
 			this.label1.AutoSize = true;
 			this.label1.Font = new System.Drawing.Font("Courier New", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-			this.label1.Location = new System.Drawing.Point(401, 415);
+			this.label1.Location = new System.Drawing.Point(401, 752);
 			this.label1.Name = "label1";
 			this.label1.Size = new System.Drawing.Size(29, 16);
 			this.label1.TabIndex = 0;
@@ -64,20 +64,20 @@ namespace Ex {
 			this.logTextBox.Location = new System.Drawing.Point(404, 44);
 			this.logTextBox.Name = "logTextBox";
 			this.logTextBox.ReadOnly = true;
-			this.logTextBox.Size = new System.Drawing.Size(765, 365);
+			this.logTextBox.Size = new System.Drawing.Size(765, 697);
 			this.logTextBox.TabIndex = 2;
 			this.logTextBox.Text = "";
 			// 
 			// commandEntry
 			// 
-			this.commandEntry.Location = new System.Drawing.Point(436, 415);
+			this.commandEntry.Location = new System.Drawing.Point(436, 750);
 			this.commandEntry.Name = "commandEntry";
 			this.commandEntry.Size = new System.Drawing.Size(678, 20);
 			this.commandEntry.TabIndex = 3;
 			// 
 			// button1
 			// 
-			this.button1.Location = new System.Drawing.Point(1120, 415);
+			this.button1.Location = new System.Drawing.Point(1120, 747);
 			this.button1.Name = "button1";
 			this.button1.Size = new System.Drawing.Size(49, 23);
 			this.button1.TabIndex = 4;
@@ -132,7 +132,7 @@ namespace Ex {
 			// 
 			this.controlsGroup.Location = new System.Drawing.Point(13, 175);
 			this.controlsGroup.Name = "controlsGroup";
-			this.controlsGroup.Size = new System.Drawing.Size(382, 263);
+			this.controlsGroup.Size = new System.Drawing.Size(382, 595);
 			this.controlsGroup.TabIndex = 7;
 			this.controlsGroup.TabStop = false;
 			this.controlsGroup.Text = "Controls";
@@ -141,7 +141,7 @@ namespace Ex {
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(1181, 450);
+			this.ClientSize = new System.Drawing.Size(1181, 782);
 			this.Controls.Add(this.controlsGroup);
 			this.Controls.Add(this.statusGroup);
 			this.Controls.Add(this.button1);

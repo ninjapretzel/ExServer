@@ -1,7 +1,20 @@
 # Blag
 ##### aka Blog
+####### Confused? Go read XKCD
 
-## It Begins
+## ==>
+### 2019/04/04 11:30 AM
+After a bit of rumination, and mostly taking a day mostly off to think, I figured out a good way of dealing with MongoDB, and handling user logins. Suprisingly, it did not take much to massage MongoDB code into doing what I want, and I think I have a really good "DRY" pattern started, using type information in generic methods to automatically persist/retrieve objects to database.
+
+The next thing is the login code, I send hashes currently, but eventually I will have a simple encryption layer on top of the transmission protocol, which would make it less terrible to just send them raw. 
+
+There was a private server for RuneScape which I played, that would create a user if someone tried logging in with a new username. This worked really well in letting new players start quickly, or allowing people to roll new characters at a whim. It flies in the face of most of what most people/companies would do, forcing players to register on a website before logging in, but there are ways of making it inconvinient to register multiple accounts quickly and difficult to exploit.
+
+## ==>
+### 2019/04/02
+I already see a problem with providing daily updates. It is hard to find something genuine to talk about, and I do not like just excreting words. Lots is going on in my head, but callouts need time to stew. Many useful and useless thoughts run through my head, and not many of them are actually worth capturing and writing down. This one did.
+
+## It Begins.
 ### 2019/04/01
 
 This is the most convinient way for me to organize my thoughts and track my progress.

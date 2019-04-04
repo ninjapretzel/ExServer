@@ -54,7 +54,7 @@ namespace Ex {
 
 	public class LoginService : Service {
 
-		#if !UNITY
+#if !UNITY
 		[BsonIgnoreExtraElements]
 		public class UserInfo : DBEntry {
 			public Guid userId { get; set; }
@@ -62,6 +62,7 @@ namespace Ex {
 			public string hash { get; set; }
 			public DateTime lastLogin { get; set; }
 		}
+#endif
 		/// <summary> Pair of information about a logged in client </summary>
 		public struct Session {
 			public Credentials credentials { get; private set; }
@@ -76,7 +77,6 @@ namespace Ex {
 		private Dictionary<Client, Session> loginsByClient;
 		/// <summary> Serverside, maps user ID to client </summary>
 		private Dictionary<Guid, Session> loginsByUserId;
-		#endif
 
 		/// <summary> Reference to login information that a local client can use. passhash of this is always "local" if it exists. </summary>
 		public Credentials localLogin { get; private set; } = null;

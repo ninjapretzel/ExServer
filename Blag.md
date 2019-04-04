@@ -8,7 +8,7 @@ After a bit of rumination, and mostly taking a day mostly off to think, I figure
 
 The next thing is the login code, I send hashes currently, but eventually I will have a simple encryption layer on top of the transmission protocol, which would make it less terrible to just send them raw. 
 
-There was a private server for RuneScape which I played, that would create a user if someone tried logging in with a new username. This worked really well in letting new players start quickly, or allowing people to roll new characters at a whim. It flies in the face of most of what most people/companies would do, forcing players to register on a website before logging in, but there are ways of making it inconvinient to register multiple accounts quickly and difficult to exploit.
+There was a private server for RuneScape which I played, that would create a user if someone tried logging in with a new username. This worked really well in letting new players start quickly, or allowing people to roll new characters at a whim. It flies in the face of most of what most people/companies would do, forcing players to register on a website before logging in (to collect information on them to sell for $$$$), but there are ways of making it inconvinient to register multiple accounts quickly and difficult to exploit.
 
 ## ==>
 ### 2019/04/02

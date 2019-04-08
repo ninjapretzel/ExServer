@@ -8,6 +8,8 @@ using Ex.Libs;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Net.Sockets;
+using System.Threading;
+using System.Collections.Concurrent;
 
 namespace Ex {
 
@@ -25,14 +27,18 @@ namespace Ex {
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread] static void Main() {
 			try {
-				#if DEBUG
+#if DEBUG
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				CopySourceMacro.CopyAllFiles((SourceFileDirectory()+"/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				#endif
+#endif
 				SelfTest();
 
+				JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>() ;
+				
 				ActualProgram();
+				
+				// ThreadMain();
 
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
@@ -92,6 +98,22 @@ namespace Ex {
 
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
+			var sync = server.AddService<SyncService>();
+
+			{
+				var debugSync = sync.Context("debug");
+				JsonObject data = new JsonObject();
+				data["gameState"] = new JsonObject("gravity", 9.8f, "tickrate", 100);
+				data["Test"] = new JsonObject("blah", "blarg", "Only", "Top", "Level", "Objects", "Get", "Syncd");
+				data["Of"] = "Not an object, This doesn't get sync'd";
+				data["Data"] = new JsonArray("Not", "an", "object,", "Neither", "does", "this");
+				debugSync.SetData(data);
+				debugSync.DefaultSubs("Test", "Data");
+
+			}
+
+
+
 			server.AddService<DBService>().Connect().UseDatabase("Test1");
 
 
@@ -99,12 +121,18 @@ namespace Ex {
 
 		private static void SetupAdminClient() {
 			TcpClient connection = new TcpClient("localhost", 32055);
+
 			admin = new Client(connection);
 			admin.AddService<DebugService>();
 			admin.AddService<LoginService>();
-
+			var sync = admin.AddService<SyncService>();
+			
 			admin.ConnectSlave();
 			admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
+			
+			// Subscribe to more stuff (Initial subscriptions would happen when connected to server)
+			var context = sync.Context("debug");
+			context.SubscribeTo("gameState");
 
 		}
 

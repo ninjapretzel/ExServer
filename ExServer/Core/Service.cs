@@ -11,19 +11,27 @@ namespace Ex {
 
 		/// <summary> Owner that this Service belongs to </summary>
 		public Server server { get; private set; }
+
+		/// <summary> Is the service enabled (active) ? </summary>
+		public bool enabled { get; private set; }
+		/// <summary> Called within AddService() to enable the service </summary>
+		internal void Enable() { OnEnable(); enabled = true; }
+		/// <summary> Called within RemoveService() to disable the service </summary>
+		internal void Disable() { enabled = false; OnDisable(); }
 		
-		/// <summary> Called when the Service is added to a Servcer </summary>
+		/// <summary> Callback when the Service is added to a Servcer </summary>
 		public virtual void OnEnable() { }
-		/// <summary> Called when the Service is removed from the server </summary>
+		/// <summary> Callback when the Service is removed from the server </summary>
 		public virtual void OnDisable() { }
-		/// <summary> Called every server tick </summary>
+		
+		/// <summary> Callback every global server tick </summary>
 		/// <param name="delta"> Delta between last tick and 'now' </param>
 		public virtual void OnTick(float delta) { }
 
-		/// <summary> Called with a client when that client has connected. </summary>
+		/// <summary> CallCallbacked with a client when that client has connected. </summary>
 		/// <param name="client"> Client who has connected. </param>
 		public virtual void OnConnected(Client client) { }
-		/// <summary> Called with a client when that client has disconnected. </summary>
+		/// <summary> Callback with a client when that client has disconnected. </summary>
 		/// <param name="client"> Client that has disconnected. </param>
 		public virtual void OnDisconnected(Client client) { } 
 

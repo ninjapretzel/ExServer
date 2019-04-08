@@ -12,8 +12,6 @@ namespace Ex {
 	public class Client {
 
 		#region Constants/Static stuff
-		const string CONNECTION_INFO = "connection_info";
-		const string VERBOSE_CONNECTION_INFO = "verbose_connection_info";
 
 		/// <summary> max timeout for stream interaction </summary>
 		public const int DEFAULT_READWRITE_TIMEOUT = 10 * 1000;
@@ -67,10 +65,10 @@ namespace Ex {
 		public Client(TcpClient tcpClient, Server server = null) {
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
-			id = Guid.NewGuid();
-			connection = tcpClient;
-			stream.ReadTimeout = DEFAULT_READWRITE_TIMEOUT;
-			stream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
+			this.id = Guid.NewGuid();
+			this.connection = tcpClient;
+			this.stream.ReadTimeout = DEFAULT_READWRITE_TIMEOUT;
+			this.stream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
 			
 			outgoing = new ConcurrentQueue<string>();
 			
@@ -94,17 +92,12 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Sends a message to remotely call a function handler on the client. </summary>
+		/// <param name="callback"> Handler to call </param>
+		/// <param name="stuff"> parameters to send into call </param>
 		public void Call(Message.Handler callback, params System.Object[] stuff) {
 			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
-			string methodName = callback.Method.Name;
-			string typeName = callback.Method.DeclaringType.ShortName();
-			string msg;
-			if (stuff.Length > 0) {
-				string rest = FormatMessage(stuff);
-				msg = String.Join("" + Message.SEPARATOR, typeName, methodName, rest);
-			} else {
-				msg = String.Join("" + Message.SEPARATOR, typeName, methodName);
-			}
+			string msg = FormatCall(callback, stuff);
 			outgoing.Enqueue(msg);
 		}
 
@@ -118,6 +111,24 @@ namespace Ex {
 			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
 			string msg = FormatMessage(stuff);
 			outgoing.Enqueue(msg);
+		}
+
+		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
+		/// <param name="stuff"> Array of parameters to format. </param>
+		/// <returns> String of all objects in <paramref name="stuff"/> formatted to be sent over the network. </returns>
+		public static string FormatCall(Message.Handler callback, params System.Object[] stuff) {
+			string methodName = callback.Method.Name;
+			string typeName = callback.Method.DeclaringType.ShortName();
+			string msg;
+			if (stuff.Length > 0) {
+				string[] strs = new string[stuff.Length];
+				for (int i = 0; i < strs.Length; i++) { strs[i] = stuff[i].ToString(); }
+				string rest = String.Join("" + Message.SEPARATOR, strs);
+				msg = String.Join("" + Message.SEPARATOR, typeName, methodName, rest);
+			} else {
+				msg = String.Join("" + Message.SEPARATOR, typeName, methodName);
+			}
+			return msg;
 		}
 
 		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
@@ -137,6 +148,7 @@ namespace Ex {
 			outgoing.Enqueue(message);
 		}
 
+		/// <summary> Closes the client's connection. </summary>
 		public void Close() {
 			if (!closed) {
 				closed = true;

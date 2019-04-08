@@ -17,6 +17,10 @@ public static class CopySourceMacro {
 			string destination = $"{toDirectory}{relpath}{filename}".ForwardSlashPath();
 			// Console.WriteLine($"Copy for [{relpath}] [{filename}]\n\tFrom: {file}\n\tTo  : {destination}");
 
+			string folder = destination.Folder();
+			if (!Directory.Exists(folder)) {
+				Directory.CreateDirectory(folder);
+			}
 			File.Copy(file, destination, true);
 		}
 	}
@@ -24,7 +28,17 @@ public static class CopySourceMacro {
 	private static string Filename(this string filepath) {
 		return filepath.ForwardSlashPath().FromLast("/");
 	}
+	private static string Folder(this string filepath) {
+		return filepath.UpToLast("/");
+	}
 
+	private static string UpToLast(this string str, string search) {
+		if (str.Contains(search)) {
+			int ind = str.LastIndexOf(search);
+			return str.Substring(0, ind);
+		}
+		return str;
+	}
 	private static string ForwardSlashPath(this string path) { return path.Replace('\\', '/'); }
 	private static string FromLast(this string str, string search) {
 		if (str.Contains(search) && !str.EndsWith(search)) {

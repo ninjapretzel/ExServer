@@ -115,7 +115,7 @@ namespace Ex {
 				listenThread = StartThread(Listen);
 			}
 
-			globalUpdateThread = StartThread(Update);
+			globalUpdateThread = StartThread(GlobalUpdate);
 			mainSendThread = StartThread(SendLoop);
 			mainRecrThread = StartThread(RecrLoop);
 		}
@@ -204,7 +204,7 @@ namespace Ex {
 		}
 
 
-		private void Update() {
+		private void GlobalUpdate() {
 			while (Running) {
 				try {
 
@@ -223,9 +223,47 @@ namespace Ex {
 				}
 				Thread.Sleep(1);
 			}
-
-			Log.Info("Server stopping updates and cleaning up.");
+			string id = isSlave ? "Slave" : "Master";
+			Log.Info($"Updates stopping for {id} and cleaning up.");
 			//Todo: Cleanup work
+		}
+
+		/// <summary> Creates an Update thread bound to the lifetime of the server, or until the inner code wants to stop.  </summary>
+		/// <param name="body"> Body of code to execute, expected to return true until it wants to stop </param>
+		/// <param name="priority"> Priority to give to the created thread </param>
+		/// <returns> Thread object looping the given code body. </returns>
+		public Thread CreateUpdateThread(Func<bool> body, ThreadPriority priority = ThreadPriority.Normal) {
+			return StartThread(Loop(body), priority);
+		}
+
+		/// <summary> Creates a thread that loops a specific body, at a specific rate.</summary>
+		/// <param name="body"> code to execute, returns true each cycle to continue, and false if it wants to stop itself. </param>
+		/// <param name="rate"> Milliseconds to wait between loops </param>
+		/// <returns> ThreadStart delegate wrapping body/rate parameters. </returns>
+		public ThreadStart Loop(Func<bool> body, int rate = 100, bool stopOnError = false) {
+			// We are implicitly capturing function params, but,
+			// since this should not be used very often, should not cause memory leak. 
+			return () => {
+				DateTime last = DateTime.Now;
+				while (Running) {
+					DateTime now = DateTime.Now;
+
+					try {
+
+						bool keepGoing = body();
+						if (!keepGoing) { break; }
+
+					} catch (Exception e) {
+
+						Log.Error("Failure in Server.Loop", e);
+						if (stopOnError) { break; }
+
+					}
+					Thread.Sleep(rate);
+				}
+
+			};
+
 		}
 
 
@@ -244,6 +282,8 @@ namespace Ex {
 				}
 				Thread.Sleep(1);
 			}
+			string id = isSlave ? "Slave" : "Master";
+			Log.Info($"SendLoop Ending for {id}");
 		}
 
 		/// <summary> Loop for recieving data from connected clients. @Todo: Pool this. </summary>
@@ -261,6 +301,8 @@ namespace Ex {
 				}
 				Thread.Sleep(1);
 			}
+			string id = isSlave ? "Slave" : "Master";
+			Log.Info($"RecrLoop Ending for {id}");
 		}
 
 		/// <summary> Sends all pending messages to a client. </summary>
@@ -435,7 +477,7 @@ namespace Ex {
 			SET_OWNER_METHODINFO.Invoke(service, SET_OWNER_ARGS);
 			services[type] = service;
 			servicesByName[typeName] = service;
-			service.OnEnable();
+			service.Enable();
 			Log.Verbose($"Enabled Service with type=[{type}] name=[{typeName}]");
 			LoadCache(service);
 
@@ -448,7 +490,7 @@ namespace Ex {
 		public bool RemoveService<T>() where T : Service {
 			if (services.ContainsKey(typeof(T))) {
 				Service removed = services[typeof(T)];
-				removed.OnDisable();
+				removed.Disable();
 
 				Type type = typeof(T);
 				servicesByName.Remove(type.ShortName());

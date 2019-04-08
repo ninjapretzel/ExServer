@@ -9,12 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 // For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
 #if !UNITY
-using MongoDB.Driver;
 using MongoDB.Bson.Serialization.Attributes;
-using BDoc = MongoDB.Bson.BsonDocument;
-using MDB = MongoDB.Driver.IMongoDatabase;
-using Coll = MongoDB.Driver.IMongoCollection<MongoDB.Bson.BsonDocument>;
-using MongoDB.Bson;
 #endif
 namespace Ex {
 
@@ -126,6 +121,7 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Connected database service </summary>
 		DBService dbService { get { return GetService<DBService>(); } }
 		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(Message)"/></summary>
 		/// <param name="msg"> RPC Info. </param>

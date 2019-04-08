@@ -1,9 +1,19 @@
 # Blag
-##### aka Blog
-###### Confused? Go read XKCD
+##### aka Blog (Confused? Go read XKCD at https://xkcd.com/)
 
 ## ==>
-### 2019/04/04 11:30 AM
+### 2019/04/06 and 2019/04/07
+Ported the `SyncData` code took a bit of similar reworking as to how it is organized, and I added the ability to spin up a thread tied to the server's lifetime for custom separate update logic, as to not peg the global server tick with potentially heavy update logic. `SyncData` is inteded to be similar to how MeteorJS works interally, pushing updates to clients, and maintaining a lightweight database on the client that can be easily queried and used to fill displays.
+
+It is separate from any database, and this time it is not intended to hold actual game information. It is really just intended to be used for pushing data updates to clients from the server in a structured way.
+It will be used for slower updates to clients, not close to real-time, useful for things like inventory content, currency statistics, guild/party information, global events or gamestate.
+
+Been thinking about map/entity code for a few days, while making minor cleanups that I haven't committed, and how to implement it so it does not use `SyncData`, as it does in the version I am porting, which is unfortunate.
+SyncData turned out to be too slow for creating an entity system for large numbers of temporary entities, so I need to create something that is much more optimized.
+
+
+## ==>
+### 2019/04/04
 After a bit of rumination, and mostly taking a day mostly off to think, I figured out a good way of dealing with MongoDB, and handling user logins. Suprisingly, it did not take much to massage MongoDB code into doing what I want, and I think I have a really good "DRY" pattern started, using type information in generic methods to automatically persist/retrieve objects to database.
 
 The next thing is the login code, I send hashes currently, but eventually I will have a simple encryption layer on top of the transmission protocol, which would make it less terrible to just send them raw. 

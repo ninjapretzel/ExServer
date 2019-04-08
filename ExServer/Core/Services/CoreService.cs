@@ -10,10 +10,10 @@ namespace Ex {
 	public class CoreService : Service {
 
 		public override void OnConnected(Client client) {
-			Log.Info($"Core Service connected {client.identity}");
+			// Log.Info($"Core Service connected {client.identity}");
 			if (server.isSlave) {
-				Log.Info($"Slave beginning syn-synack-ack process {client.identity}");
-				client.Call(Syn, client.id);
+				// Log.Info($"Slave beginning syn-synack-ack process {client.identity}");
+				// client.Call(Syn, client.id);
 			}
 		}
 

@@ -68,6 +68,10 @@ namespace Ex.Utils {
 			if (angle > 180f) { angle -= 360f; }
 			return angle;
 		}
+		// @TODO: Look into the specific value of UnityEngine.Mathf.Epsilon (for COMPARE_EPSILON)
+		public static bool Approximately(float a, float b) {
+			return Abs(b - a) < Max(1E-06f * Max(Abs(a), Abs(b)), COMPARE_EPSILON * 8f);
+		}
 		public static float Map(float a, float b, float val, float x, float y) { return Lerp(x, y, InverseLerp(a, b, val)); }
 		public static float Lerp(float a, float b, float f) { return a + (b-a) * Clamp01(f); }
 		public static float InverseLerp(float a, float b, float value) { return (a != b) ? Clamp01((value-a) / (b-a)) : 0f; }
@@ -327,7 +331,6 @@ namespace Ex.Utils {
 
 		public static Vector3 Min(Vector3 a, Vector3 b) { return new Vector3(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Min(a.z, b.z)); }
 		public static Vector3 Max(Vector3 a, Vector3 b) { return new Vector3(Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y), Mathf.Max(a.z, b.z)); }
-
 		
 		public static Vector3 Cross(Vector3 a, Vector3 b) {
 			return new Vector3(a.y * b.z - a.z * b.y, 
@@ -359,6 +362,14 @@ namespace Ex.Utils {
 		public static Vector3 ClampMagnitude(Vector3 vector, float maxLength) {
 			return (vector.sqrMagnitude > maxLength * maxLength) ? vector.normalized * maxLength : vector; 
 		}
+		public static Vector3 Lerp(Vector3 a, Vector3 b, float f) { f = Clamp01(f); return new Vector3(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f); }
+		public static Vector3 LerpUnclamped(Vector3 a, Vector3 b, float f) { return new Vector3(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f); }
+		public static Vector3 MoveTowards(Vector3 current, Vector3 target, float maxDistanceDelta) {
+			Vector3 a = target - current;
+			float m = a.magnitude;
+			return (m < maxDistanceDelta || m == 0f) ? target : (current + a / m * maxDistanceDelta);
+		}
+
 		public static Vector3 operator -(Vector3 a) { return new Vector3(-a.x, -a.y, -a.z); }
 		public static Vector3 operator +(Vector3 a, Vector3 b) { return new Vector3(a.x + b.x, a.y + b.y, a.z + b.z); }
 		public static Vector3 operator -(Vector3 a, Vector3 b) { return new Vector3(a.x - b.x, a.y - b.y, a.z - b.z); }
@@ -391,8 +402,8 @@ namespace Ex.Utils {
 		public int x,y,z;
 		public Vector3Int(int x, int y, int z) { this.x = x; this.y = y; this.z = z; }
 		public int this[int i] {
-			get { if (i == 0) { return x; } if (i == 1) { return y; } if (i == 2) { return z; } throw new IndexOutOfRangeException($"Vector3 has length=3, {i} is out of range."); }
-			set { if (i == 0) { x = value; } if (i == 1) { y = value; } if (i == 2) { z = value; } throw new IndexOutOfRangeException($"Vector3 has length=3, {i} is out of range."); }
+			get { if (i == 0) { return x; } if (i == 1) { return y; } if (i == 2) { return z; } throw new IndexOutOfRangeException($"Vector3Int has length=3, {i} is out of range."); }
+			set { if (i == 0) { x = value; } if (i == 1) { y = value; } if (i == 2) { z = value; } throw new IndexOutOfRangeException($"Vector3Int has length=3, {i} is out of range."); }
 		}
 
 		public override bool Equals(object other) { return other is Vector3Int && Equals((Vector3Int)other); }
@@ -439,7 +450,335 @@ namespace Ex.Utils {
 		public static explicit operator Vector2Int(Vector3Int v) { return new Vector2Int(v.x, v.y); }
 	}
 	#endregion
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////////
+	#region Vector4 
+	public struct Vector4 {
+		public static Vector4 zero { get { return new Vector4(0,0,0,0); } }
+		public static Vector4 one { get { return new Vector4(1,1,1,1); } }
+		public static Vector4 positiveInfinity { get { return new Vector4(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity); } }
+		public static Vector4 negativeInfinity { get { return new Vector4(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity); } }
+		
+		public float x, y, z, w;
+		public Vector4(float x, float y, float z, float w) { this.x = x; this.y = y; this.z = z; this.w = w; }
+		public float this[int i] {
+			get {
+				if (i == 0) { return x; } if (i == 1) { return y; } if (i == 2) { return z; } if (i == 3) { return w; }
+				throw new IndexOutOfRangeException($"Vector4 has length=4, {i} is out of range.");
+			}
+			set {
+				if (i == 0) { x = value; } if (i == 1) { y = value; } if (i == 2) { z = value; } if (i == 3) { w = value; }
+				throw new IndexOutOfRangeException($"Vector4 has length=4, {i} is out of range.");
+			}
+		}
 
+		public override bool Equals(object other) { return other is Vector4 && Equals((Vector4)other); }
+		public bool Equals(Vector4 other) { return x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w); }
+		public override int GetHashCode() {
+			int yy = y.GetHashCode(); int zz = z.GetHashCode(); int xx = x.GetHashCode(); int ww = w.GetHashCode();
+			return xx ^ (yy << 2) ^ (zz >> 2) ^ (ww >> 1);
+		}
+		public override string ToString() { return $"({x}, {y}, {z}, {w})"; }
+
+		public Vector4 normalized { get { float m = magnitude; if (m > EPSILON) { return this / m; } return zero; } }
+		public float magnitude { get { return Sqrt(x * x + y * y + z * z + w * w); } }
+		public float sqrMagnitude { get { return x * x + y * y + z * z + w * w; } }
+
+		public void Set(float a, float b, float c, float d) { x = a; y = b; z = c; w = d; }
+		public void Normalize() { float m = magnitude; if (m > EPSILON) { this /= m; } else { this = zero; } }
+		public void Scale(Vector4 s) { x *= s.x; y *= s.y; z *= s.z; w *= s.w; }
+		public void Clamp(Vector4 min, Vector4 max) {
+			x = Mathf.Clamp(x, min.x, max.x);
+			y = Mathf.Clamp(y, min.y, max.y);
+			z = Mathf.Clamp(z, min.z, max.z);
+			w = Mathf.Clamp(w, min.w, max.w);
+		}
+
+		public static Vector4 Min(Vector4 a, Vector4 b) { return new Vector4(Mathf.Min(a.x, b.x), Mathf.Min(a.y, b.y), Mathf.Min(a.z, b.z), Mathf.Min(a.w, b.w)); }
+		public static Vector4 Max(Vector4 a, Vector4 b) { return new Vector4(Mathf.Max(a.x, b.x), Mathf.Max(a.y, b.y), Mathf.Max(a.z, b.z), Mathf.Max(a.w, b.w)); }
+
+		public static float Dot(Vector4 a, Vector4 b) { return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w; }
+		public static Vector4 Reflect(Vector4 dir, Vector4 normal) { return -2f * Dot(normal, dir) * normal + dir; }
+		public static Vector4 Project(Vector4 dir, Vector4 normal) {
+			float len = Dot(normal, normal);
+			return (len < SQR_EPSILON) ? zero : normal * Dot(dir, normal) / len;
+		}
+
+		public static float Distance(Vector4 a, Vector4 b) {
+			Vector4 v = new Vector4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+			return Sqrt(v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w);
+		}
+		public static Vector4 ClampMagnitude(Vector4 vector, float maxLength) {
+			return (vector.sqrMagnitude > maxLength * maxLength) ? vector.normalized * maxLength : vector;
+		}
+
+		public static Vector4 Lerp(Vector4 a, Vector4 b, float f) {
+			f = Clamp01(f);
+			return new Vector4(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f, a.w + (b.w - a.w) * f);
+		}
+		public static Vector4 LerpUnclamped(Vector4 a, Vector4 b, float f) {
+			return new Vector4(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, a.z + (b.z - a.z) * f, a.w + (b.w - a.w) * f);
+		}
+		public static Vector4 MoveTowards(Vector4 current, Vector4 target, float maxDistanceDelta) {
+			Vector4 a = target - current;
+			float m = a.magnitude;
+			return (m < maxDistanceDelta || m == 0f) ? target : (current + a / m * maxDistanceDelta);
+		}
+
+		public static Vector4 operator -(Vector4 a) { return new Vector4(-a.x, -a.y, -a.z, -a.w); }
+		public static Vector4 operator +(Vector4 a, Vector4 b) { return new Vector4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w); } 
+		public static Vector4 operator -(Vector4 a, Vector4 b) { return new Vector4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w); } 
+		public static Vector4 operator *(Vector4 a, Vector4 b) { return new Vector4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w); } 
+		public static Vector4 operator /(Vector4 a, Vector4 b) { return new Vector4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w); } 
+		public static Vector4 operator *(Vector4 a, float f) { return new Vector4(a.x * f, a.y * f, a.z * f, a.w * f); } 
+		public static Vector4 operator *(float f, Vector4 a) { return new Vector4(a.x * f, a.y * f, a.z * f, a.w * f); } 
+		public static Vector4 operator /(Vector4 a, float f) { return new Vector4(a.x / f, a.y / f, a.z / f, a.w / f); } 
+		public static Vector4 operator /(float f, Vector4 a) { return new Vector4(a.x / f, a.y / f, a.z / f, a.w / f); } 
+		
+		// public static bool operator ==(Vector4 a, Vector4 b) { return (a-b).sqrMagnitude <= COMPARE_EPSILON; }
+		// public static bool operator !=(Vector4 a, Vector4 b) { return !(a == b); }
+
+		public static implicit operator Vector4(Vector3 v) { return new Vector4(v.x, v.y, v.z, 0f); }
+		public static implicit operator Vector3(Vector4 v) { return new Vector3(v.x, v.y, v.z); }
+		public static implicit operator Vector4(Vector2 v) { return new Vector4(v.x, v.y, 0f, 0f); }
+		public static implicit operator Vector2(Vector4 v) { return new Vector2(v.x, v.y); }
+		
+	}
+	#endregion
+	#region Rect
+	public struct Rect : IEquatable<Rect> {
+		public static Rect zero { get { return new Rect(0, 0, 0, 0); } }
+		public static Rect unit{ get { return new Rect(0, 0, 1f, 1f); } }
+
+		public float x,y,width,height;
+		public Rect(float x, float y, float width, float height) { this.x = x; this.y = y; this.width = width; this.height = height; }
+		public Rect(Vector2 pos, Vector2 size) { x = pos.x; y = pos.y; width = size.x; height = size.y; }
+		public Rect(Rect source) { x = source.x; y = source.y; width = source.width; height = source.height; }
+
+		public Vector2 position { 
+			get { return new Vector2(x, y); } 
+			set { x = value.x; y = value.y; }
+		}
+		public Vector2 center { 
+			get { return new Vector2(x + width/2f, y + height/2f); } 
+			set { x = value.x - width/2f; y = value.y - height / 2f; }
+		}
+		public Vector2 min { 
+			get { return new Vector2(x, y); } 
+			set { x = value.x; y = value.y; }
+		}
+		public Vector2 max {
+			get { return new Vector2(x + width, y + height); } 
+			set { x = value.x - width; y = value.y - height; }
+		}
+		public Vector2 size {
+			get { return new Vector2(width, height); }
+			set { width = value.x; height = value.y; }
+		}
+		public float xMin { get { return x; } set { float xm = xMax; x = value; width = xm - x; } }
+		public float yMin { get { return y; } set { float ym = yMax; y = value; height = ym - y; } }
+		public float xMax { get { return x + width; } set { width = value - x; } }
+		public float yMax { get { return y + height; } set { height = value - y; } }
+
+		public float left { get { return x; } }
+		public float right { get { return x + width; } }
+		public float top { get { return y; } }
+		public float bottom { get { return y + height; } }
+
+		public override bool Equals(object other) { return other is Rect && this.Equals((Rect)other); }
+		public bool Equals(Rect other) { return x.Equals(other.x) && y.Equals(other.y) && width.Equals(other.width) && height.Equals(other.height); }
+		public override string ToString() { return $"(x:{x:F2}, y:{y:F2}, width:{width:F2}, height:{height:F2})"; }
+		public override int GetHashCode() { return x.GetHashCode() ^ (width.GetHashCode() << 2) ^ (y.GetHashCode() >> 2) ^ (height.GetHashCode() >> 1); }
+
+		public void Set(float x, float y, float width, float height) {
+			this.x = x; this.y = y; this.width = width; this.height = height;
+		}
+		public bool Contains(Vector2 point) {
+			return point.x >= xMin && point.x <= xMax && point.y >= yMin && point.y <= yMax;
+		}
+		public bool Contains(Vector3 point) {
+			return point.x >= xMin && point.x <= xMax && point.y >= yMin && point.y <= yMax;
+		}
+
+		public bool Overlaps(Rect other) {
+			return other.xMax > xMin && other.xMin < xMax && other.yMax > yMin && other.yMin < yMax;
+		}
+		public bool Touches(Rect other) {
+			return other.xMax >= xMin && other.xMin <= xMax && other.yMax >= yMin && other.yMin <= yMax;
+		}
+
+		public Vector2 NormalizedToPoint(Vector2 coords) {
+			return new Vector2(Lerp(x, xMax, coords.x), Lerp(y, yMax, coords.y));
+		}
+		public Vector2 PointToNormalized(Vector2 point) {
+			return new Vector2(InverseLerp(x, xMax, point.x), InverseLerp(y, yMax, point.y));
+		}
+
+		public static bool operator !=(Rect a, Rect b) { return !(a == b); }
+		public static bool operator ==(Rect a, Rect b) { return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height; }
+	}
+	#endregion
+	#region RectInt
+	public struct RectInt : IEquatable<RectInt> {
+		public int x,y,width,height;
+		public RectInt(int x, int y, int width, int height) { this.x = x; this.y = y; this.width = width; this.height = height; }
+		public RectInt(Vector2Int pos, Vector2Int size) { x = pos.x; y = pos.y; width = size.x; height = size.y; }
+		public RectInt(RectInt source) { x = source.x; y = source.y; width = source.width; height = source.height; }
+
+		public Vector2Int position {
+			get { return new Vector2Int(x, y); }
+			set { x = value.x; y = value.y; }
+		}
+		public Vector2 center {
+			get { return new Vector2(x + width / 2f, y + height / 2f); }
+		}
+		public Vector2Int min {
+			get { return new Vector2Int(x, y); }
+			set { x = value.x; y = value.y; }
+		}
+		public Vector2Int max {
+			get { return new Vector2Int(x + width, y + height); }
+			set { x = value.x - width; y = value.y - height; }
+		}
+		public Vector2Int size {
+			get { return new Vector2Int(width, height); }
+			set { width = value.x; height = value.y; }
+		}
+
+		public int xMin { get { return x; } set { int xm = xMax; x = value; width = xm - x; } }
+		public int yMin { get { return y; } set { int ym = yMax; y = value; height = ym - y; } }
+		public int xMax { get { return x + width; } set { width = value - x; } }
+		public int yMax { get { return y + height; } set { height = value - y; } }
+
+		public int left { get { return x; } }
+		public int right { get { return x + width; } }
+		public int top { get { return y; } }
+		public int bottom { get { return y + height; } }
+
+		public override bool Equals(object other) { return other is RectInt && Equals((RectInt)other); }
+		public bool Equals(RectInt other) { return x == other.x && y == other.y && width == other.width && height == other.height; }
+		public override string ToString() { return $"(x:{x}, y:{y}, width:{width}, height:{height})"; }
+		public override int GetHashCode() { return x.GetHashCode() ^ (width.GetHashCode() << 2) ^ (y.GetHashCode() >> 2) ^ (height.GetHashCode() >> 1); }
+	}
+	#endregion
+	#region Plane
+	public struct Plane { 
+
+		private Vector3 _normal;
+		public float distance;
+		public Vector3 normal { get { return _normal; } set { _normal = value.normalized; } }
+		
+		public Plane(Vector3 normal, Vector3 point) {
+			this._normal = normal.normalized;
+			distance = -Vector3.Dot(normal, point);
+		}
+		public Plane(Vector3 normal, float distance) {
+			this._normal = normal.normalized;
+			this.distance = distance;
+		}
+		public Plane(Vector3 a, Vector3 b, Vector3 c) {
+			_normal = Vector3.Cross(b-a, c-a).normalized;
+			distance = -Vector3.Dot(_normal, a);
+		}
+		public Plane flipped { get { return new Plane(-_normal, -distance); } }
+
+		public override string ToString() { return $"(Normal:{normal}, distance:{distance})"; }
+
+		public void SetNormalAndPosition(Vector3 normal, Vector3 point) {
+			this._normal = normal.normalized;
+			distance = -Vector3.Dot(normal, point);
+		}
+		public void Set3Points(Vector3 a, Vector3 b, Vector3 c) {
+			_normal = Vector3.Cross(b - a, c - a).normalized;
+			distance = -Vector3.Dot(_normal, a);
+		}
+		public void Flip() { _normal = -_normal; distance = -distance; }
+		public void Translate(Vector3 translation) { distance += Vector3.Dot(_normal, translation); }
+
+		public static Plane Translate(Plane p, Vector3 translation) { return new Plane(p._normal, p.distance + Vector3.Dot(p._normal, translation)); }
+
+		public Vector3 ClosestPointOnPlane(Vector3 point) {
+			float d = Vector3.Dot(_normal, point) + distance;
+			return point - _normal * d;
+		}
+		public float GetDistanceToPoint(Vector3 point) { return Vector3.Dot(_normal, point) + distance; }
+		public bool GetSide(Vector3 point) { return Vector3.Dot(_normal, point) + distance > 0f; }
+		public bool SameSide(Vector3 a, Vector3 b) {
+			float da = GetDistanceToPoint(a);
+			float db = GetDistanceToPoint(b);
+			return (da > 0f && db > 0f) || (da <= 0f && db <= 0f);
+		}
+
+		public bool Raycast(Ray ray, out float enter) {
+			float angle = Vector3.Dot(ray.direction, _normal);
+			if (Approximately(angle, 0f)) {
+				enter = 0f;
+				return false;
+			}
+			float distance = -Vector3.Dot(ray.origin, _normal) - this.distance;
+			enter = distance/angle;
+			return (enter > 0f);
+		}
+	}
+	#endregion
+	#region Ray
+	public struct Ray {
+		public Vector3 origin, dir;
+		public Ray(Vector3 origin, Vector3 dir) { this.origin = origin; this.dir = dir.normalized; }
+		public Vector3 direction { get { return dir; } set { dir = value.normalized; } }
+
+		public override string ToString() { return $"(Origin: {origin} Direction: {dir})"; }
+		public Vector3 GetPoint(float distance) { return origin + dir * distance; }
+	}
+	#endregion
+	#region Ray2D
+	public struct Ray2D {
+		public Vector2 origin, dir;
+		public Ray2D(Vector2 origin, Vector2 dir) { this.origin = origin; this.dir = dir.normalized; }
+		public Vector2 direction { get { return dir; } set { dir = value.normalized; } }
+
+		public override string ToString() { return $"(Origin: {origin} Direction: {dir})"; }
+		public Vector2 GetPoint(float distance) { return origin + dir * distance; }
+	}
+	#endregion
+	#region Bounds aka AABB
+	public struct Bounds : IEquatable<Bounds> {
+		public Vector3 center, extents;
+
+		public Bounds(Vector3 center, Vector3 size) { this.center = center; extents = size / 2f; }
+		public Vector3 size { get { return extents * 2f; } set { extents = value / 2f; } }
+		public Vector3 min { get { return center - extents; } set { SetMinMax(value, max); } }
+		public Vector3 max { get { return center + extents; } set { SetMinMax(min, value); } }
+		
+		public override bool Equals(object other) { return other is Bounds && Equals((Bounds) other); }
+		public bool Equals(Bounds other) { return center.Equals(other.center) && extents.Equals(other.extents); }
+		public override int GetHashCode() { return center.GetHashCode() ^ extents.GetHashCode() << 2; }
+		public override string ToString() { return $"(Center: {center}, Extents: {extents})"; }
+
+		public void SetMinMax(Vector3 min, Vector3 max) { extents = (max - min) * 0.5f; center = min + extents; }
+		public void Encapsulate(Vector3 point) { SetMinMax(Vector3.Min(min, point), Vector3.Max(max, point)); }
+		public void Encapsulate(Bounds bounds) { Encapsulate(bounds.center - bounds.extents); Encapsulate(bounds.center + bounds.extents); }
+		public void Expand(float amount) { var a = amount * .5f; extents += new Vector3(a,a,a); }
+		public void Expand(Vector3 amount) { extents += amount * .5f; }
+
+		public bool Intersects(Bounds bounds) {
+			Vector3 amin = min; Vector3 amax = max;
+			Vector3 bmin = bounds.min; Vector3 bmax = bounds.max;
+			return amin.x <= bmax.x && amax.x >= bmin.x
+				&& amin.y <= bmax.y && amax.y >= bmin.y
+				&& amin.z <= bmax.z && amax.z >= bmin.z;
+		}
+		// Unfortunately some of the more useful stuff is hiddin in native code. R I P guess I'll have to code them myself.
+		public bool Contains(Vector3 point) {
+			Vector3 min = this.min; Vector3 max = this.max;
+			return point.x <= max.x && point.x >= min.x
+				&& point.y <= max.y && point.y >= min.y
+				&& point.z <= max.z && point.z >= min.z;
+		}
+
+	}
+	#endregion
 
 }
 

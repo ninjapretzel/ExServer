@@ -2,8 +2,12 @@
 ##### aka Blog (Confused? Go read XKCD at https://xkcd.com/)
 
 ## ==>
+### 2019/04/07 thru 2019/04/10
+Ported a bunch of math/vector code from unity into a single file to have parity with Unity's Mathf/Vector and other structs. Not much to say about that, lots of repetitive code to handle simple stuff. Ready to start actually building the entity/map system now, I think.
+
+## ==>
 ### 2019/04/06 and 2019/04/07
-Ported the `SyncData` code took a bit of similar reworking as to how it is organized, and I added the ability to spin up a thread tied to the server's lifetime for custom separate update logic, as to not peg the global server tick with potentially heavy update logic. `SyncData` is inteded to be similar to how MeteorJS works interally, pushing updates to clients, and maintaining a lightweight database on the client that can be easily queried and used to fill displays.
+Lots of cleanup and ported the `SyncData` code took a bit of similar reworking as to how it is organized, and I added the ability to spin up a thread tied to the server's lifetime for custom separate update logic, as to not peg the global server tick with potentially heavy update logic. `SyncData` is inteded to be similar to how MeteorJS works interally, pushing updates to clients, and maintaining a lightweight database on the client that can be easily queried and used to fill displays.
 
 It is separate from any database, and this time it is not intended to hold actual game information. It is really just intended to be used for pushing data updates to clients from the server in a structured way.
 It will be used for slower updates to clients, not close to real-time, useful for things like inventory content, currency statistics, guild/party information, global events or gamestate.

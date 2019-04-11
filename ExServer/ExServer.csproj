@@ -24,6 +24,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -78,14 +79,13 @@
     <Compile Include="Core\Services\MapService.cs" />
     <Compile Include="Core\Services\SyncService.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
+    <Compile Include="Core\Utils\Unsafe.cs" />
+    <Compile Include="Core\Utils\Vectors.cs" />
     <Compile Include="Core\VersionInfo.cs" />
     <Compile Include="Libs\BakaLite\BakaTest.cs" />
     <Compile Include="Libs\BakaLite\FNode\FNodeTests.cs" />
     <Compile Include="Libs\BakaLite\SimpleCrypto.cs" />
     <Compile Include="Libs\Extensions\ColorExt.cs" />
-    <Compile Include="Libs\Component.cs" />
-    <Compile Include="Libs\Compost\Context.cs" />
-    <Compile Include="Libs\Compost\ContextTests.cs" />
     <Compile Include="Libs\Extensions\ControlExt.cs" />
     <Compile Include="Libs\Extensions\DataExt.cs" />
     <Compile Include="Libs\Extensions\ExceptionExt.cs" />
@@ -100,7 +100,6 @@
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Learning\FunWIthDb.cs" />
-    <Compile Include="Libs\Cmdr.cs" />
     <Compile Include="Libs\Extensions\RichTextBoxHelpers.cs" />
     <Compile Include="Libs\StringBuilder.cs" />
     <Compile Include="Program.cs" />

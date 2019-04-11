@@ -21,8 +21,6 @@ namespace Ex {
 		public static Server server;
 		public static Client admin;
 		public static MainForm mainForm;
-
-		public static CompSys<Server> context;
 		
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread] static void Main() {
@@ -30,16 +28,14 @@ namespace Ex {
 #if DEBUG
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
-				CopySourceMacro.CopyAllFiles((SourceFileDirectory()+"/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
 				SelfTest();
 
-				JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>() ;
-				
+				JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
+
 				ActualProgram();
 				
-				// ThreadMain();
-
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
 				Console.Read();
@@ -111,9 +107,7 @@ namespace Ex {
 				debugSync.DefaultSubs("Test", "Data");
 
 			}
-
-
-
+			
 			server.AddService<DBService>().Connect().UseDatabase("Test1");
 
 

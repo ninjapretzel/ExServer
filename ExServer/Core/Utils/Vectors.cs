@@ -217,7 +217,7 @@ namespace Ex.Utils {
 		public static Vector2 operator *(Vector2 a, float f) { return new Vector2(a.x * f, a.y * f); }
 		public static Vector2 operator *(float f, Vector2 a) { return new Vector2(a.x * f, a.y * f); }
 		public static Vector2 operator /(Vector2 a, float f) { return new Vector2(a.x / f, a.y / f); }
-		public static Vector2 operator /(float f, Vector2 a) { return new Vector2(a.x / f, a.y / f); }
+		public static Vector2 operator /(float f, Vector2 a) { return new Vector2(f / a.x, f / a.y); }
 		public static bool operator ==(Vector2 a, Vector2 b) { return (a - b).sqrMagnitude < COMPARE_EPSILON; }
 		public static bool operator !=(Vector2 a, Vector2 b) { return !(a == b); }
 		public static implicit operator Vector2(Vector3 v) { return new Vector2(v.x, v.y); }
@@ -277,7 +277,7 @@ namespace Ex.Utils {
 		public static Vector2Int operator *(Vector2Int a, int i) { return new Vector2Int(a.x * i, a.y * i); }
 		public static Vector2Int operator *(int i, Vector2Int a) { return new Vector2Int(a.x * i, a.y * i); }
 		public static Vector2Int operator /(Vector2Int a, int i) { return new Vector2Int(a.x / i, a.y / i); }
-		public static Vector2Int operator /(int i, Vector2Int a) { return new Vector2Int(a.x / i, a.y / i); }
+		public static Vector2Int operator /(int i, Vector2Int a) { return new Vector2Int(i / a.x, i / a.y); }
 		public static bool operator ==(Vector2Int a, Vector2Int b) { return a.x == b.x && a.y == b.y; }
 		public static bool operator !=(Vector2Int a, Vector2Int b) { return !(a == b); }
 		
@@ -378,7 +378,7 @@ namespace Ex.Utils {
 		public static Vector3 operator *(Vector3 a, float f) { return new Vector3(a.x * f, a.y * f, a.z * f); }
 		public static Vector3 operator *(float f, Vector3 a) { return new Vector3(a.x * f, a.y * f, a.z * f); }
 		public static Vector3 operator /(Vector3 a, float f) { return new Vector3(a.x / f, a.y / f, a.z / f); }
-		public static Vector3 operator /(float f, Vector3 a) { return new Vector3(a.x / f, a.y / f, a.z / f); }
+		public static Vector3 operator /(float f, Vector3 a) { return new Vector3(f / a.x, f / a.y, f / a.z); }
 		public static bool operator ==(Vector3 a, Vector3 b) { return (a - b).sqrMagnitude < COMPARE_EPSILON; }
 		public static bool operator !=(Vector3 a, Vector3 b) { return !(a == b); }
 
@@ -442,7 +442,7 @@ namespace Ex.Utils {
 		public static Vector3Int operator *(Vector3Int a, int i) { return new Vector3Int(a.x * i, a.y * i, a.z * i); }
 		public static Vector3Int operator *(int i, Vector3Int a) { return new Vector3Int(a.x * i, a.y * i, a.z * i); }
 		public static Vector3Int operator /(Vector3Int a, int i) { return new Vector3Int(a.x / i, a.y / i, a.z / i); }
-		public static Vector3Int operator /(int i, Vector3Int a) { return new Vector3Int(a.x / i, a.y / i, a.z / i); }
+		public static Vector3Int operator /(int i, Vector3Int a) { return new Vector3Int(i / a.x, i / a.y, i / a.z); }
 		public static bool operator ==(Vector3Int a, Vector3Int b) { return a.x == b.x && a.y == b.y && a.z == b.z; }
 		public static bool operator !=(Vector3Int a, Vector3Int b) { return !(a == b); }
 
@@ -534,10 +534,10 @@ namespace Ex.Utils {
 		public static Vector4 operator *(Vector4 a, float f) { return new Vector4(a.x * f, a.y * f, a.z * f, a.w * f); } 
 		public static Vector4 operator *(float f, Vector4 a) { return new Vector4(a.x * f, a.y * f, a.z * f, a.w * f); } 
 		public static Vector4 operator /(Vector4 a, float f) { return new Vector4(a.x / f, a.y / f, a.z / f, a.w / f); } 
-		public static Vector4 operator /(float f, Vector4 a) { return new Vector4(a.x / f, a.y / f, a.z / f, a.w / f); } 
+		public static Vector4 operator /(float f, Vector4 a) { return new Vector4(f / a.x, f / a.y, f / a.z, f / a.w); } 
 		
-		// public static bool operator ==(Vector4 a, Vector4 b) { return (a-b).sqrMagnitude <= COMPARE_EPSILON; }
-		// public static bool operator !=(Vector4 a, Vector4 b) { return !(a == b); }
+		public static bool operator ==(Vector4 a, Vector4 b) { return (a-b).sqrMagnitude <= COMPARE_EPSILON; }
+		public static bool operator !=(Vector4 a, Vector4 b) { return !(a == b); }
 
 		public static implicit operator Vector4(Vector3 v) { return new Vector4(v.x, v.y, v.z, 0f); }
 		public static implicit operator Vector3(Vector4 v) { return new Vector3(v.x, v.y, v.z); }
@@ -776,7 +776,27 @@ namespace Ex.Utils {
 				&& point.y <= max.y && point.y >= min.y
 				&& point.z <= max.z && point.z >= min.z;
 		}
-
+		public bool Intersects(Ray r) {
+			Vector3 min = this.min; Vector3 max = this.max;
+			Vector3 inv = 1f / r.dir;
+			float tmin = -Infinity; 
+			float tmax = Infinity;
+			
+			float x1 = (min.x - r.origin.x) * inv.x;
+			float x2 = (max.x - r.origin.x) * inv.x;
+			tmin = Max(tmin, Min(x1, x2));
+			tmax = Min(tmax, Max(x1, x2));
+			float y1 = (min.y - r.origin.y) * inv.y;
+			float y2 = (max.y - r.origin.y) * inv.y;
+			tmin = Max(tmin, Min(y1, y2));
+			tmax = Min(tmax, Max(y1, y2));
+			float z1 = (min.z - r.origin.z) * inv.z;
+			float z2 = (max.z - r.origin.z) * inv.z;
+			tmin = Max(tmin, Min(z1, z2));
+			tmax = Min(tmax, Max(z1, z2));
+			
+			return tmax >= tmin;
+		}
 	}
 	#endregion
 

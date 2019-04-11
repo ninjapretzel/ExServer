@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Concurrent;
+using Ex.Utils;
 
 namespace Ex {
 
@@ -33,6 +34,10 @@ namespace Ex {
 				SelfTest();
 
 				JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
+
+				//Ray r = new Ray(new Vector3(0,0,0), new Vector3(0,.05f,1));
+				//Bounds b = new Bounds(new Vector3(0, 0, 10), Vector3.one);
+				//Console.WriteLine(b.Intersects(r));
 
 				ActualProgram();
 				

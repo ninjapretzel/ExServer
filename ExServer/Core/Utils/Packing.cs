@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using BakaTest;
 
 namespace Ex.Utils {
 
@@ -33,7 +34,7 @@ namespace Ex.Utils {
 		public static bool Base64<T>(string encoded, out T ret) where T : struct {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
-				ret = Unsafe.FromBytes<T>(bytes);
+				Unsafe.FromBytes(bytes, out ret);
 				return true;
 			} catch (Exception) {
 				ret = default(T);
@@ -42,9 +43,9 @@ namespace Ex.Utils {
 		}
 
 		/// <summary> Unpack Base 64 </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="encoded"></param>
-		/// <returns></returns>
+		/// <typeparam name="T"> Generic type to unpack </typeparam>
+		/// <param name="encoded"> Encoded Base64 string </param>
+		/// <returns> Unpacked data, or default value if anything failed (data size mismatch). </returns>
 		public static T Base64<T>(string encoded) where T : struct {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
@@ -55,4 +56,29 @@ namespace Ex.Utils {
 		}
 
 	}
+
+	public static class PackUnpack_Tests {
+		public static void TestEncodeDecode() {
+
+			{
+				Vector3 v = new Vector3(123,456,789);
+				string encoded = Pack.Base64(v);
+				if (BitConverter.IsLittleEndian) {
+					encoded.ShouldBe("AAD2QgAA5EMAQEVE");
+				} else {
+					encoded.ShouldBe("QvYAAEPkAABERUAA");
+				}
+				Vector3 decoded = Unpack.Base64<Vector3>(encoded);
+				decoded.ShouldBe<Vector3>(new Vector3(123, 456, 789));
+				decoded.ShouldEqual(new Vector3(123, 456, 789));
+
+				decoded = default(Vector3);
+				Unpack.Base64(encoded, out decoded);
+				decoded.ShouldBe<Vector3>(new Vector3(123,456,789));
+				decoded.ShouldEqual(new Vector3(123, 456, 789));
+			}
+
+		}
+	}
+
 }

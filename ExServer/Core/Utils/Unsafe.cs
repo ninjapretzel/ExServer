@@ -55,10 +55,13 @@ namespace Ex{
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe T FromBytes<T>(byte[] source) where T : struct {
 			int sizeOfT = StructInfo<T>.size;
+			if (sizeOfT != source.Length) { 
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size."); 
+			}
 
 			T result = default(T);
 			TypedReference resultRef = __makeref(result);
-			// has exactly the same idea behind it as the similar line in the above method- 
+			// has exactly the same idea behind it as the similar line in the ToBytes method- 
 			// we're getting the pointer to result.
 			byte* resultPtr = (byte*)*((IntPtr*)&resultRef);
 
@@ -69,6 +72,28 @@ namespace Ex{
 			return result;
 		}
 
+		/// <summary>Converts a byte[] back into a struct.</summary>
+		/// <typeparam name="T">Generic type</typeparam>
+		/// <param name="source">Data source</param>
+		/// <returns>Object of type T assembled from bytes in source</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : struct {
+			int sizeOfT = StructInfo<T>.size;
+			if (sizeOfT != source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
+			}
+
+			T result = default(T);
+			TypedReference resultRef = __makeref(result);
+			// has exactly the same idea behind it as the similar line in the ToBytes method- 
+			// we're getting the pointer to result.
+			byte* resultPtr = (byte*)*((IntPtr*)&resultRef);
+
+			for (int i = 0; i < sizeOfT; ++i) {
+				resultPtr[i] = source[i];
+			}
+			ret = result;
+		}
 
 		/// <summary>Helper class for generic SizeOf&lt;T&gt; method</summary>
 		/// <typeparam name="T"></typeparam>
@@ -120,6 +145,7 @@ namespace Ex{
 					
 #if !USE_ARRAY
 					Two<T> two = Two<T>.instance;
+					// static refs to structs should not need to be pinned...
 					TypedReference ref0 = __makeref(two.first);
 					TypedReference ref1 = __makeref(two.second);
 					
@@ -184,7 +210,13 @@ namespace Ex{
 			{
 				TestBlah zero1 = new TestBlah() { a = 0, b = 0, c = 0 };
 				Vector3 zero2 = Unsafe.Reinterpret<TestBlah, Vector3>(zero1);
-				zero2.Equals(Vector3.zero).ShouldBeTrue();
+				zero2.ShouldBe<Vector3>(Vector3.zero);
+				zero2.ShouldEqual(Vector3.zero);
+
+				TestBlah yeet = new TestBlah() { a = 123, b = 456, c = 789 };
+				Vector3 yeah = Unsafe.Reinterpret<TestBlah, Vector3>(yeet);
+				yeah.ShouldBe<Vector3>(new Vector3(123,456,789));
+				yeah.ShouldEqual(new Vector3(123,456,789));
 			}
 
 			{
@@ -294,12 +326,35 @@ namespace Ex{
 					Reverse(expected, 4, 8);
 					Reverse(expected, 8, 12);
 				}
+				bytes.ShouldBeSame(expected);
+				
 				var a = new Vector3(123, 456, 789);
 				var b = new Vector3(123, 456, 789);
-				Console.WriteLine("hee haw " + (a - b).sqrMagnitude);
 				Unsafe.FromBytes<Vector3>(bytes).ShouldEqual(new Vector3(123, 456, 789));
 				Unsafe.FromBytes<Vector3>(bytes).ShouldBe<Vector3>(new Vector3(123, 456, 789));
 				Unsafe.FromBytes<TestBlah>(bytes).ShouldEqual(new TestBlah() { a=123, b=456, c=789 });
+
+				Vector3 vout;
+				Unsafe.FromBytes(bytes, out vout);
+				vout.ShouldEqual(new Vector3(123, 456, 789));
+				vout.ShouldBe<Vector3>(new Vector3(123, 456, 789));
+				
+				TestBlah tbout;
+				Unsafe.FromBytes(bytes, out tbout);
+				tbout.ShouldEqual(new TestBlah() { a=123, b=456, c=789 });
+			}
+		}
+
+		public static void TestFromBytesShouldThrow() {
+			{
+				byte[] bytes = new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+				Exception e = null;
+				try {
+					float f;
+					Unsafe.FromBytes(bytes, out f);
+				} catch (Exception ee) { e = ee; }
+
+				e.ShouldNotBe(null);
 			}
 		}
 

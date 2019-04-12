@@ -100,6 +100,8 @@ namespace Ex{
 		private static class ArrayOfTwoElements<T> { 
 			public static readonly T[] Value = new T[2];
 		}
+		/// <summary>Helper class for generic SizeOf&lt;T&gt; method</summary>
+		/// <typeparam name="T"></typeparam>
 		[StructLayout(LayoutKind.Sequential, Pack=1)]
 		private struct Two<T> {
 			public T first, second;
@@ -110,7 +112,7 @@ namespace Ex{
 		/// <typeparam name="T">Type to check size of</typeparam>
 		/// <returns>Size of the type passed, in bytes. Returns the pointer size for </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int SizeOf<T>() where T : struct {
+		internal static int SizeOf<T>() where T : struct {
 			Type type = typeof(T);
 
 			TypeCode typeCode = Type.GetTypeCode(type);

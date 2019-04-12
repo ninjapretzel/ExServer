@@ -230,15 +230,18 @@ namespace Ex {
 
 		/// <summary> Creates an Update thread bound to the lifetime of the server, or until the inner code wants to stop.  </summary>
 		/// <param name="body"> Body of code to execute, expected to return true until it wants to stop </param>
+		/// <param name="rate"> Milliseconds to wait between loops </param>
 		/// <param name="priority"> Priority to give to the created thread </param>
+		/// /// <param name="stopOnError"> If an error occurs internal to the function, should it terminate the thread? </param>
 		/// <returns> Thread object looping the given code body. </returns>
-		public Thread CreateUpdateThread(Func<bool> body, ThreadPriority priority = ThreadPriority.Normal) {
-			return StartThread(Loop(body), priority);
+		public Thread CreateUpdateThread(Func<bool> body, int rate = 100, bool stopOnError = false, ThreadPriority priority = ThreadPriority.Normal) {
+			return StartThread(Loop(body, rate, stopOnError), priority);
 		}
 
 		/// <summary> Creates a thread that loops a specific body, at a specific rate.</summary>
 		/// <param name="body"> code to execute, returns true each cycle to continue, and false if it wants to stop itself. </param>
 		/// <param name="rate"> Milliseconds to wait between loops </param>
+		/// <param name="stopOnError"> If an error occurs internal to the function, should it terminate the thread? </param>
 		/// <returns> ThreadStart delegate wrapping body/rate parameters. </returns>
 		public ThreadStart Loop(Func<bool> body, int rate = 100, bool stopOnError = false) {
 			// We are implicitly capturing function params, but,

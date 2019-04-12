@@ -163,6 +163,11 @@ namespace BakaTest {
 		/// Checks two objects for equality, using a specific == operator, 
 		/// defined in the class of <paramref name="T"/>, between Two <paramref name="T"/>s
 		/// </summary>
+		/// <remarks> 
+		/// Parameters are deliberately objects and, generic type is deliberately required, 
+		/// when it could be inferred, as not all custom types have valid == methods, most value types do not.
+		/// This shares a name with other ShouldBe methods.
+		/// </remarks>
 		/// <typeparam name="T"> First type (expected of <paramref name="obj"/>) </typeparam>
 		/// <param name="obj"> First object for comparison. Should be of type <paramref name="T"/> </param>
 		/// <param name="other"> Second object for comparison. </param>
@@ -188,6 +193,11 @@ namespace BakaTest {
 		/// defined in the class of <paramref name="T"/>, 
 		/// between a <paramref name="T"/> and a <paramref name="T2"/>
 		/// </summary>
+		/// <remarks> 
+		/// Parameters are deliberately objects and, generic types are deliberately required, 
+		/// when they could be inferred, as not all custom types have valid == methods, most value types do not.
+		/// This shares a name with other ShouldBe methods.
+		/// </remarks>
 		/// <typeparam name="T"> First type (expected of <paramref name="obj"/>) </typeparam>
 		/// <typeparam name="T2"> Second type (expected of <paramref name="other"/>) </typeparam>
 		/// <param name="obj"> First object for comparison. Should be of type <paramref name="T"/> </param>

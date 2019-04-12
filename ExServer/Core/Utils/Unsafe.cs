@@ -178,13 +178,129 @@ namespace Ex{
 	public class Unsafe_Tests {
 
 		public struct TestBlah { public float a,b,c; }
+		public struct FourBytes { public byte a,b,c,d; }
 
 		public static void TestReinterpret() {
-			TestBlah zero1 = new TestBlah() { a = 0, b = 0, c = 0 };
-			Vector3 zero2 = Unsafe.Reinterpret<TestBlah, Vector3>(zero1);
+			{
+				TestBlah zero1 = new TestBlah() { a = 0, b = 0, c = 0 };
+				Vector3 zero2 = Unsafe.Reinterpret<TestBlah, Vector3>(zero1);
+				zero2.Equals(Vector3.zero).ShouldBeTrue();
+			}
 
-			zero2.Equals(Vector3.zero).ShouldBeTrue();
-			
+			{
+				int IEEEonePointOh = 0x3F80_0000;
+				float onePointOhEff = 1.0f;
+				int IEEEthreePointFive = 0x4060_0000;
+				float threePointFiveEff = 3.5f;
+
+				Unsafe.Reinterpret<int, float>(IEEEonePointOh).ShouldBe(1.0f);
+				Unsafe.Reinterpret<int, float>(IEEEthreePointFive).ShouldBe(3.5f);
+				Unsafe.Reinterpret<float, int>(onePointOhEff).ShouldBe(0x3F80_0000);
+				Unsafe.Reinterpret<float, int>(threePointFiveEff).ShouldBe(0x4060_0000);
+			}
+
+			{
+				int it = (unchecked( (int) 0xDEADBEEF ));
+				FourBytes f = Unsafe.Reinterpret<int, FourBytes>(it);
+				if (!BitConverter.IsLittleEndian) {
+					f.a.ShouldBe(0xDE); f.b.ShouldBe(0xAD); f.c.ShouldBe(0xBE); f.d.ShouldBe(0xEF);
+				} else {
+					f.d.ShouldBe(0xDE); f.c.ShouldBe(0xAD); f.b.ShouldBe(0xBE); f.a.ShouldBe(0xEF);
+				}
+			}
+		}
+		
+		public static void TestSizeOf() {
+			// Most of these should not change per platform, unless .net fundamentally changes...
+			// Haha, cool, they also line up, I didn't even know they would!
+			//Unsafe.SizeOf<int>().ShouldBe(4); 
+			//StructInfo<int>.size.ShouldBe(4);
+
+			Unsafe.SizeOf<byte>().ShouldBe(1);  // DUURRRR
+			StructInfo<byte>.size.ShouldBe(1);
+			Unsafe.SizeOf<sbyte>().ShouldBe(1);  
+			StructInfo<sbyte>.size.ShouldBe(1); 
+			Unsafe.SizeOf<bool>().ShouldBe(1);  
+			StructInfo<bool>.size.ShouldBe(1); 
+
+			Unsafe.SizeOf<short>().ShouldBe(2);  
+			StructInfo<short>.size.ShouldBe(2);
+			Unsafe.SizeOf<ushort>().ShouldBe(2);
+			StructInfo<ushort>.size.ShouldBe(2);
+			Unsafe.SizeOf<char>().ShouldBe(2);  // Yes, seriously. char is a short (Unicode-16 endpoint)
+			StructInfo<char>.size.ShouldBe(2);
+
+			Unsafe.SizeOf<int>().ShouldBe(4); 
+			StructInfo<int>.size.ShouldBe(4);
+			Unsafe.SizeOf<uint>().ShouldBe(4); 
+			StructInfo<uint>.size.ShouldBe(4);
+			Unsafe.SizeOf<float>().ShouldBe(4); 
+			StructInfo<float>.size.ShouldBe(4);
+
+			Unsafe.SizeOf<long>().ShouldBe(8);
+			StructInfo<long>.size.ShouldBe(8);
+			Unsafe.SizeOf<ulong>().ShouldBe(8);
+			StructInfo<ulong>.size.ShouldBe(8);
+			Unsafe.SizeOf<double>().ShouldBe(8);
+			StructInfo<double>.size.ShouldBe(8);
+
+			Unsafe.SizeOf<Vector3>().ShouldBe(12);
+			StructInfo<Vector3>.size.ShouldBe(12);
+			Unsafe.SizeOf<Vector3Int>().ShouldBe(12);
+			StructInfo<Vector3Int>.size.ShouldBe(12);
+			Unsafe.SizeOf<TestBlah>().ShouldBe(12);
+			StructInfo<TestBlah>.size.ShouldBe(12);
+			Unsafe.SizeOf<FourBytes>().ShouldBe(4);
+			StructInfo<FourBytes>.size.ShouldBe(4);
+		}
+
+		public static void Reverse(byte[] bytes) {
+			Reverse(bytes, 0, bytes.Length);
+		}
+		public static void Reverse(byte[] bytes, int start, int end) {
+			int len = end-start;
+			for (int i = 0; i < len / 2; i++) {
+				byte temp = bytes[i+start];
+				bytes[i+start] = bytes[end - 1 - i];
+				bytes[end - 1 - i] = temp;
+			}
+		}
+		
+		public static void TestToFromBytes() {
+			{
+				int i = (unchecked((int)0xDEADBEEF));
+
+				byte[] bytes = Unsafe.ToBytes(i);
+				byte[] expected = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+				bytes.Length.ShouldBe(4);
+				if (BitConverter.IsLittleEndian) { Reverse(expected); } 
+				bytes.ShouldBeSame(expected);
+
+				Unsafe.FromBytes<int>(bytes).ShouldBe((unchecked((int)0xDEADBEEF)));
+				Unsafe.FromBytes<float>(bytes).ShouldBe(-6.2598534E18f);
+			}
+			{
+				Vector3 v = new Vector3(123,456,789);
+				// 0x42F60000, 0x43E40000, 0x44454000
+				byte[] bytes = Unsafe.ToBytes(v);
+				byte[] expected = new byte[] {
+					0x42, 0xF6, 0x00, 0x00,
+					0x43, 0xE4, 0x00, 0x00,
+					0x44, 0x45, 0x40, 0x00
+				};
+				bytes.Length.ShouldBe(12);
+				if (BitConverter.IsLittleEndian) {
+					Reverse(expected, 0, 4);
+					Reverse(expected, 4, 8);
+					Reverse(expected, 8, 12);
+				}
+				var a = new Vector3(123, 456, 789);
+				var b = new Vector3(123, 456, 789);
+				Console.WriteLine("hee haw " + (a - b).sqrMagnitude);
+				Unsafe.FromBytes<Vector3>(bytes).ShouldEqual(new Vector3(123, 456, 789));
+				Unsafe.FromBytes<Vector3>(bytes).ShouldBe<Vector3>(new Vector3(123, 456, 789));
+				Unsafe.FromBytes<TestBlah>(bytes).ShouldEqual(new TestBlah() { a=123, b=456, c=789 });
+			}
 		}
 
 	}

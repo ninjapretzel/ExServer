@@ -1,24 +1,28 @@
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
 namespace Ex.Utils {
-	/// <summary> Utility class for time span profiling data collection. </summary>
+
+	/// <summary> Utility class for profiling data collection. </summary>
 	public class Trender {
 
 		private int at;
 		private int recorded;
 		private double[] record;
+		private bool dirty = false;
 
 		private double _average;
+		/// <summary> Reports the average value, recalculated if needed. </summary>
 		public double average { get { if (dirty) { Recalc(); } return _average; } }
 
 		private double _max;
+		/// <summary> Reports the maximum value, recalculated if needed. </summary>
 		public double max { get { if (dirty) { Recalc(); } return _max; } }
 		private double _min;
+		/// <summary> Reports the minimum value, recalculated if needed. </summary>
 		public double min { get { if (dirty) { Recalc(); } return _min; } }
 
-		private bool dirty = false;
 
 		public Trender(int size = 33) {
 			record = new double[size];
@@ -28,6 +32,8 @@ namespace Ex.Utils {
 			_max = double.MinValue;
 		}
 
+		/// <summary> Records an entry into the trender </summary>
+		/// <param name="data"> Data value to record </param>
 		public void Record(double data) {
 			dirty = true;
 			record[at] = data;

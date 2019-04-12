@@ -9,11 +9,21 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using BakaTest;
+using Ex.Utils;
 
 namespace Ex{
+
+	/// <summary> Static generic template-like class to cache information about structs </summary>
+	/// <typeparam name="T"></typeparam>
+	public static class StructInfo<T> where T : struct {
+		public static int size = Unsafe.SizeOf<T>();
+	}
+
 	/// <summary> 
 	/// Not your safe-space. 
 	/// Primary place for putting methods that need to make use of unsafe blocks of code.
+	/// Modified code from http://benbowen.blog/post/fun_with_makeref/
 	/// </summary>
 	public static class Unsafe {
 		/// <summary>Extracts the bytes from a generic value type.</summary>
@@ -44,7 +54,7 @@ namespace Ex{
 		/// <returns>Object of type T assembled from bytes in source</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe T FromBytes<T>(byte[] source) where T : struct {
-			int sizeOfT = Marshal.SizeOf<T>();
+			int sizeOfT = StructInfo<T>.size;
 
 			T result = default(T);
 			TypedReference resultRef = __makeref(result);
@@ -62,13 +72,13 @@ namespace Ex{
 
 		/// <summary>Helper class for generic SizeOf&lt;T&gt; method</summary>
 		/// <typeparam name="T"></typeparam>
-		public static class ArrayOfTwoElements<T> { 
+		private static class ArrayOfTwoElements<T> { 
 			public static readonly T[] Value = new T[2];
 		}
-		/// <summary> Static generic template-like class to cache information about structs </summary>
-		/// <typeparam name="T"></typeparam>
-		public static class StructInfo<T> where T : struct {
-			public static int size = SizeOf<T>();
+		[StructLayout(LayoutKind.Sequential, Pack=1)]
+		private struct Two<T> {
+			public T first, second;
+			public static readonly Two<T> instance = default(Two<T>);
 		}
 
 		/// <summary> Generic, runtime sizeof() for value types </summary>
@@ -76,18 +86,61 @@ namespace Ex{
 		/// <returns>Size of the type passed, in bytes. Returns the pointer size for </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static int SizeOf<T>() where T : struct {
-			unsafe {
-				T[] array = ArrayOfTwoElements<T>.Value;
-				GCHandle pin = GCHandle.Alloc(array, GCHandleType.Pinned);
-				try {
-					var ref1 = __makeref(array[0]);
-					var ref2 = __makeref(array[1]);
+			Type type = typeof(T);
 
-					IntPtr ptr1 = *((IntPtr*)&ref1);
-					IntPtr ptr2 = *((IntPtr*)&ref2);
+			TypeCode typeCode = Type.GetTypeCode(type);
+			switch (typeCode) {
+				case TypeCode.Boolean:
+					return sizeof(bool);
+				case TypeCode.Char:
+					return sizeof(char);
+				case TypeCode.SByte:
+					return sizeof(sbyte);
+				case TypeCode.Byte:
+					return sizeof(byte);
+				case TypeCode.Int16:
+					return sizeof(short);
+				case TypeCode.UInt16:
+					return sizeof(ushort);
+				case TypeCode.Int32:
+					return sizeof(int);
+				case TypeCode.UInt32:
+					return sizeof(uint);
+				case TypeCode.Int64:
+					return sizeof(long);
+				case TypeCode.UInt64:
+					return sizeof(ulong);
+				case TypeCode.Single:
+					return sizeof(float);
+				case TypeCode.Double:
+					return sizeof(double);
+				case TypeCode.Decimal:
+					return sizeof(decimal);
+				default: unsafe {
+					
+#if !USE_ARRAY
+					Two<T> two = Two<T>.instance;
+					TypedReference ref0 = __makeref(two.first);
+					TypedReference ref1 = __makeref(two.second);
+					
+					IntPtr p0 = *((IntPtr*)&ref0);
+					IntPtr p1 = *((IntPtr*)&ref1);
+					
+					return (int)(((byte*)p1) - ((byte*)p0));
+#else
+					T[] array = ArrayOfTwoElements<T>.Value;
+					GCHandle pin = GCHandle.Alloc(array, GCHandleType.Pinned);
+					try {
+						var ref1 = __makeref(array[0]);
+						var ref2 = __makeref(array[1]);
 
-					return (int)(((byte*)ptr2) - ((byte*)ptr1));
-				} finally { pin.Free(); }
+						IntPtr ptr1 = *((IntPtr*)&ref1);
+						IntPtr ptr2 = *((IntPtr*)&ref2);
+
+						return (int)(((byte*)ptr2) - ((byte*)ptr1));
+					} finally { pin.Free(); }
+#endif
+				}
 			}
 		}
 
@@ -117,11 +170,23 @@ namespace Ex{
 			}
 
 			return result;
-			
 		}
 
 
+	}
+	
+	public class Unsafe_Tests {
 
+		public struct TestBlah { public float a,b,c; }
+
+		public static void TestReinterpret() {
+			TestBlah zero1 = new TestBlah() { a = 0, b = 0, c = 0 };
+			Vector3 zero2 = Unsafe.Reinterpret<TestBlah, Vector3>(zero1);
+
+			zero2.Equals(Vector3.zero).ShouldBeTrue();
+			
+		}
 
 	}
+
 }

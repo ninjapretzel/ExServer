@@ -16,6 +16,7 @@ namespace Ex.Utils {
 		/// <typeparam name="T"> Generic type of parameter </typeparam>
 		/// <param name="value"> Parameter to pack </param>
 		/// <returns> Base64 from converting struct into byte[], then encoding byte array </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string Base64<T>(T value) where T : struct {
 			byte[] copy = Unsafe.ToBytes(value);
 			return Convert.ToBase64String(copy);
@@ -25,12 +26,13 @@ namespace Ex.Utils {
 
 	/// <summary> Class holding code for unpacking structs </summary>
 	public static class Unpack {
-		
+
 		/// <summary> Unpack Base64 encoded struct into a struct by output parameter </summary>
 		/// <typeparam name="T"> Generic type of parameter to unpack </typeparam>
 		/// <param name="encoded"> Encoded Base64 string </param>
 		/// <param name="ret"> Return location </param>
 		/// <returns> True if successful, false if failure, and sets ret to the resulting unpacked data, or default, respectively.  </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static bool Base64<T>(string encoded, out T ret) where T : struct {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
@@ -46,6 +48,7 @@ namespace Ex.Utils {
 		/// <typeparam name="T"> Generic type to unpack </typeparam>
 		/// <param name="encoded"> Encoded Base64 string </param>
 		/// <returns> Unpacked data, or default value if anything failed (data size mismatch). </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static T Base64<T>(string encoded) where T : struct {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);

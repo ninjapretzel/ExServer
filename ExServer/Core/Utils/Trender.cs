@@ -1,0 +1,67 @@
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+namespace Ex.Utils {
+	/// <summary> Utility class for time span profiling data collection. </summary>
+	public class Trender {
+
+		private int at;
+		private int recorded;
+		private double[] record;
+
+		private double _average;
+		public double average { get { if (dirty) { Recalc(); } return _average; } }
+
+		private double _max;
+		public double max { get { if (dirty) { Recalc(); } return _max; } }
+		private double _min;
+		public double min { get { if (dirty) { Recalc(); } return _min; } }
+
+		private bool dirty = false;
+
+		public Trender(int size = 33) {
+			record = new double[size];
+			at = 0;
+			recorded = 0;
+			_min = double.MaxValue;
+			_max = double.MinValue;
+		}
+
+		public void Record(double data) {
+			dirty = true;
+			record[at] = data;
+			at = (at + 1) % record.Length;
+			recorded++;
+		}
+
+		private void Recalc() {
+			double total = 0;
+			int cnt = 0;
+			_min = double.MaxValue;
+			_max = double.MinValue;
+			for (int i = 0; i < record.Length; i++) {
+				if (i >= recorded) { break; }
+				double data = record[i];
+				total += data;
+				cnt++;
+				if (data < _min) { _min = data; }
+				if (data > _max) { _max = data; }
+			}
+			if (cnt > 0) {
+				_average = total / (0.0 + cnt);
+			} else {
+				_average = -1;
+			}
+
+
+			dirty = false;
+		}
+
+		public override string ToString() {
+			if (dirty) { Recalc(); }
+			return string.Format("Average({0:0.000}) Range({1:0.000}, {2:0.000})", average, min, max);
+		}
+
+	}
+}

@@ -76,9 +76,12 @@
     <Compile Include="Core\Services\DBService.cs" />
     <Compile Include="Core\Services\DebugService.cs" />
     <Compile Include="Core\Services\LoginService.cs" />
-    <Compile Include="Core\Services\MapService.cs" />
+    <Compile Include="Core\Services\MapService\Cell.cs" />
+    <Compile Include="Core\Services\MapService\MapService.cs" />
     <Compile Include="Core\Services\SyncService.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
+    <Compile Include="Core\Utils\Packing.cs" />
+    <Compile Include="Core\Utils\Trender.cs" />
     <Compile Include="Core\Utils\Unsafe.cs" />
     <Compile Include="Core\Utils\Vectors.cs" />
     <Compile Include="Core\VersionInfo.cs" />

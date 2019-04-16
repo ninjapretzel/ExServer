@@ -2,6 +2,39 @@
 ##### aka Blog (Confused? Go read XKCD at https://xkcd.com/)
 
 ## ==>
+### 2019/04/11 thru 2019/04/16
+Been rewriting my map/entity code, and ran into a number of decision snags.
+
+##### Events/Messaging
+How should I send events between services? Eg, the LoginService being able to send a LoginSuccess event to any other service, any which may or may not recieve the event. I played with some ideas, like explicitly sending events to specific services, but figured that might not always be a good idea. Eventually came to a solution where services can call a generic `On<T>(T val)` function, and the service looks for and caches references to methods. This allows events to have nice names, that LoginSuccess event could have a definition like
+```
+public struct LoginSuccess {
+	public Client client { get; private set; }
+	public LoginSuccess(Client client) { this.client = client; }
+}
+```
+And, even with it being a struct, a call like `server.On(new LoginSuccess(client))` can be fired and have no boxing/unboxing penalties, and caching a `Delegate` helps keep calls fast.
+
+##### Entity Component System 
+A trend that has been well established for some time for game engines, but not really for software. This is a pretty useful design pattern for anything that has real-time needs, and the pattern itself is flexible enough for there to be a multitude of interpretations.
+
+The short of it is:
+- An *Entity* is just some sort of identifier.
+- A *Component* tracks data for an *Entity*.
+- A *System* Iterates some set of *Component*s, and updates them
+
+See http://t-machine.org/index.php/2007/11/11/entity-systems-are-the-future-of-mmog-development-part-2/
+and other blogposts there if you are interested for more.
+
+It is kind of like the Model-View-Controller pattern, except it attacks the core of the problem, and actually keeps interests separated. The multitude of interpretations that are out there are slightly different. Some use `Guid`s as entities, others use an array index and version number. Some do not allow any logic in Components, some allow certain logic. Some use a lock-and-key analogy to decide what `Entity`s are updated by a `System`, others have every system update every Entity with a specific component. 
+
+This is the biggest chunk of work, and unfortunately I can't really commit any of it until it is all working...
+so far, though, it all seems to be coming together nicely, I have implemented a lot of the disparate parts of the systems, but can't realy test the server code until everything is in place. 
+
+I am putting the requisite amount of thought into the building of each piece to make each thing work in tandem with the others, instead of just throwing stuff down and forcing everything to work.
+
+
+## ==>
 ### 2019/04/07 thru 2019/04/10
 Ported a bunch of math/vector code from unity into a single file to have parity with Unity's Mathf/Vector and other structs. Not much to say about that, lots of repetitive code to handle simple stuff. Ready to start actually building the entity/map system now, I think.
 

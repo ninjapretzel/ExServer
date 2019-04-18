@@ -201,17 +201,24 @@ namespace Ex {
 			client.Close();
 		}
 
+		/// <summary> Called to send an internal event message for any service to act on </summary>
+		/// <typeparam name="T"> Generic type of message to send </typeparam>
+		/// <param name="val"> Value to send as message </param>
 		public void On<T>(T val) {
 			doLater.Enqueue(() => DoLater(val));
 		}
 
+		/// <summary> Passes a message to all services </summary>
+		/// <typeparam name="T"> Generic type of event message </typeparam>
+		/// <param name="val"> Event message </param>
 		private void DoLater<T>(T val) {
 			foreach (var service in services.Values) {
 				service.DoOn(val);
 			}
 		}
 
-		public void OnLater() {
+		/// <summary> Handles internal events, called every global tick after handling RPC messages. </summary>
+		private void HandleInternalEvents() {
 			Action action; 
 			while (doLater.TryDequeue(out action)) {
 				try {
@@ -255,7 +262,7 @@ namespace Ex {
 						HandleMessage(msg);
 					}
 
-					OnLater();
+					HandleInternalEvents();
 
 				}
 				catch (Exception e) {

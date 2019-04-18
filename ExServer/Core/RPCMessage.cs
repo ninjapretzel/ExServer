@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Ex {
 
-	public class Message {
+	public class RPCMessage {
 		/// <summary>Separator character to separate segments of transmissions</summary>
 		public const char SEPARATOR = (char)0x07; // 'Bell'
 												  /// <summary> End Of Transmission </summary>
@@ -40,15 +40,15 @@ namespace Ex {
 
 		/// <summary> Constructs a message around the given string array. </summary>
 		/// <param name="prams"> </param>
-		public Message(Client client, params string[] prams) {
+		public RPCMessage(Client client, params string[] prams) {
 			sender = client;
 			if (content.Length >= FIXED_SIZE) {
 				content = prams;
 			} else {
-				throw new Exception($"Message: Required parameters not provided. Must be {FIXED_SIZE} or more, was provided {prams.Length}.");
+				throw new Exception($"{nameof(RPCMessage)}: Required parameters not provided. Must be {FIXED_SIZE} or more, was provided {prams.Length}.");
 			}
 		}
-		public Message(Client client, string str) {
+		public RPCMessage(Client client, string str) {
 			sender = client;
 			rawMessage = str;
 			recievedAt = DateTime.Now;
@@ -59,7 +59,7 @@ namespace Ex {
 		/// <summary> Delegate type used to search for messages to invoke from network messages </summary>
 		/// <param name="Client"> Client whomst'd've sent the message </param>
 		/// <param name="message"> Message that was sent </param>
-		public delegate void Handler(Message message);
+		public delegate void Handler(RPCMessage message);
 	}
 
 }

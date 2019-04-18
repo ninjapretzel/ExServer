@@ -25,7 +25,7 @@ namespace Ex {
 		}
 
 		/// <summary> RPC sent by a client when it explicitly disconnects. </summary>
-		public void Closed(Message msg) {
+		public void Closed(RPCMessage msg) {
 			Log.Debug($"Closing Client {msg.sender.identity} isSlave?{msg.sender.isSlave}");
 			if (server.isMaster) {
 				// Single client was closed remotely.
@@ -36,18 +36,18 @@ namespace Ex {
 			}
 		}
 
-		public void Syn(Message msg) {
+		public void Syn(RPCMessage msg) {
 			Log.Verbose($"Syn from {msg.sender.identity}: {msg[0]}");
 			msg.sender.Call(SynAck, msg[0]);
 		}
 
-		public void SynAck(Message msg) {
+		public void SynAck(RPCMessage msg) {
 			Log.Verbose($"SynAck from {msg.sender.identity}: {msg[0]}");
 			msg.sender.Call(Ack, msg[0]);
 		}
 
 
-		public void Ack(Message msg) {
+		public void Ack(RPCMessage msg) {
 			Log.Verbose($"Ack from {msg.sender.identity}: {msg[0]}");
 
 

@@ -29,7 +29,7 @@ namespace Ex{
 			Log.Verbose($"Disconnected {client.identity}");
 		}
 
-		public void Ping(Message msg) {
+		public void Ping(RPCMessage msg) {
 			Log.Verbose($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
@@ -39,7 +39,7 @@ namespace Ex{
 			// sender.Call(Members<DebugService>.i.Pong);
 
 		}
-		public void Pong(Message msg) {
+		public void Pong(RPCMessage msg) {
 
 			Log.Verbose($"Pong'd by {msg.sender.identity}");
 

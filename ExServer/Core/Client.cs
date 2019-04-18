@@ -17,7 +17,7 @@ namespace Ex {
 		public const int DEFAULT_READWRITE_TIMEOUT = 10 * 1000;
 
 		/// <summary> Const array used to send an empty message to 'poke' the connection. </summary>
-		public static readonly byte[] oneByte = { (byte)Message.EOT };
+		public static readonly byte[] oneByte = { (byte)RPCMessage.EOT };
 		#endregion
 
 		#region Fields and Properties
@@ -95,7 +95,7 @@ namespace Ex {
 		/// <summary> Sends a message to remotely call a function handler on the client. </summary>
 		/// <param name="callback"> Handler to call </param>
 		/// <param name="stuff"> parameters to send into call </param>
-		public void Call(Message.Handler callback, params System.Object[] stuff) {
+		public void Call(RPCMessage.Handler callback, params System.Object[] stuff) {
 			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
 			string msg = FormatCall(callback, stuff);
 			outgoing.Enqueue(msg);
@@ -116,17 +116,17 @@ namespace Ex {
 		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
 		/// <param name="stuff"> Array of parameters to format. </param>
 		/// <returns> String of all objects in <paramref name="stuff"/> formatted to be sent over the network. </returns>
-		public static string FormatCall(Message.Handler callback, params System.Object[] stuff) {
+		public static string FormatCall(RPCMessage.Handler callback, params System.Object[] stuff) {
 			string methodName = callback.Method.Name;
 			string typeName = callback.Method.DeclaringType.ShortName();
 			string msg;
 			if (stuff.Length > 0) {
 				string[] strs = new string[stuff.Length];
 				for (int i = 0; i < strs.Length; i++) { strs[i] = stuff[i].ToString(); }
-				string rest = String.Join("" + Message.SEPARATOR, strs);
-				msg = String.Join("" + Message.SEPARATOR, typeName, methodName, rest);
+				string rest = String.Join("" + RPCMessage.SEPARATOR, strs);
+				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName, rest);
 			} else {
-				msg = String.Join("" + Message.SEPARATOR, typeName, methodName);
+				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName);
 			}
 			return msg;
 		}
@@ -137,7 +137,7 @@ namespace Ex {
 		public static string FormatMessage(params System.Object[] stuff) {
 			string[] strs = new string[stuff.Length];
 			for (int i = 0; i < strs.Length; i++) { strs[i] = stuff[i].ToString(); }
-			string msg = String.Join("" + Message.SEPARATOR, strs);
+			string msg = String.Join("" + RPCMessage.SEPARATOR, strs);
 			return msg;
 		}
 

@@ -56,7 +56,7 @@ namespace Ex {
 
 		/// <summary> RPC, Client->Server, subscribes client to given sets of data. </summary>
 		/// <param name="msg"> RPC Message info. </param>
-		public void Subscribe(Message msg) {
+		public void Subscribe(RPCMessage msg) {
 			string target = msg[0];
 			SyncData context = Context(target);
 
@@ -69,7 +69,7 @@ namespace Ex {
 			}
 		}
 
-		public void Unsubscribe(Message msg) {
+		public void Unsubscribe(RPCMessage msg) {
 			string target = msg[0];
 			SyncData context = Context(target);
 
@@ -85,7 +85,7 @@ namespace Ex {
 
 		/// <summary> RPC, Server->Client. Applies JsonData recieved over the wire. </summary>
 		/// <param name="msg"> RPC Message info. </param>
-		public void SyncJson(Message msg) {
+		public void SyncJson(RPCMessage msg) {
 			string target = msg[0];
 			SyncData context = Context(target);
 			Client c = msg.sender;
@@ -102,7 +102,7 @@ namespace Ex {
 
 		/// <summary> RPC, Server->Client. Clears the given sets of data from the local data set. </summary>
 		/// <param name="msg"> RPC Message info. </param>
-		public void ClearJson(Message msg) {
+		public void ClearJson(RPCMessage msg) {
 			string target = msg[0];
 			SyncData context = Context(target);
 			Client c = msg.sender;
@@ -119,7 +119,7 @@ namespace Ex {
 
 		/// <summary> RPC, Server->Client. Clears all datas from the local data set. </summary>
 		/// <param name="msg"> RPC Message Info </param>
-		public void ClearAllJson(Message msg) {
+		public void ClearAllJson(RPCMessage msg) {
 			string target = msg[0];
 			SyncData context = Context(target);
 			Client c = msg.sender;

@@ -6,10 +6,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 #if !UNITY
 using static Ex.Utils.Mathf;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace Ex.Utils {
 	#region Mathf
@@ -139,6 +142,7 @@ namespace Ex.Utils {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	#region Vector2
 	/// <summary> Surrogate class, similar to UnityEngine.Vector2 </summary>
+	[System.Serializable]
 	public struct Vector2 {
 		public static Vector2 zero { get { return new Vector2(0, 0); } }
 		public static Vector2 one { get { return new Vector2(1, 1); } }
@@ -229,6 +233,7 @@ namespace Ex.Utils {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	#region Vector2Int
 	/// <summary> Surrogate class, similar to UnityEngine.Vector2Int </summary>
+	[System.Serializable]
 	public struct Vector2Int : IEquatable<Vector2Int> {
 		public static Vector2Int zero { get { return new Vector2Int(0, 0); } }
 		public static Vector2Int one { get { return new Vector2Int(1, 1); } }
@@ -291,6 +296,7 @@ namespace Ex.Utils {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	#region Vector3
 	/// <summary> Surrogate class, similar to UnityEngine.Vector3 </summary>
+	[System.Serializable]
 	public struct Vector3 {
 		public static Vector3 zero { get { return new Vector3(0, 0, 0); } }
 		public static Vector3 one { get { return new Vector3(1, 1, 1); } }
@@ -389,6 +395,7 @@ namespace Ex.Utils {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	#region Vector3Int
 	/// <summary> Surrogate class, similar to UnityEngine.Vector3Int </summary>
+	[System.Serializable]
 	public struct Vector3Int : IEquatable<Vector3Int> {
 		public static Vector3Int zero { get { return new Vector3Int(0, 0, 0); } }
 		public static Vector3Int one { get { return new Vector3Int(0, 0, 0); } }
@@ -450,10 +457,11 @@ namespace Ex.Utils {
 		public static explicit operator Vector2Int(Vector3Int v) { return new Vector2Int(v.x, v.y); }
 	}
 	#endregion
+	#region Vector4 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
-	#region Vector4 
+	[System.Serializable]
 	public struct Vector4 {
 		public static Vector4 zero { get { return new Vector4(0,0,0,0); } }
 		public static Vector4 one { get { return new Vector4(1,1,1,1); } }
@@ -547,6 +555,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region Rect
+	[System.Serializable]
 	public struct Rect : IEquatable<Rect> {
 		public static Rect zero { get { return new Rect(0, 0, 0, 0); } }
 		public static Rect unit{ get { return new Rect(0, 0, 1f, 1f); } }
@@ -620,6 +629,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region RectInt
+	[System.Serializable]
 	public struct RectInt : IEquatable<RectInt> {
 		public int x,y,width,height;
 		public RectInt(int x, int y, int width, int height) { this.x = x; this.y = y; this.width = width; this.height = height; }
@@ -663,6 +673,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region Plane
+	[System.Serializable]
 	public struct Plane { 
 
 		private Vector3 _normal;
@@ -723,6 +734,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region Ray
+	[System.Serializable]
 	public struct Ray {
 		public Vector3 origin, dir;
 		public Ray(Vector3 origin, Vector3 dir) { this.origin = origin; this.dir = dir.normalized; }
@@ -733,6 +745,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region Ray2D
+	[System.Serializable]
 	public struct Ray2D {
 		public Vector2 origin, dir;
 		public Ray2D(Vector2 origin, Vector2 dir) { this.origin = origin; this.dir = dir.normalized; }
@@ -743,6 +756,7 @@ namespace Ex.Utils {
 	}
 	#endregion
 	#region Bounds aka AABB
+	[System.Serializable]
 	public struct Bounds : IEquatable<Bounds> {
 		public Vector3 center, extents;
 
@@ -796,6 +810,279 @@ namespace Ex.Utils {
 			tmax = Min(tmax, Max(z1, z2));
 			
 			return tmax >= tmin;
+		}
+	}
+	#endregion
+
+	#region Serializers and Deserializers
+	/// <summary> Class to easily read/write small vectors of numbers for BSON serialization. Does not write begin/end constructs for tighter packing. </summary>
+	/// <remarks> This may make things more brittle, but should this should not matter, since each of these fundamental types shouldn't be used haphazardly. </remarks>
+	internal static class SerHelper {
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static float ReadFloat(this BsonDeserializationContext ctx) {
+			return (float)ctx.Reader.ReadDouble();
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector4 ReadV4(this BsonDeserializationContext ctx) {
+			float x = (float)ctx.Reader.ReadDouble();
+			float y = (float)ctx.Reader.ReadDouble();
+			float z = (float)ctx.Reader.ReadDouble();
+			float w = (float)ctx.Reader.ReadDouble();
+			return new Vector4(x, y, z, w);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector3 ReadV3(this BsonDeserializationContext ctx) {
+			float x = (float) ctx.Reader.ReadDouble();
+			float y = (float) ctx.Reader.ReadDouble();
+			float z = (float) ctx.Reader.ReadDouble();
+			return new Vector3(x,y,z);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2 ReadV2(this BsonDeserializationContext ctx) {
+			float x = (float)ctx.Reader.ReadDouble();
+			float y = (float)ctx.Reader.ReadDouble();
+			return new Vector2(x, y);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector3Int ReadV3I(this BsonDeserializationContext ctx) {
+			int x = ctx.Reader.ReadInt32();
+			int y = ctx.Reader.ReadInt32();
+			int z = ctx.Reader.ReadInt32();
+			return new Vector3Int(x, y, z);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Vector2Int ReadV2I(this BsonDeserializationContext ctx) {
+			int x = ctx.Reader.ReadInt32();
+			int y = ctx.Reader.ReadInt32();
+			return new Vector2Int(x, y);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static Rect ReadRect(this BsonDeserializationContext ctx) {
+			float x = (float)ctx.Reader.ReadDouble();
+			float y = (float)ctx.Reader.ReadDouble();
+			float width = (float)ctx.Reader.ReadDouble();
+			float height = (float)ctx.Reader.ReadDouble();
+			return new Rect(x, y, width, height);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static RectInt ReadRectInt(this BsonDeserializationContext ctx) {
+			int x = ctx.Reader.ReadInt32();
+			int y = ctx.Reader.ReadInt32();
+			int width = ctx.Reader.ReadInt32();
+			int height = ctx.Reader.ReadInt32();
+			return new RectInt(x, y, width, height);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void StartArray(this BsonDeserializationContext ctx) { ctx.Reader.ReadStartArray(); }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void EndArray(this BsonDeserializationContext ctx) { ctx.Reader.ReadEndArray(); }
+		////////////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////
+		// Serialization
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteFloat(this BsonSerializationContext ctx, float v) {
+			ctx.Writer.WriteDouble(v);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteV4(this BsonSerializationContext ctx, Vector4 v) {
+			ctx.Writer.WriteDouble(v.x);
+			ctx.Writer.WriteDouble(v.y);
+			ctx.Writer.WriteDouble(v.z);
+			ctx.Writer.WriteDouble(v.w);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteV3(this BsonSerializationContext ctx, Vector3 v) {
+			ctx.Writer.WriteDouble(v.x);
+			ctx.Writer.WriteDouble(v.y);
+			ctx.Writer.WriteDouble(v.z);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteV2(this BsonSerializationContext ctx, Vector2 v) {
+			ctx.Writer.WriteDouble(v.x);
+			ctx.Writer.WriteDouble(v.y);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteRect(this BsonSerializationContext ctx, Rect r) {
+			ctx.Writer.WriteDouble(r.x);
+			ctx.Writer.WriteDouble(r.y);
+			ctx.Writer.WriteDouble(r.width);
+			ctx.Writer.WriteDouble(r.height);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteV2I(this BsonSerializationContext ctx, Vector2Int v) {
+			ctx.Writer.WriteInt32(v.x);
+			ctx.Writer.WriteInt32(v.y);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteV3I(this BsonSerializationContext ctx, Vector3Int v) {
+			ctx.Writer.WriteInt32(v.x);
+			ctx.Writer.WriteInt32(v.y);
+			ctx.Writer.WriteInt32(v.z);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteRectInt(this BsonSerializationContext ctx, RectInt r) {
+			ctx.Writer.WriteInt32(r.x);
+			ctx.Writer.WriteInt32(r.y);
+			ctx.Writer.WriteInt32(r.width);
+			ctx.Writer.WriteInt32(r.height);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void StartArray(this BsonSerializationContext ctx) { ctx.Writer.WriteStartArray(); }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void EndArray(this BsonSerializationContext ctx) { ctx.Writer.WriteEndArray(); }
+	}
+	public class BoundsSerializer : SerializerBase<Bounds> {
+		public override Bounds Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector3 center = context.ReadV3();
+			Vector3 size = context.ReadV3();
+			context.EndArray();
+			return new Bounds(center, size);
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Bounds value) {
+			Vector3 center = value.center;
+			Vector3 size = value.size;
+			context.StartArray();
+			context.WriteV3(center);
+			context.WriteV3(size);
+			context.EndArray();
+		}
+	}
+	public class PlaneSerializer : SerializerBase<Plane> {
+		public override Plane Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector3 normal = context.ReadV3();
+			float distance = context.ReadFloat();
+			context.EndArray();
+			return new Plane(normal, distance);
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Plane value) {
+			context.StartArray();
+			context.WriteV3(value.normal);
+			context.WriteFloat(value.distance);
+			context.EndArray();
+		}
+	}
+	public class RaySerializer : SerializerBase<Ray> {
+		public override Ray Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector3 origin = context.ReadV3();
+			Vector3 direction = context.ReadV3();
+			context.EndArray();
+			return new Ray(origin, direction);
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ray value) {
+			context.StartArray();
+			context.WriteV3(value.origin);
+			context.WriteV3(value.direction);
+			context.EndArray();
+		}
+	}
+	public class Ray2DSerializer : SerializerBase<Ray2D> {
+		public override Ray2D Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector2 origin = context.ReadV2();
+			Vector2 dir = context.ReadV2();
+			context.EndArray();
+			return new Ray2D(origin, dir);
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ray2D value) {
+			context.StartArray();
+			context.WriteV2(value.origin);
+			context.WriteV2(value.direction);
+			context.EndArray();
+		}
+	}
+	public class RectSerializer : SerializerBase<Rect> {
+		public override Rect Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Rect r = context.ReadRect();
+			context.EndArray();
+			return r;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Rect value) {
+			context.StartArray();
+			context.WriteRect(value);
+			context.EndArray();
+		}
+	}
+	public class RectIntSerializer : SerializerBase<RectInt> {
+		public override RectInt Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			RectInt r = context.ReadRectInt();
+			context.EndArray();
+			return r;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, RectInt value) {
+			context.StartArray();
+			context.WriteRectInt(value);
+			context.EndArray();
+		}
+	}
+	public class Vector4Serializer : SerializerBase<Vector4> {
+		public override Vector4 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector4 v = context.ReadV4();
+			context.EndArray();
+			return v;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector4 value) {
+			context.StartArray();
+			context.WriteV4(value);
+			context.EndArray();
+		}
+	}
+	public class Vector3Serializer : SerializerBase<Vector3> {
+		public override Vector3 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector3 v = context.ReadV3();
+			context.EndArray();
+			return v;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector3 value) {
+			context.StartArray();
+			context.WriteV3(value);
+			context.EndArray();
+		}
+	}
+	public class Vector2Serializer : SerializerBase<Vector2> {
+		public override Vector2 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector2 v = context.ReadV2();
+			context.EndArray();
+			return v;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector2 value) {
+			context.StartArray();
+			context.WriteV2(value);
+			context.EndArray();
+		}
+	}
+	public class Vector3IntSerializer : SerializerBase<Vector3Int> {
+		public override Vector3Int Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector3Int v = context.ReadV3I();
+			context.EndArray();
+			return v;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector3Int value) {
+			context.StartArray();
+			context.WriteV3I(value);
+			context.EndArray();
+		}
+	}
+	public class Vector2IntSerializer : SerializerBase<Vector2Int> {
+		public override Vector2Int Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			context.StartArray();
+			Vector2Int v = context.ReadV2I();
+			context.EndArray();
+			return v;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector2Int value) {
+			context.StartArray();
+			context.WriteV2I(value);
+			context.EndArray();
 		}
 	}
 	#endregion

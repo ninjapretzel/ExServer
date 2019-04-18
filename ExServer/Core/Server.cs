@@ -47,15 +47,19 @@ namespace Ex {
 		/// <summary> Connections, keyed by client ID </summary>
 		public Dictionary<Guid, Client> connections { get; private set; }
 		/// <summary> Cache of message delegates </summary>
-		public Dictionary<string, Message.Handler> rpcCache { get; private set; }
+		public Dictionary<string, RPCMessage.Handler> rpcCache { get; private set; }
 
 		/// <summary> Queue used to hold all clients for checking for sending data </summary>
-		public ConcurrentQueue<Client> sendCheckQueue;
+		private ConcurrentQueue<Client> sendCheckQueue;
 		/// <summary> Queue used to hold all clients for checking for recieving data </summary>
-		public ConcurrentQueue<Client> recrCheckQueue;
+		private ConcurrentQueue<Client> recrCheckQueue;
 
 		/// <summary> Incoming messages. </summary>
-		public ConcurrentQueue<Message> incoming;
+		private ConcurrentQueue<RPCMessage> incoming;
+
+		/// <summary> Actions to do later </summary>
+		private ConcurrentQueue<Action> doLater = new ConcurrentQueue<Action>();
+
 
 		/// <summary> Command runner </summary>
 		// public Cmdr commander { get; private set; }
@@ -89,11 +93,11 @@ namespace Ex {
 		public Server(int port = 32055, float tick = 100) {
 			sendCheckQueue = new ConcurrentQueue<Client>();
 			recrCheckQueue = new ConcurrentQueue<Client>();
-			incoming = new ConcurrentQueue<Message>();
+			incoming = new ConcurrentQueue<RPCMessage>();
 
 			servicesByName = new Dictionary<string, Service>();
 			services = new Dictionary<Type, Service>();
-			rpcCache = new Dictionary<string, Message.Handler>();
+			rpcCache = new Dictionary<string, RPCMessage.Handler>();
 
 			connections = new Dictionary<Guid, Client>();
 			//commander = new Cmdr();
@@ -171,6 +175,17 @@ namespace Ex {
 			recrCheckQueue.Enqueue(client);
 		}
 
+		/// <summary>  Globally calls a method, as if the given client had sent it. </summary>
+		/// <param name="client"> Client to simulate call of method for </param>
+		/// <param name="callback"> Callback to call </param>
+		/// <param name="stuff"> Parameters for call </param>
+		public void Call(Client client, RPCMessage.Handler callback, params System.Object[] stuff) {
+			string str = Client.FormatCall(callback, stuff);
+			RPCMessage msg = new RPCMessage(client, str);
+			incoming.Enqueue(msg);
+		}
+
+
 		/// <summary> Removes client from being tracked by the server. 
 		/// Exposed to allow slave clients to explicitly disconnect from their server. </summary>
 		/// <param name="client"> Slave client to connect. </param>
@@ -178,9 +193,33 @@ namespace Ex {
 			connections.Remove(client.id);
 
 			foreach (var service in services.Values) {
-				service.OnDisconnected(client);
+				try {
+					service.OnDisconnected(client);
+
+				} catch (Exception e) { Log.Error($"Error in OnDisconnected for {service.GetType()}", e); }
 			}
 			client.Close();
+		}
+
+		public void On<T>(T val) {
+			doLater.Enqueue(() => DoLater(val));
+		}
+
+		private void DoLater<T>(T val) {
+			foreach (var service in services.Values) {
+				service.DoOn(val);
+			}
+		}
+
+		public void OnLater() {
+			Action action; 
+			while (doLater.TryDequeue(out action)) {
+				try {
+					action();
+				} catch (Exception e) {
+					Log.Error("Error during event", e);
+				}
+			}
 		}
 
 		private void Listen() {
@@ -203,19 +242,20 @@ namespace Ex {
 			}
 		}
 
-
+		
 		private void GlobalUpdate() {
 			while (Running) {
 				try {
 
-					Message msg;
+					RPCMessage msg;
 					while (incoming.TryDequeue(out msg)) {
 						if (msg.sender.closed) {
-							
+							// ???
 						}
 						HandleMessage(msg);
-
 					}
+
+					OnLater();
 
 				}
 				catch (Exception e) {
@@ -319,7 +359,7 @@ namespace Ex {
 				while (!client.closed && client.outgoing.TryDequeue(out msg)) {
 					Log.Info($"Client {client.identity} sending message {msg}");
 
-					msg += Message.EOT;
+					msg += RPCMessage.EOT;
 					byte[] message = msg.ToBytesUTF8();
 					message = client.enc(message);
 					
@@ -360,14 +400,14 @@ namespace Ex {
 					string str = client.message.GetStringUTF8();
 
 					client.held += str;
-					int index = client.held.IndexOf(Message.EOT);
+					int index = client.held.IndexOf(RPCMessage.EOT);
 					while (index >= 0) {
 						string pulled = client.held.Substring(0, index);
 						client.held = client.held.Remove(0, index+1);
-						index = client.held.IndexOf(Message.EOT);
+						index = client.held.IndexOf(RPCMessage.EOT);
 
 						if (pulled.Length > 0) {
-							Message msg = new Message(client, pulled);
+							RPCMessage msg = new RPCMessage(client, pulled);
 							incoming.Enqueue(msg);
 						}
 					}
@@ -393,8 +433,8 @@ namespace Ex {
 			}
 		}
 
-		private void HandleMessage(Message msg) {
-			Message.Handler handler = GetHandler(msg);
+		private void HandleMessage(RPCMessage msg) {
+			RPCMessage.Handler handler = GetHandler(msg);
 			
 			try {
 				handler?.Invoke(msg);
@@ -404,7 +444,7 @@ namespace Ex {
 			
 		}
 
-		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(Message) };
+		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(RPCMessage) };
 
 		private void LoadCache(Service service) {
 			Type t = service.GetType();
@@ -413,7 +453,7 @@ namespace Ex {
 			foreach (var method in methods) {
 				
 				if (MatchesSig(method, SIGNATURE_OF_MESSAGEHANDLER)) {
-					var handler = (Message.Handler)method.CreateDelegate(typeof(Message.Handler), service);
+					var handler = (RPCMessage.Handler)method.CreateDelegate(typeof(RPCMessage.Handler), service);
 					var rpcName = t.ShortName() + "." + method.Name;
 					rpcCache[rpcName] = handler;
 					// Log.Verbose($"Loaded RPC {rpcName}");
@@ -430,7 +470,7 @@ namespace Ex {
 			return true;
 		}
 
-		private Message.Handler GetHandler(Message msg) {
+		private RPCMessage.Handler GetHandler(RPCMessage msg) {
 			string rpcName = msg.rpcName;
 			if (rpcCache.ContainsKey(rpcName)) {
 				return rpcCache[rpcName];
@@ -446,7 +486,7 @@ namespace Ex {
 			MethodInfo method = type.GetMethod(msg.methodName);
 
 			if (method != null) {
-				var handler = (Message.Handler)method.CreateDelegate(typeof(Message.Handler), service);
+				var handler = (RPCMessage.Handler)method.CreateDelegate(typeof(RPCMessage.Handler), service);
 				rpcCache[rpcName] = handler;
 
 			}

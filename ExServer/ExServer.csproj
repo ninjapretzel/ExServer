@@ -69,7 +69,7 @@
   <ItemGroup>
     <Compile Include="Core\Client.cs" />
     <Compile Include="Core\Logging.cs" />
-    <Compile Include="Core\Message.cs" />
+    <Compile Include="Core\RPCMessage.cs" />
     <Compile Include="Core\Server.cs" />
     <Compile Include="Core\Service.cs" />
     <Compile Include="Core\Services\CoreService.cs" />
@@ -77,8 +77,12 @@
     <Compile Include="Core\Services\DebugService.cs" />
     <Compile Include="Core\Services\LoginService.cs" />
     <Compile Include="Core\Services\MapService\Cell.cs" />
+    <Compile Include="Core\Services\MapService\EntityService.cs" />
+    <Compile Include="Core\Services\MapService\Map.cs" />
+    <Compile Include="Core\Services\MapService\MapData.cs" />
     <Compile Include="Core\Services\MapService\MapService.cs" />
     <Compile Include="Core\Services\SyncService.cs" />
+    <Compile Include="Core\Utils\Bitflags.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
     <Compile Include="Core\Utils\Packing.cs" />
     <Compile Include="Core\Utils\Trender.cs" />

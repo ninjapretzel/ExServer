@@ -52,10 +52,18 @@ namespace Ex {
 #if !UNITY
 		[BsonIgnoreExtraElements]
 		public class UserInfo : DBEntry {
-			public Guid userId { get; set; }
 			public string userName { get; set; }
 			public string hash { get; set; }
 			public DateTime lastLogin { get; set; }
+		}
+
+		[BsonIgnoreExtraElements]
+		public class LoginAttempt : DBEntry {
+			public string userName { get; set; }
+			public string hash { get; set; }
+			public DateTime timestamp { get; set; }
+			public string result { get; set; }
+			public string ip { get; set; }
 		}
 #endif
 		/// <summary> Pair of information about a logged in client </summary>
@@ -73,6 +81,26 @@ namespace Ex {
 		/// <summary> Serverside, maps user ID to client </summary>
 		private Dictionary<Guid, Session> loginsByUserId;
 
+		/// <summary> Gets a login by a user ID </summary>
+		/// <param name="userId"> ID of user to check for </param>
+		/// <returns> Login information for user, if they are currently logged in </returns>
+		public Session? GetLogin(Guid userId) {
+			if (loginsByUserId.ContainsKey(userId)) {
+				return loginsByUserId[userId];
+			}
+			return null;
+		}
+
+		/// <summary> Gets a login by a client ID </summary>
+		/// <param name="client"> Client to check for </param>
+		/// <returns> Login information for client, if they are currently logged in. </returns>
+		public Session? GetLogin(Client client) {
+			if (loginsByClient.ContainsKey(client)) {
+				return loginsByClient[client];
+			}
+			return null;
+		}
+
 		/// <summary> Reference to login information that a local client can use. passhash of this is always "local" if it exists. </summary>
 		public Credentials localLogin { get; private set; } = null;
 
@@ -87,6 +115,9 @@ namespace Ex {
 		public Func<string, bool> passwordValidator = DefaultValidatePassword;
 		/// <summary> Hash function. Should be replaced with something more secure than the default. </summary>
 		public Func<string, string> Hash = DefaultHash;
+
+		/// <summary> Initializer for a newly logged in user </summary>
+		public Action<Guid> initializer;
 
 		public override void OnEnable() {
 			loginsByClient = new Dictionary<Client, Session>();
@@ -105,7 +136,7 @@ namespace Ex {
 		public override void OnDisconnected(Client client) {
 			if (loginsByClient.ContainsKey(client)) {
 				Guid guid = loginsByClient[client].credentials.userId;
-
+				
 				loginsByClient.Remove(client);
 				loginsByUserId.Remove(guid);
 			}
@@ -123,64 +154,85 @@ namespace Ex {
 
 		/// <summary> Connected database service </summary>
 		DBService dbService { get { return GetService<DBService>(); } }
-		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(Message)"/></summary>
+		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(RPCMessage)"/></summary>
 		/// <param name="msg"> RPC Info. </param>
-		public void Login(Message msg) {
+		public void Login(RPCMessage msg) {
 			string user = msg[0];
 			string hash = msg[1];
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
 			// Login flow.
 			Credentials creds = null;
 			string reason = "none";
-
+			
 			UserInfo userInfo = null; 
 			if (version != versionCode) {
-				Log.Debug($"Version mismatch {version}, expected {versionCode}");
+				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
 				reason = VERSION_MISMATCH;
 			} else if (!usernameValidator(user)) {
-				Log.Debug($"Bad username {user}");
+				Log.Debug($"{nameof(LoginService)}: Bad username {user}");
 				reason = "Invalid Username";
+			} else if (GetLogin(msg.sender) != null) {
+				Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
+				reason = "Already Logged In";
 			} else {
 				userInfo = dbService.Get<UserInfo>(nameof(userInfo.userName), user);
+
 				if (userInfo == null) {
-					Log.Debug($"User {user} not found");
-					// user doesn't exist, create them.
+					Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
+
+					Guid userId = Guid.NewGuid();
 					userInfo = new UserInfo();
 					userInfo.userName = user;
 					userInfo.hash = hash;
-					userInfo.userId = Guid.NewGuid();
-					creds = new Credentials(user, hash, userInfo.userId);
+					userInfo.guid = userId;
+					userInfo.lastLogin = DateTime.UtcNow;
+					dbService.Save(userInfo);
+
+					try {
+						initializer?.Invoke(userId);
+						
+					} catch (Exception e) {
+						Log.Error($"Error initializing user {user} / {userId} ", e);
+					}
+
+					creds = new Credentials(user, hash, userInfo.guid);
 					
 				} else {
 					// Check credentials against existing credentials.
-					if (hash != userInfo.hash) {
+					if (loginsByUserId.ContainsKey(userInfo.guid)) {
+						reason = "Already logged in";
+					} else if (hash != userInfo.hash) {
 						reason = "Bad credentials";
 					} else {
-						creds = new Credentials(user, hash, userInfo.userId);
+						creds = new Credentials(user, hash, userInfo.guid);
 					}
 					
 
 				}
 			}
-
-
+			
 			if (creds == null) {
 				msg.sender.Call(LoginResponse, "fail", reason);
 			} else {
 				var session = new Session(msg.sender, creds);
 				loginsByClient[msg.sender] = session;
 				loginsByUserId[creds.userId] = session;
+
 				userInfo.lastLogin = DateTime.UtcNow;
 				dbService.Save(userInfo);
 
 				msg.sender.Call(LoginResponse, "succ", creds.userId);
-			}
 
+				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
+
+				server.On(new LoginSuccess(msg.sender));
+			}
 		}
+
 #endif
 		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
 		/// <param name="msg"> RPC Info. </param>
-		public void LoginResponse(Message msg) {
+		public void LoginResponse(RPCMessage msg) {
 			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
 
 		}
@@ -210,6 +262,7 @@ namespace Ex {
 			// If we've passed the whole string without rejecting, it's good.
 			return true;
 		}
+
 		/// <summary> Simple check for valid passwords. </summary>
 		/// <param name="pass"> password to check </param>
 		/// <returns> True, if password is at least 8 characters. That's all we care about for simplicity's sake. </returns>
@@ -225,5 +278,10 @@ namespace Ex {
 			return ":\\:" + (pass + "IM A STUPID HACKER DECOMPILING YOUR CODE LOL").GetHashCode() + ":/:";
 		}
 
+	}
+
+	public struct LoginSuccess {
+		public readonly Client client;
+		public LoginSuccess(Client client) { this.client = client; }
 	}
 }

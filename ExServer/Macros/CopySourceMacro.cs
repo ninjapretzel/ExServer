@@ -10,14 +10,19 @@ public static class CopySourceMacro {
 	public static void CopyAllFiles(string fromDirectory, string toDirectory) {
 		var files = GetAllFiles(fromDirectory.ForwardSlashPath()).Select(s => s.ForwardSlashPath());
 		Console.WriteLine($"Copying {files.Count()} files in tree \n\tFrom: {fromDirectory}\n\tTo  : {toDirectory}");
-
+		if (Directory.Exists(toDirectory)) {
+			Directory.Delete(toDirectory, true);
+		}
+		if (!Directory.Exists(toDirectory)) {
+			Directory.CreateDirectory(toDirectory);
+		}
 		foreach (var file in files) {
 			string filename = file.Filename();
 			string relpath = file.RelPath(fromDirectory);
 			string destination = $"{toDirectory}{relpath}{filename}".ForwardSlashPath();
 			// Console.WriteLine($"Copy for [{relpath}] [{filename}]\n\tFrom: {file}\n\tTo  : {destination}");
-
 			string folder = destination.Folder();
+			
 			if (!Directory.Exists(folder)) {
 				Directory.CreateDirectory(folder);
 			}

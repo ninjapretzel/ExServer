@@ -51,14 +51,18 @@ namespace Ex {
 		static void ActualProgram() {
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
-
 			mainForm = new MainForm();
+			try {
+				DBService.RegisterSerializers();
+			} catch (Exception e) { Log.Error("Error", e); }
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Console.WriteLine(Directory.GetCurrentDirectory());
 			SetupLogger();
 			SetupServer();
 			server.Start();
+
+			// Thread.Sleep(1000);
 
 			SetupAdminClient();
 			Console.WriteLine("Server started, showing window.");
@@ -67,8 +71,11 @@ namespace Ex {
 			Application.Run(mainForm);
 
 			Console.WriteLine("Window closed, Terminating server.");
-			server.Stop();
 			admin.server.Stop();
+			server.Stop();
+
+			// oof. figure out why we need this. sometimes (errors?)
+			// Application.Exit();
 		}
 
 		private static void SetupLogger() {
@@ -99,6 +106,11 @@ namespace Ex {
 
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
+			
+			server.AddService<EntityService>();
+			server.AddService<MapService>();
+
+
 			var sync = server.AddService<SyncService>();
 
 			{
@@ -113,7 +125,13 @@ namespace Ex {
 
 			}
 			
-			server.AddService<DBService>().Connect().UseDatabase("Test1");
+			server.AddService<DBService>()
+				.Connect()
+				.UseDatabase("Test1")
+				.CleanDatabase()
+				;
+				
+
 
 
 		}
@@ -124,6 +142,8 @@ namespace Ex {
 			admin = new Client(connection);
 			admin.AddService<DebugService>();
 			admin.AddService<LoginService>();
+			admin.AddService<EntityService>();
+			admin.AddService<MapService>();
 			var sync = admin.AddService<SyncService>();
 			
 			admin.ConnectSlave();

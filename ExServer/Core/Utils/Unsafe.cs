@@ -1,5 +1,8 @@
 #if UNITY_2017 || UNITY_2018 || UNITY_2019
 #define UNITY
+using UnityEngine;
+#else
+
 #endif
 
 using System;

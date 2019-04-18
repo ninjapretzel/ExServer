@@ -6,6 +6,7 @@ using UnityEngine;
 #else
 using MongoDB.Bson.Serialization.Attributes;
 #endif
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,11 +14,12 @@ using System.Text;
 using System.Threading.Tasks;
 using Ex.Utils;
 
+#if !UNITY
 namespace Ex {
 	/// <summary> Support class for <see cref="Map"/> to divide a map into cells. </summary>
 	public class Cell {
 		/// <summary> Entities in the cell </summary>
-		public List<EntityID> entities { get; private set; }
+		public List<Guid> entities { get; private set; }
 		/// <summary> Clients connected to the cell </summary>
 		public List<Client> clients { get; private set; }
 		/// <summary> Cached cell visibility </summary>
@@ -38,7 +40,7 @@ namespace Ex {
 		public Cell(Map map, Vector3Int cellPos) {
 			this.map = map;
 			this.cellPos = cellPos;
-			entities = new List<EntityID>();
+			entities = new List<Guid>();
 			clients = new List<Client>();
 		}
 
@@ -82,3 +84,5 @@ namespace Ex {
 
 	}
 }
+
+#endif	

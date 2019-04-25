@@ -186,9 +186,12 @@ namespace Ex {
 		public struct LoginSuccess_Client { public Credentials credentials; }
 		/// <summary> Message type sent on a client when a login attempt was failed. </summary>
 		public struct LoginFailure_Client { public string reason; }
-			
+		/// <summary> Message type sent on server when a login attempt was successful. </summary>
+		public struct LoginSuccess_Server {
+			public readonly Client client;
+			public LoginSuccess_Server(Client client) { this.client = client; }
+		}
 
-#if !UNITY
 		string _VERSION_MISMATCH = null;
 		string VERSION_MISMATCH {
 			get {
@@ -203,6 +206,7 @@ namespace Ex {
 		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(RPCMessage)"/></summary>
 		/// <param name="msg"> RPC Info. </param>
 		public void Login(RPCMessage msg) {
+#if !UNITY
 			string user = msg[0];
 			string hash = msg[1];
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
@@ -210,6 +214,7 @@ namespace Ex {
 			Credentials creds = null;
 			string reason = "none";
 			
+
 			UserInfo userInfo = null; 
 			if (version != versionCode) {
 				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
@@ -273,12 +278,9 @@ namespace Ex {
 
 				server.On(new LoginSuccess_Server(msg.sender));
 			}
-		}
-		public struct LoginSuccess_Server {
-			public readonly Client client;
-			public LoginSuccess_Server(Client client) { this.client = client; }
-		}
 #endif
+		}
+		
 
 
 

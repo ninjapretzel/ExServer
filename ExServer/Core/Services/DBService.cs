@@ -21,10 +21,9 @@ using MongoDB.Bson.Serialization;
 using Ex.Utils;
 #endif
 
-// Actually nothing to do here except on server... 
-#if !UNITY
 namespace Ex {
 
+#if !UNITY
 	/// <summary> Base class for any types being stored in the database. Standardizes access to the MongoDB "_id" property. </summary>
 	public class DBEntry {
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
@@ -32,9 +31,11 @@ namespace Ex {
 		/// <summary> Relational guid </summary>
 		public Guid guid { get; set; }
 	}
+#endif 
+
 	/// <summary> Service type for holding database connection. Empty on client. </summary>
 	public class DBService : Service {
-	
+#if !UNITY
 		public static void RegisterSerializers() {
 			BsonSerializer.RegisterSerializer<Rect>(new RectSerializer());
 			BsonSerializer.RegisterSerializer<Bounds>(new BoundsSerializer());
@@ -189,9 +190,10 @@ namespace Ex {
 				Log.Error("Failed to save database entry", e);
 			}
 		}
-
+#endif
 	}
 	
+#if !UNITY
 	public static class BsonHelpers {
 		/// <summary> Used to evaluate a query to a BsonDocument object which can be used in most places in MongoDB's API </summary>
 		/// <param name="query"> Object literal query </param>
@@ -200,5 +202,5 @@ namespace Ex {
 			return MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BDoc>(query);
 		}
 	}
-}
 #endif
+}

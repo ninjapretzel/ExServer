@@ -167,6 +167,7 @@ namespace Ex {
 		/// <summary> Initializer for a newly logged in user </summary>
 		public Action<Guid> initializer;
 
+#if !UNITY
 		public override void OnEnable() {
 			loginsByClient = new Dictionary<Client, Session>();
 			loginsByUserId = new Dictionary<Guid, Session>();
@@ -191,7 +192,7 @@ namespace Ex {
 			}
 			
 		}
-
+#endif
 		private int _isAttemptingLogin;
 		public bool isAttemptingLogin { get { return _isAttemptingLogin != 0; } }
 		private string loginName;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -37,6 +38,15 @@ namespace Ex {
 		/// <summary> Quick string to identify client </summary>
 		public string identity { get { return (isSlave ? "*[LocalClient]*" : ("*[Client#" + id + "]*")); } }
 
+		/// <summary> Remote IP address, if applicable "????" if not. </summary>
+		public string remoteIP { get; private set; }
+		/// <summary> Remote port, if applicable. -1 if not. </summary>
+		public int remotePort { get; private set; }
+		/// <summary> Local IP address, if applicable "????" if not. </summary>
+		public string localIP { get; private set; }
+		/// <summary> Remote port, if applicable. -1 if not. </summary>
+		public int localPort { get; private set; }
+
 		/// <summary> Outgoing messages. Preprocessed strings that are sent over the stream. </summary>
 		public ConcurrentQueue<string> outgoing;
 		
@@ -67,13 +77,20 @@ namespace Ex {
 			this.server = server;
 			this.id = Guid.NewGuid();
 			this.connection = tcpClient;
+			var remoteEndPoint = tcpClient.Client.RemoteEndPoint;
+			this.remoteIP = (remoteEndPoint is IPEndPoint) ? ((remoteEndPoint as IPEndPoint).Address.ToString()) : "????";
+			this.remotePort = (remoteEndPoint is IPEndPoint) ? ((remoteEndPoint as IPEndPoint).Port) : -1;
+			var localEndpoint = tcpClient.Client.LocalEndPoint;
+			this.localIP = (localEndpoint is IPEndPoint) ? ((localEndpoint as IPEndPoint).Address.ToString()) : "????";
+			this.localPort = (localEndpoint is IPEndPoint) ? ((localEndpoint as IPEndPoint).Port) : -1;
+			
 			this.stream.ReadTimeout = DEFAULT_READWRITE_TIMEOUT;
 			this.stream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
 			
 			outgoing = new ConcurrentQueue<string>();
 			
 
-			Log.Info($"\\eClient \\y {identity}\\e connected from \\y{connection.Client.RemoteEndPoint}");
+			Log.Info($"\\eClient \\y {identity}\\e connected from \\y {localEndpoint} -> {remoteEndPoint}");
 			buffer = new byte[4096];
 		}
 

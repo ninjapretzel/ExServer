@@ -54,23 +54,63 @@ namespace Ex {
 	public class LoginService : Service {
 
 #if !UNITY
+		/// <summary> Database object storing user login info </summary>
 		[BsonIgnoreExtraElements]
-		public class UserInfo : DBEntry {
+		public class UserLoginInfo : DBEntry {
+			/// <summary> Username </summary>
 			public string userName { get; set; }
+			/// <summary> password hash </summary>
 			public string hash { get; set; }
+			/// <summary> last login </summary>
 			public DateTime lastLogin { get; set; }
 		}
 
+		/// <summary> Results of a login attempt </summary>
+		public enum LoginResult : int {
+			/// <summary> Login did not exist, was created, and user was logged in. </summary>
+			Success_Created,
+			/// <summary> Login did exist, and user was logged in </summary>
+			Success,
+			
+			/// <summary> Login was rejected due to unspecified reasons </summary>
+			Failed_Unspecified = 10000,
+			/// <summary> Login was rejected due to version mismatch </summary>
+			Failed_VersionMismatch,
+			/// <summary> Login was rejected due to password mismatch </summary>
+			Failed_BadCredentials,
+			/// <summary> Login was rejected due to login cooldown applied </summary>
+			Failed_LoginCooldown,
+			/// <summary> Login was rejected due to creation cooldown applied </summary>
+			Failed_CreationCooldown,
+			/// <summary> Login was rejected due to username not valid </summary>
+			Failed_BadUsername,
+			/// <summary> Login was rejected due to client already being logged in </summary>
+			Failed_ClientAlreadyLoggedIn,
+			/// <summary> Login was rejected due to requested user already being logged in </summary>
+			Failed_UserAlreadyLoggedIn,
+		}
+
+		/// <summary> Database object storing login attempts. </summary>
 		[BsonIgnoreExtraElements]
 		public class LoginAttempt : DBEntry {
+			/// <summary> Username attempted for login </summary>
 			public string userName { get; set; }
+			/// <summary> Passhash provided for login </summary>
 			public string hash { get; set; }
+			/// <summary> Timestamp of login attempt </summary>
 			public DateTime timestamp { get; set; }
-			public string result { get; set; }
+			/// <summary> Was the login a success? </summary>
+			public bool success { get; set; }
+			/// <summary> Was the login an account creation? (implies success) </summary>
+			public bool creation { get; set; }
+			/// <summary> IP of client requesting login </summary>
 			public string ip { get; set; }
+			/// <summary> Enum result of login </summary>
+			public LoginResult result { get; set; }
+			/// <summary> Descriptive result of login </summary>
+			public string result_desc { get; set; }
 		}
-#endif
-		/// <summary> Pair of information about a logged in client </summary>
+		/// <summary> information about a logged in client </summary>
 		public struct Session {
 			public Credentials credentials { get; private set; }
 			public Client client { get; private set; }
@@ -106,6 +146,8 @@ namespace Ex {
 			}
 			return null;
 		}
+
+#endif
 
 		/// <summary> Reference to login information that a local client can use. passhash of this is always "local" if it exists. </summary>
 		public Credentials localLogin { get; private set; } = null;
@@ -191,6 +233,12 @@ namespace Ex {
 			public readonly Client client;
 			public LoginSuccess_Server(Client client) { this.client = client; }
 		}
+		/// <summary> Message type sent on server when a login attempt was failed</summary>
+		public struct LoginFailure_Server {
+			public string ip;
+			public string reason;
+			public int sequence;
+		}
 
 		string _VERSION_MISMATCH = null;
 		string VERSION_MISMATCH {
@@ -212,27 +260,31 @@ namespace Ex {
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
 			// Login flow.
 			Credentials creds = null;
+			LoginResult result = LoginResult.Failed_Unspecified;
 			string reason = "none";
 			
 
-			UserInfo userInfo = null; 
+			UserLoginInfo userInfo = null; 
 			if (version != versionCode) {
 				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
 				reason = VERSION_MISMATCH;
+				result = LoginResult.Failed_VersionMismatch;
 			} else if (!usernameValidator(user)) {
 				Log.Debug($"{nameof(LoginService)}: Bad username {user}");
 				reason = "Invalid Username";
+				result = LoginResult.Failed_BadUsername;
 			} else if (GetLogin(msg.sender) != null) {
 				Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
 				reason = "Already Logged In";
+				result = LoginResult.Failed_ClientAlreadyLoggedIn;
 			} else {
-				userInfo = dbService.Get<UserInfo>(nameof(userInfo.userName), user);
+				userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
 
 				if (userInfo == null) {
 					Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 
 					Guid userId = Guid.NewGuid();
-					userInfo = new UserInfo();
+					userInfo = new UserLoginInfo();
 					userInfo.userName = user;
 					userInfo.hash = hash;
 					userInfo.guid = userId;
@@ -246,24 +298,53 @@ namespace Ex {
 						Log.Error($"Error initializing user {user} / {userId} ", e);
 					}
 
+					result = LoginResult.Success_Created;
 					creds = new Credentials(user, hash, userInfo.guid);
 					
 				} else {
 					// Check credentials against existing credentials.
 					if (loginsByUserId.ContainsKey(userInfo.guid)) {
 						reason = "Already logged in";
+						result = LoginResult.Failed_UserAlreadyLoggedIn;
 					} else if (hash != userInfo.hash) {
 						reason = "Bad credentials";
+						result = LoginResult.Failed_BadCredentials;
 					} else {
 						creds = new Credentials(user, hash, userInfo.guid);
+						result = LoginResult.Success;
 					}
 					
 
 				}
 			}
-			
+
+			LoginAttempt attempt = new LoginAttempt();
+			attempt.result = result;
+			attempt.result_desc = result.ToString();
+			attempt.timestamp = DateTime.UtcNow;
+			attempt.hash = hash;
+			attempt.userName = user;
+			attempt.ip = msg.sender.remoteIP;
+			if (userInfo != null) {
+				attempt.success = true;
+				attempt.creation = result == LoginResult.Success_Created;
+				attempt.guid = userInfo.guid;
+			} else {
+				attempt.success = attempt.creation = false;
+				attempt.guid = Guid.Empty;
+			}
+
+			dbService.Save(attempt);
+
 			if (creds == null) {
 				msg.sender.Call(LoginResponse, "fail", reason);
+
+				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
+
+				server.On(new LoginFailure_Server() {
+					ip = msg.sender.remoteIP
+				});
+
 			} else {
 				var session = new Session(msg.sender, creds);
 				loginsByClient[msg.sender] = session;
@@ -278,6 +359,7 @@ namespace Ex {
 
 				server.On(new LoginSuccess_Server(msg.sender));
 			}
+
 #endif
 		}
 		

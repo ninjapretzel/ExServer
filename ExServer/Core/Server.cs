@@ -166,9 +166,17 @@ namespace Ex {
 			} else {
 				_localClient = client;
 			}
+			
+			foreach (var service in services.Values) {
+				try {
+					service.OnBeganConnected(client);
+				} catch (Exception e) { Log.Error($"Error in OnBeganConnected for {service.GetType()}", e); }
+			}
 
 			foreach (var service in services.Values) {
-				service.OnConnected(client);
+				try {
+					service.OnConnected(client);
+				} catch (Exception e) { Log.Error($"Error in OnConnected for {service.GetType()}", e); }
 			}
 
 			sendCheckQueue.Enqueue(client);
@@ -195,9 +203,14 @@ namespace Ex {
 			foreach (var service in services.Values) {
 				try {
 					service.OnDisconnected(client);
-
 				} catch (Exception e) { Log.Error($"Error in OnDisconnected for {service.GetType()}", e); }
 			}
+			foreach (var service in services.Values) {
+				try {
+					service.OnFinishedDisconnected(client);
+				} catch (Exception e) { Log.Error($"Error in OnFinishedDisconnected for {service.GetType()}", e); }
+			}
+
 			client.Close();
 		}
 

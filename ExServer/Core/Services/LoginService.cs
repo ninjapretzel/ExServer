@@ -180,9 +180,10 @@ namespace Ex {
 		public override void OnConnected(Client client) {
 			
 		}
-
-		public override void OnDisconnected(Client client) {
+		
+		public override void OnFinishedDisconnected(Client client) {
 			if (loginsByClient.ContainsKey(client)) {
+				Log.Verbose($"Logging out {client.identity}");
 				Guid guid = loginsByClient[client].credentials.userId;
 				
 				loginsByClient.Remove(client);

@@ -117,21 +117,34 @@ namespace Ex {
 			OnMap onMap = GetComponent<OnMap>(entity);
 
 			var db = GetService<DBService>();
-			var info = db.Get<UserEntityInfo>(client.id);
-			if (info == null) {
-				info = new UserEntityInfo();
-				if (trs != null) {
-					info.position = trs.position;
-					info.rotation = trs.position;
+			var loginService = GetService<LoginService>();
+
+			LoginService.Session? session = loginService.GetLogin(client);
+			Credentials creds;
+			if (session.HasValue) {
+				creds = session.Value.credentials;
+				Log.Verbose($"Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
+
+				var info = db.Get<UserEntityInfo>(creds.userId);
+
+				if (info == null) {
+					info = new UserEntityInfo();
+					if (trs != null) {
+						info.position = trs.position;
+						info.rotation = trs.position;
+					}
+					if (onMap != null) {
+						info.map = onMap.mapId;
+					}
 				}
-				if (onMap != null) {
-					info.map = onMap.mapId;
-				}
+				
+				db.Save(info);
+
+			} else {
+				
+				Log.Verbose($"No login session for {client.identity}, skipping saving entity data.");
 			}
 
-			
-			db.Save(info);
-			
 			entities.TryRemove(client.id, out entity);
 		}
 

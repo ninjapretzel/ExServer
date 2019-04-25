@@ -45,6 +45,14 @@ namespace Ex {
 		/// <param name="client"> Client that has disconnected. </param>
 		public virtual void OnDisconnected(Client client) { }
 
+		/// <summary> Callback with a client, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>
+		/// <param name="client"> Client who has connected. </param>
+		public virtual void OnBeganConnected(Client client) { }
+
+		/// <summary> Callback with a client, called after all <see cref="OnDisconnected(Client)"/> calls have finished. </summary>
+		/// <param name="client"> Client that has disconnected. </param>
+		public virtual void OnFinishedDisconnected(Client client) { }
+
 		/// <summary> Cache of discovered <see cref="OnD"/> Delegates, with their type casted away for easier storage. </summary>
 		private Dictionary<Type, Delegate> onTs = new Dictionary<Type, Delegate>();
 

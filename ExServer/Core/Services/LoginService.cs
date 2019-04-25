@@ -262,107 +262,118 @@ namespace Ex {
 			Credentials creds = null;
 			LoginResult result = LoginResult.Failed_Unspecified;
 			string reason = "none";
-			
+			UserLoginInfo userInfo = null;
 
-			UserLoginInfo userInfo = null; 
-			if (version != versionCode) {
-				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
-				reason = VERSION_MISMATCH;
-				result = LoginResult.Failed_VersionMismatch;
-			} else if (!usernameValidator(user)) {
-				Log.Debug($"{nameof(LoginService)}: Bad username {user}");
-				reason = "Invalid Username";
-				result = LoginResult.Failed_BadUsername;
-			} else if (GetLogin(msg.sender) != null) {
-				Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
-				reason = "Already Logged In";
-				result = LoginResult.Failed_ClientAlreadyLoggedIn;
-			} else {
-				userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
+			#region Submethod CheckLogin()
+			{ // SubMethod: CheckLogin()
+				if (version != versionCode) {
+					Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
+					reason = VERSION_MISMATCH;
+					result = LoginResult.Failed_VersionMismatch;
+				} else if (!usernameValidator(user)) {
+					Log.Debug($"{nameof(LoginService)}: Bad username {user}");
+					reason = "Invalid Username";
+					result = LoginResult.Failed_BadUsername;
+				} else if (GetLogin(msg.sender) != null) {
+					Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
+					reason = "Already Logged In";
+					result = LoginResult.Failed_ClientAlreadyLoggedIn;
+				} else {
+					userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
 
-				if (userInfo == null) {
-					Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
+					if (userInfo == null) {
+						Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 
-					Guid userId = Guid.NewGuid();
-					userInfo = new UserLoginInfo();
-					userInfo.userName = user;
-					userInfo.hash = hash;
-					userInfo.guid = userId;
+						Guid userId = Guid.NewGuid();
+						userInfo = new UserLoginInfo();
+						userInfo.userName = user;
+						userInfo.hash = hash;
+						userInfo.guid = userId;
+						userInfo.lastLogin = DateTime.UtcNow;
+						dbService.Save(userInfo);
+
+						try {
+							initializer?.Invoke(userId);
+						
+						} catch (Exception e) {
+							Log.Error($"Error initializing user {user} / {userId} ", e);
+						}
+
+						result = LoginResult.Success_Created;
+						creds = new Credentials(user, hash, userInfo.guid);
+					
+					} else {
+						// Check credentials against existing credentials.
+						if (loginsByUserId.ContainsKey(userInfo.guid)) {
+							reason = "Already logged in";
+							result = LoginResult.Failed_UserAlreadyLoggedIn;
+						} else if (hash != userInfo.hash) {
+							reason = "Bad credentials";
+							result = LoginResult.Failed_BadCredentials;
+						} else {
+							creds = new Credentials(user, hash, userInfo.guid);
+							result = LoginResult.Success;
+						}
+					
+
+					}
+				}
+			} // Submethod: CheckLogin()
+			#endregion
+
+			#region Submethod RecordLoginAttempt
+			{ // SubMethod: RecordLoginAttempt()
+				LoginAttempt attempt = new LoginAttempt();
+				attempt.result = result;
+				attempt.result_desc = result.ToString();
+				attempt.timestamp = DateTime.UtcNow;
+				attempt.hash = hash;
+				attempt.userName = user;
+				attempt.ip = msg.sender.remoteIP;
+				if (userInfo != null) {
+					attempt.success = true;
+					attempt.creation = result == LoginResult.Success_Created;
+					attempt.guid = userInfo.guid;
+				} else {
+					attempt.success = attempt.creation = false;
+					attempt.guid = Guid.Empty;
+				}
+
+				dbService.Save(attempt);
+			} // Submethod: RecordLoginAttempt()
+			#endregion
+
+			#region Submethod Respond
+			{// Submethod: Respond()
+				if (creds == null) {
+					msg.sender.Call(LoginResponse, "fail", reason);
+
+					Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
+
+					server.On(new LoginFailure_Server() {
+						ip = msg.sender.remoteIP
+					});
+
+				} else {
+					var session = new Session(msg.sender, creds);
+					loginsByClient[msg.sender] = session;
+					loginsByUserId[creds.userId] = session;
+
 					userInfo.lastLogin = DateTime.UtcNow;
 					dbService.Save(userInfo);
 
-					try {
-						initializer?.Invoke(userId);
-						
-					} catch (Exception e) {
-						Log.Error($"Error initializing user {user} / {userId} ", e);
-					}
+					msg.sender.Call(LoginResponse, "succ", creds.userId);
 
-					result = LoginResult.Success_Created;
-					creds = new Credentials(user, hash, userInfo.guid);
-					
-				} else {
-					// Check credentials against existing credentials.
-					if (loginsByUserId.ContainsKey(userInfo.guid)) {
-						reason = "Already logged in";
-						result = LoginResult.Failed_UserAlreadyLoggedIn;
-					} else if (hash != userInfo.hash) {
-						reason = "Bad credentials";
-						result = LoginResult.Failed_BadCredentials;
-					} else {
-						creds = new Credentials(user, hash, userInfo.guid);
-						result = LoginResult.Success;
-					}
-					
+					Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
 
+					server.On(new LoginSuccess_Server(msg.sender));
 				}
-			}
 
-			LoginAttempt attempt = new LoginAttempt();
-			attempt.result = result;
-			attempt.result_desc = result.ToString();
-			attempt.timestamp = DateTime.UtcNow;
-			attempt.hash = hash;
-			attempt.userName = user;
-			attempt.ip = msg.sender.remoteIP;
-			if (userInfo != null) {
-				attempt.success = true;
-				attempt.creation = result == LoginResult.Success_Created;
-				attempt.guid = userInfo.guid;
-			} else {
-				attempt.success = attempt.creation = false;
-				attempt.guid = Guid.Empty;
-			}
-
-			dbService.Save(attempt);
-
-			if (creds == null) {
-				msg.sender.Call(LoginResponse, "fail", reason);
-
-				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
-
-				server.On(new LoginFailure_Server() {
-					ip = msg.sender.remoteIP
-				});
-
-			} else {
-				var session = new Session(msg.sender, creds);
-				loginsByClient[msg.sender] = session;
-				loginsByUserId[creds.userId] = session;
-
-				userInfo.lastLogin = DateTime.UtcNow;
-				dbService.Save(userInfo);
-
-				msg.sender.Call(LoginResponse, "succ", creds.userId);
-
-				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
-
-				server.On(new LoginSuccess_Server(msg.sender));
-			}
-
+			} // Submethod: Respond()
+			#endregion
 #endif
 		}
-		
+
 
 
 

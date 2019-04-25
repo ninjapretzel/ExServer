@@ -257,7 +257,9 @@ namespace Ex {
 					RPCMessage msg;
 					while (incoming.TryDequeue(out msg)) {
 						if (msg.sender.closed) {
-							// ???
+							// early break???
+							// maybe we still want to handle messages when closed 
+							//		eg, ServerShuttingDown
 						}
 						HandleMessage(msg);
 					}

@@ -19,6 +19,11 @@ namespace Ex {
 
 		/// <summary> Is the service enabled (active) ? </summary>
 		public bool enabled { get; private set; }
+		/// <summary> Is this service running on a master server? </summary>
+		public bool isMaster { get { return server.isMaster; } }
+		/// <summary> Is this service running on a slave/client server? </summary>
+		public bool isSlave { get { return server.isSlave; } }
+
 		/// <summary> Called within AddService() to enable the service </summary>
 		internal void Enable() { OnEnable(); enabled = true; }
 		/// <summary> Called within RemoveService() to disable the service </summary>

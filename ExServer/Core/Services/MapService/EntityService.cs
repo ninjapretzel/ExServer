@@ -64,9 +64,7 @@ namespace Ex {
 				return null;
 			}
 		}
-
-		public bool isMaster { get { return server.isMaster; } }
-
+		
 		/// <summary> Creates a new entity, and returns the reference to it. </summary>
 		/// <returns> Reference to the newly created entity </returns>
 		public Entity CreateEntity() {
@@ -140,7 +138,7 @@ namespace Ex {
 
 		/// <summary> Called when a login occurs. </summary>
 		/// <param name="succ"></param>
-		public void On(LoginSuccess succ) {
+		public void On(LoginService.LoginSuccess_Server succ) {
 			if (!isMaster) { return; }
 
 			Client client = succ.client;

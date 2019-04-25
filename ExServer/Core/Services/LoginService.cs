@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 // For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
 #if !UNITY
@@ -19,19 +20,22 @@ namespace Ex {
 		public string username { get; private set; }
 		/// <summary> Password hash </summary>
 		public string passhash { get; private set; }
-		/// <summary> User ID </summary>
+		/// <summary> User ID, equal to guid value of token if valid, otherwise <see cref="Guid.Empty"/> </summary>
 		public Guid userId { get; private set; }
+		/// <summary> Token provided by server, typically a valid <see cref="Guid"/></summary>
+		public string token { get; private set; }
 		/// <summary> Timestamp of creation </summary>
 		public DateTime created { get; private set; }
 
 		/// <summary> Used to create a credentials object on the client. </summary>
 		/// <param name="user"> Username </param>
-		/// <param name="tokenString"> Guid session token as a string </param>
-		public Credentials(string user, string tokenString) {
+		/// <param name="token"> Guid session token as a string </param>
+		public Credentials(string user, string token) {
 			username = user;
 			passhash = "local";
 			Guid guid;
-			Guid.TryParse(tokenString, out guid);
+			this.token = token;
+			if (!Guid.TryParse(token, out guid)) { guid = Guid.Empty; }
 			userId = guid;
 			created = DateTime.Now;
 		}
@@ -85,6 +89,7 @@ namespace Ex {
 		/// <param name="userId"> ID of user to check for </param>
 		/// <returns> Login information for user, if they are currently logged in </returns>
 		public Session? GetLogin(Guid userId) {
+			if (isSlave) { return null; }
 			if (loginsByUserId.ContainsKey(userId)) {
 				return loginsByUserId[userId];
 			}
@@ -95,6 +100,7 @@ namespace Ex {
 		/// <param name="client"> Client to check for </param>
 		/// <returns> Login information for client, if they are currently logged in. </returns>
 		public Session? GetLogin(Client client) {
+			if (isSlave) { return null; }
 			if (loginsByClient.ContainsKey(client)) {
 				return loginsByClient[client];
 			}
@@ -143,6 +149,45 @@ namespace Ex {
 			
 		}
 
+		private int _isAttemptingLogin;
+		public bool isAttemptingLogin { get { return _isAttemptingLogin != 0; } }
+		private string loginName;
+		/// <summary> Begins a login for the given username/password pair </summary>
+		/// <param name="user"> Username </param>
+		/// <param name="pass"> Password </param>
+		/// <returns> True, if the login is propagated to the server, false otherwise. (Login already in progress, already logged in, or called on a server instance) </returns>
+		public bool Login_Slave(string user, string pass) {
+			if (!isSlave) { return false; }
+			if (localLogin != null) { return false; }
+			if (isAttemptingLogin) { return false; }
+			if (Interlocked.CompareExchange(ref _isAttemptingLogin, 1, 0) != 0) { return false; }
+			
+			loginName = pass;
+			string hashedPass = Hash(pass);
+
+			server.localClient.Call(Login, user, hashedPass, VersionInfo.VERSION);
+			return true;
+		}
+
+		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
+		/// <param name="msg"> RPC Info. </param>
+		public void LoginResponse(RPCMessage msg) {
+			_isAttemptingLogin = 0;
+			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
+			if (msg[0] == "succ") {
+				localLogin = new Credentials(loginName, msg[1]);
+				server.On(new LoginSuccess_Client() { credentials = localLogin } );
+			} else {
+				server.On(new LoginFailure_Client() { reason = msg[1] });
+			}	
+		}
+
+		/// <summary> Message type sent on a client when a login attempt was successful </summary>
+		public struct LoginSuccess_Client { public Credentials credentials; }
+		/// <summary> Message type sent on a client when a login attempt was failed. </summary>
+		public struct LoginFailure_Client { public string reason; }
+			
+
 #if !UNITY
 		string _VERSION_MISMATCH = null;
 		string VERSION_MISMATCH {
@@ -151,6 +196,7 @@ namespace Ex {
 				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
 			}
 		}
+
 
 		/// <summary> Connected database service </summary>
 		DBService dbService { get { return GetService<DBService>(); } }
@@ -225,17 +271,16 @@ namespace Ex {
 
 				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
 
-				server.On(new LoginSuccess(msg.sender));
+				server.On(new LoginSuccess_Server(msg.sender));
 			}
 		}
-
-#endif
-		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
-		/// <param name="msg"> RPC Info. </param>
-		public void LoginResponse(RPCMessage msg) {
-			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
-
+		public struct LoginSuccess_Server {
+			public readonly Client client;
+			public LoginSuccess_Server(Client client) { this.client = client; }
 		}
+#endif
+
+
 
 		/// <summary> Simple quick check for valid usernames. </summary>
 		/// <param name="user"> Name to check </param>
@@ -280,8 +325,4 @@ namespace Ex {
 
 	}
 
-	public struct LoginSuccess {
-		public readonly Client client;
-		public LoginSuccess(Client client) { this.client = client; }
-	}
 }

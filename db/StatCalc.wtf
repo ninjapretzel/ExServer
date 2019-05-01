@@ -1,0 +1,5 @@
+[
+	{ name: "attributes", value: [ "slash", "pierce", "crush", "fast", "heavy", "long", "fire", "water", "light", "dark", "earth", "wind" ] }, 
+	{ name: "baseStats", value: [ "str", "vit", "end", "dex", "agi", "lck", "int", "wis", "wil" ] }
+
+]

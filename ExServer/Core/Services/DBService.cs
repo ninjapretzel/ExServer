@@ -19,6 +19,7 @@ using MDB = MongoDB.Driver.IMongoDatabase;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization;
 using Ex.Utils;
+using System.IO;
 #endif
 
 namespace Ex {
@@ -59,6 +60,235 @@ namespace Ex {
 		public bool cleanedDB { get; private set; } = false;
 		
 		public override void OnEnable() {
+		}
+
+		private static string ForwardSlashPath(string str) {
+			return str.Replace('\\', '/');
+		}
+
+		/// <summary> Reseeds the DB service, given it is connected, with instructions in a given directory. </summary>
+		/// <param name="dir"> Directory to reseed from </param>
+		public void Reseed(string dir) {
+			dir = ForwardSlashPath(dir);
+			if (!dir.EndsWith("/")) { dir += "/"; }
+			try {
+				string json = File.ReadAllText(dir + "seed.json");
+				JsonValue v = Json.Parse(json);
+				
+				if (v is JsonArray) {
+					Reseed(v as JsonArray, dir);
+				} else if (v is JsonObject) {
+					Reseed(v as JsonObject, dir);
+				}
+				
+			} catch (Exception e) {
+				Log.Error($"Error while seeding database from [{dir}]", e);
+			}
+		}
+
+		/// <summary> Reseed using all of the given descriptors. </summary>
+		/// <param name="descriptors"> JsonArray of JsonObjects describing how to reseed the database. </param>
+		/// <param name="dir"> Base directory to reseed from. </param>
+		public void Reseed(JsonArray descriptors, string dir = null) {
+			foreach (var it in descriptors) {
+				if (it is JsonObject) { Reseed(it as JsonObject, dir); }
+			}
+		}
+
+		/// <summary> Reseeds a database using the given descriptor. </summary>
+		/// <param name="descriptor"> JsonObject containing description of how to reseed the database. </param>
+		public void Reseed(JsonObject descriptor, string dir = null) {
+			if (descriptor.Has<JsonArray>("drop")) { Reseed_Drop(descriptor.Get<JsonArray>("drop")); }
+			if (descriptor.Has<JsonObject>("index")) { Reseed_Index(descriptor.Get<JsonObject>("index")); }
+			if (descriptor.Has<JsonObject>("insert")) { Reseed_Insert(descriptor.Get<JsonObject>("insert"), dir); }
+			
+		}
+
+		private void Reseed_Drop(JsonArray databases) {
+			foreach (var dbname in databases) {
+				if (dbname.isString) {
+					dbClient.DropDatabase(dbname.stringVal);
+				}
+			}
+
+		}
+		private void Reseed_Index(JsonObject descriptor) {
+			string database = descriptor.Pull("database", dbName);
+			string collection = descriptor.Pull("collection", "Garbage");
+			if (database == "$default") { database = dbName; }
+
+			JsonObject fields = descriptor.Pull<JsonObject>("fields");
+			MDB db = dbClient.GetDatabase(database);
+			
+			List<CreateIndexModel<BDoc>> indexes = new List<CreateIndexModel<BDoc>>();
+			IndexKeysDefinition<BDoc> index = null;
+			foreach (var pair in fields) {
+				string fieldName = pair.Key;
+				int order = pair.Value;
+				
+				if (order > 0) {
+					index = index?.Ascending(fieldName) ?? Builders<BDoc>.IndexKeys.Ascending(fieldName);
+				} else {
+					index = index?.Descending(fieldName) ?? Builders<BDoc>.IndexKeys.Descending(fieldName);
+				}
+			}
+			
+			var model = new CreateIndexModel<BDoc>(index);
+			db.GetCollection<BDoc>(collection).Indexes.CreateOne(model);
+			Log.Debug($"Indexer Got fields {fields?.Count??-1}");
+		}
+
+		private void Reseed_Insert(JsonObject descriptor, string dir) {
+			string database = descriptor.Pull("database", dbName);
+			string collection = descriptor.Pull("collection", "Garbage");
+			
+			string[] files = descriptor.Pull<string[]>("files");
+			if (files == null) { files = new string[] { collection }; }
+
+			dir = ForwardSlashPath(dir);
+			if (!dir.EndsWith("/")) { dir += "/"; }
+
+			foreach (var file in files) {
+				string json = null;
+				string fpath = dir + file;
+
+				if (file.EndsWith("/**")) {
+					string directory = file.Replace("/**", "");
+
+					
+				} else {
+					try { json = json ?? File.ReadAllText(fpath); } catch (Exception) { }
+					try { json = json ?? File.ReadAllText(fpath + ".json"); } catch (Exception) { }
+					try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
+				}
+
+
+				if (json == null) {
+					Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
+					continue;
+				}
+
+				JsonValue data = Json.Parse(json);
+				if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+					Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
+					continue;
+				}
+
+				if (data is JsonObject) {
+					InsertData(database, collection, data as JsonObject);
+				} else if (data is JsonArray) {
+					InsertData(database, collection, data as JsonArray);
+				}
+			}
+		}
+
+		private void Reseed_Insert_Glob(string database, string collection, string directory) {
+			List<string> files = AllFilesInDirectory(directory);
+			foreach (string file in files) {
+				string json = null;
+				try {
+					json = json ?? File.ReadAllText(file);
+				} catch (Exception e) {
+					Log.Warning($"Seeder could not find {{{file}}}.");
+				}
+
+				JsonValue data = Json.Parse(json);
+				if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+					Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
+					continue;
+				}
+
+				if (data is JsonObject) {
+					InsertData(database, collection, data as JsonObject);
+				} else if (data is JsonArray) {
+					InsertData(database, collection, data as JsonArray);
+				}
+			}
+		}
+
+		private List<string> AllFilesInDirectory(string directory, List<string> collector = null) {
+			collector = collector ?? new List<string>();
+			var files = Directory.GetFiles(directory);
+			collector.AddRange(files);
+			
+			var dirs = Directory.GetDirectories(directory);
+			foreach (var dir in dirs) {
+				AllFilesInDirectory(dir, collector);
+			}
+
+			return collector;
+		}
+
+		/// <summary> Creates a <see cref="BDoc"/> out of every <see cref="JsonObject"/> in <paramref name="data"/>, and inserts each as a new record in the given <paramref name="database"/> and <paramref name="collection"/>. </summary>
+		/// <param name="database"> Database to add data to </param>
+		/// <param name="collection"> Collection to add data to </param>
+		/// <param name="data"> Data to insert insert </param>
+		public void InsertData(string database, string collection, JsonArray vals) {
+			List<BDoc> docs = new List<BDoc>(vals.Count);
+
+			foreach (var data in vals) {
+				if (data is JsonObject) {
+					docs.Add(ToBson(data as JsonObject));
+					// InsertData(database, collection, data as JsonObject);
+				}
+			}
+
+			MDB db = dbClient.GetDatabase(database);
+			db.GetCollection<BDoc>(collection).InsertMany(docs);
+		}
+
+		/// <summary> Creates a <see cref="BDoc"/> out of <paramref name="data"/>, and inserts a new record in the given <paramref name="database"/> and <paramref name="collection"/>. </summary>
+		/// <param name="database"> Database to add data to </param>
+		/// <param name="collection"> Collection to add data to </param>
+		/// <param name="data"> Data to turn into a BDoc and insert </param>
+		public void InsertData(string database, string collection, JsonObject data) {
+			BDoc doc = ToBson(data);
+			
+			MDB db = dbClient.GetDatabase(database);
+			db.GetCollection<BDoc>(collection).InsertOne(doc);
+
+		}
+
+		/// <summary> Converts a <see cref="JsonObject"/> into a <see cref="BDoc"/></summary>
+		/// <param name="data"> Data object to convert </param>
+		/// <returns> Converted data </returns>
+		private BDoc ToBson(JsonObject data) {
+			BDoc doc = new BDoc();
+
+			foreach (var pair in data) {
+				string key = pair.Key.stringVal;
+				JsonValue value = pair.Value;
+
+				if (value.isNumber) { doc[key] = value.doubleVal; }
+				else if (value.isString) { doc[key] = value.stringVal; }
+				else if (value.isBool) { doc[key] = value.boolVal; }
+				else if (value is JsonObject) { doc[key] = ToBson(value as JsonObject); } 
+				else if (value is JsonArray) { doc[key] = ToBson(value as JsonArray); }
+				else if (value.isNull) { doc[key] = BsonNull.Value; }
+
+			}
+
+			return doc;
+		}
+
+		/// <summary> Converts a <see cref="JsonArray"/> into a <see cref="BsonArray"/></summary>
+		/// <param name="data"> Data object to convert </param>
+		/// <returns> Converted data </returns>
+		private BsonArray ToBson(JsonArray data) {
+			BsonArray arr = new BsonArray(data.Count);
+
+			foreach (var value in data) {
+				
+				if (value.isNumber) { arr.Add(value.doubleVal); }
+				else if (value.isString) { arr.Add(value.stringVal); }
+				else if (value.isBool) { arr.Add(value.boolVal); }
+				else if (value is JsonObject) { arr.Add(ToBson(value as JsonObject)); } 
+				else if (value is JsonArray) { arr.Add(ToBson(value as JsonArray)); }
+				else if (value.isNull) { arr.Add(BsonNull.Value); }
+
+			}
+			
+			return arr;
 		}
 
 		/// <summary> Connects the database to a given mongodb server. </summary>

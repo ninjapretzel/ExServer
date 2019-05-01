@@ -27,7 +27,7 @@ namespace Ex {
 
 	public static class Log {
 
-		public static readonly string[] LEVEL_CODES = { "\\r", "\\y", "\\w", "\\q", "\\h" };
+		public static readonly string[] LEVEL_CODES = { "\\r", "\\y", "\\w", "\\h", "\\d" };
 		public static string ColorCode(LogLevel level) { return (LEVEL_CODES[(int)level]); }
 		/// <summary> Path to use to filter file paths </summary>
 		public static string ignorePath = null;
@@ -178,7 +178,7 @@ namespace Ex {
 				+ (ignorePath != null && callerPath.Contains(ignorePath)
 					? callerPath.Substring(callerPath.IndexOf(ignorePath) + ignorePath.Length)
 					: callerPath);
-			return (colorCodes ? "\\h" : "")
+			return (colorCodes ? "\\d" : "")
 				+ $"\n{level.ToString()[0]}: [{DateTime.UtcNow.UnixTimestamp()}] by "
 				+ ForwardSlashPath(path)
 				+ $" at {callerLine} in {callerName}()";

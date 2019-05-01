@@ -92,11 +92,15 @@ namespace Ex {
 			Log.logHandler += (tag, msg) => {
 				Console.WriteLine($"{tag}: {msg}");
 			};
-			//Log.Verbose("VERBOSE VERBOSE VERBOSE");
-			//Log.Debug("Debug. Debug.");
-			//Log.Info("Information.");
-			//Log.Warning("!!!!ATCHUNG!!!!");
-			//Log.Error("Oh Shi-");
+			
+			Action logstuff = () => {
+				Log.Verbose("VERBOSE VERBOSE VERBOSE");
+				Log.Debug("Debug. Debug.");
+				Log.Info("Information.");
+				Log.Warning("!!!!ATCHUNG!!!!");
+				Log.Error("Oh Shi-");
+			};
+			logstuff();
 
 			Log.Info("Color Test." +
 				"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp\\aa\\ss\\dd" +
@@ -131,6 +135,7 @@ namespace Ex {
 				.Connect()
 				.UseDatabase("Test1")
 				.CleanDatabase()
+				.Reseed("../../../db")
 				;
 				
 

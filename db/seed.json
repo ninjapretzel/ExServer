@@ -1,0 +1,16 @@
+[
+	{ drop: [ "Content", ], },
+	
+	{ index: {  database: "$default", collection: "UserLoginInfo", 
+		fields: { userName:1, guid:1, _id:1 }, }, },
+	{ index: { database: "$default", collection: "LoginAttempt", 
+		fields: { userName, guid, ip, result, timestamp }, }, },
+	{ index: { database: "Content", collection: "ItemGeneration", 
+		fields: { tag, type, }, }, },
+		
+	{ insert: { database: "Content", collection: "SystemInfo", }, },
+	{ insert: { database: "Content", collection: "StatCalc", }, },
+	{ insert: { database: "Content", collection: "ItemGeneration", } },
+	{ insert: { database: "Content", collection: "Maps/**", } },
+	
+]

@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 using BakaTest;
 using Ex.Utils;
 
-namespace Ex{
+namespace Ex {
 
 	/// <summary> Static generic template-like class to cache information about structs </summary>
 	/// <typeparam name="T"></typeparam>

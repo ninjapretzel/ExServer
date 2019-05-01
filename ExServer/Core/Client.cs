@@ -106,6 +106,7 @@ namespace Ex {
 		public void DisconnectSlave() {
 			if (isSlave) {
 				server.Stop();
+				connection.Dispose();
 			}
 		}
 

@@ -1,0 +1,43 @@
+[
+	
+	{ tag: "MeleeWeapon", type: "rules",
+		settings: { Dirk: 8, Sword: 5, Club: 5, Greatsword: 5 },
+		rolls: [  "Suffix", "Rarity", "Metal", "Element", 
+			"Prefix", "Prefix", "Prefix", "Quality", ], },
+	
+	
+	{ tag: "OneHanded", type: "settings", equip: true, equipSlot: "Hand", equipSlotIsPrefix },
+	{ tag: "TwoHanded", type: "settings", equip: true, equipSlot: "BothHands", finalMult: 1.5, },
+	{ tag: "MainHanded", type: "settings", equip: true, equipSlot: "HandMain", },
+	{ tag: "OffHanded", type: "settings", equip: true, equipSlot: "HandOff", },
+	
+	
+	{ tag: "Helm", type: "settings", equip: true, equipSlot: "Head", finalMult: .75, },
+	{ tag: "Body", type: "settings", equip: true, equipSlot: "Body", finalMult: 1.3, },
+	{ tag: "Legs", type: "settings", equip: true, equipSlot: "Legs", finalMult: 1.15, },
+	{ tag: "Glov", type: "settings", equip: true, equipSlot: "Gloves", finalMult: .75, },
+	{ tag: "Boot", type: "settings", equip: true, equipSlot: "Feet", finalMult: .75, },
+	
+	{ tag: "Dirk", type: "settings",
+		name: [ "Dirk", "Dagger", "Kris", "Shiv", ],
+		icon: [ "dagger#[0,7]", "knife#[13,18]", ],
+		before: [ "OneHanded", ],	
+		value: 3, rarity; 1, quality: 0, property: "pierce",
+		// stat - Fixed stats that every item generated will inherit 
+		stat: { patk:10, pacc:.0500, aspd:.1000, },
+		// norm - Level scaled stats added with normal dist.
+		norm: { patk:03, pacc:.0001, aspd:.0020, },
+		// fnorm - Fixed stats added with normal dist.
+		fnorm: { },
+		// rand - Level scaled stats added with equal dist. 
+		rand: { patk:05, pacc:.0001, aspd:.0005, },
+		// frand - Fixed stats added with equal dist. 
+		frand: { },
+		// Using these items can have adjusted distributions.
+		// This dirk stat set has slightly wider average distribution in patk than aspd.
+		after: [ ],
+	}
+		
+		
+	
+]

@@ -8,9 +8,12 @@
 	{ index: { database: "Content", collection: "ItemGeneration", 
 		fields: { tag, type, }, }, },
 		
+	{ index: { database: "Content", collection: "Maps",
+		fields: { name, }, }, },
+		
 	{ insert: { database: "Content", collection: "SystemInfo", }, },
 	{ insert: { database: "Content", collection: "StatCalc", }, },
-	{ insert: { database: "Content", collection: "ItemGeneration", } },
-	{ insert: { database: "Content", collection: "Maps/**", } },
+	{ insert: { database: "Content", collection: "ItemGeneration", }, },
+	{ insert: { database: "Content", collection: "Maps", files: [ "Maps/**", ], }, },
 	
 ]

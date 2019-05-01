@@ -135,7 +135,6 @@ namespace Ex {
 			
 			var model = new CreateIndexModel<BDoc>(index);
 			db.GetCollection<BDoc>(collection).Indexes.CreateOne(model);
-			Log.Debug($"Indexer Got fields {fields?.Count??-1}");
 		}
 
 		private void Reseed_Insert(JsonObject descriptor, string dir) {
@@ -153,32 +152,34 @@ namespace Ex {
 				string fpath = dir + file;
 
 				if (file.EndsWith("/**")) {
-					string directory = file.Replace("/**", "");
+					string directory = fpath.Replace("/**", "");
 
-					
+					Reseed_Insert_Glob(database, collection, directory);
+
 				} else {
 					try { json = json ?? File.ReadAllText(fpath); } catch (Exception) { }
 					try { json = json ?? File.ReadAllText(fpath + ".json"); } catch (Exception) { }
 					try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
+
+					if (json == null) {
+						Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
+						continue;
+					}
+
+					JsonValue data = Json.Parse(json);
+					if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+						Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
+						continue;
+					}
+
+					if (data is JsonObject) {
+						InsertData(database, collection, data as JsonObject);
+					} else if (data is JsonArray) {
+						InsertData(database, collection, data as JsonArray);
+					}
 				}
 
 
-				if (json == null) {
-					Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
-					continue;
-				}
-
-				JsonValue data = Json.Parse(json);
-				if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-					Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
-					continue;
-				}
-
-				if (data is JsonObject) {
-					InsertData(database, collection, data as JsonObject);
-				} else if (data is JsonArray) {
-					InsertData(database, collection, data as JsonArray);
-				}
 			}
 		}
 
@@ -210,6 +211,7 @@ namespace Ex {
 			collector = collector ?? new List<string>();
 			var files = Directory.GetFiles(directory);
 			collector.AddRange(files);
+			//collector.AddRange(files.Select(it => ForwardSlashPath(it)));
 			
 			var dirs = Directory.GetDirectories(directory);
 			foreach (var dir in dirs) {

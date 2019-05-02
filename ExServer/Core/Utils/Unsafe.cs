@@ -266,6 +266,9 @@ namespace Ex {
 			byte* resultPtr, valPtr;
 
 			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
 				resultPtr = (byte*) *( ((IntPtr*)&resultRef + 1));
 				valPtr = (byte*) *( ((IntPtr*)&valRef + 1));			
 			} else {

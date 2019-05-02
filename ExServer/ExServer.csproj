@@ -84,6 +84,7 @@
     <Compile Include="Core\Services\SyncService.cs" />
     <Compile Include="Core\Utils\Bitflags.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
+    <Compile Include="Core\Utils\Extensions.cs" />
     <Compile Include="Core\Utils\Packing.cs" />
     <Compile Include="Core\Utils\Trender.cs" />
     <Compile Include="Core\Utils\Unsafe.cs" />

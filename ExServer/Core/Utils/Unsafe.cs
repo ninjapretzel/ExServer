@@ -230,10 +230,20 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Inspect the raw memory around a pointer </summary>
+		/// <param name="p"> Pointer to inspect </param>
+		/// <param name="length"> Total number of bytes to inspect </param>
+		/// <param name="stride"> Number of bytes to put on a single line </param>
+		/// <returns> String holding hexdump of the memory at the given location </returns>
 		public static unsafe string InspectMemory(IntPtr p, int length = 16, int stride = 8) {
 			return InspectMemory((void*)p, length, stride);
 		}
 
+		/// <summary> Inspect the raw memory around a pointer </summary>
+		/// <param name="p"> Pointer to inspect </param>
+		/// <param name="length"> Total number of bytes to inspect </param>
+		/// <param name="stride"> Number of bytes to put on a single line </param>
+		/// <returns> String holding hexdump of the memory at the given location </returns>
 		public static unsafe string InspectMemory(void* p, int length = 16, int stride = 8) {
 			StringBuilder str = "";
 			byte* bp = (byte*) p;

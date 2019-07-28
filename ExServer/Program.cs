@@ -29,17 +29,14 @@ namespace Ex {
 #if DEBUG
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
+				// Still more visible than doing some weird VS build command hook.
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
 				SelfTest();
 
-				JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
-
-				//Ray r = new Ray(new Vector3(0,0,0), new Vector3(0,.05f,1));
-				//Bounds b = new Bounds(new Vector3(0, 0, 10), Vector3.one);
-				//Console.WriteLine(b.Intersects(r));
+				StaticSetup();
 
 				ActualProgram();
 				
@@ -47,6 +44,12 @@ namespace Ex {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
 				Console.Read();
 			}
+		}
+
+		static void StaticSetup() {
+
+			JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
+
 		}
 
 

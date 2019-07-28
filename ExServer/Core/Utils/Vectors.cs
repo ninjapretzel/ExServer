@@ -1,5 +1,8 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019
+#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
+// using UnityEngine; // This file basically becomes a no-op if inside of unity, as it defines equivelant vector structs.
+#else
+
 #endif
 
 using System;

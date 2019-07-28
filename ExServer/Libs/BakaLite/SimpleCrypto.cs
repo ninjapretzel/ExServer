@@ -1,7 +1,10 @@
-#if UNITY_6 || UNITY_5 || UNITY_4 || UNITY_2017 || UNITY_2018
+#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
+#else
+
 #endif
+
 using Ex.Libs;
 using System;
 using System.Collections.Generic;

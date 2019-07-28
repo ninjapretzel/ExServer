@@ -1,12 +1,10 @@
-// Unity Header 
-#if UNITY_5 || UNITY_4 || UNITY_2017 || UNITY_2018 || UNITY_2019
+#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 #endif
-// End Unity Header 
 
 using System;
 using System.Collections;

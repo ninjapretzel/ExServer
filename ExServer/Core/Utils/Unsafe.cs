@@ -14,8 +14,12 @@ using System.Text;
 using System.Threading.Tasks;
 using BakaTest;
 using Ex.Utils;
+using Ex.Utils.Ext;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Ex {
+	
 
 	/// <summary> Static generic template-like class to cache information about structs </summary>
 	/// <typeparam name="T"></typeparam>
@@ -29,6 +33,9 @@ namespace Ex {
 	/// Modified code from http://benbowen.blog/post/fun_with_makeref/
 	/// </summary>
 	public static class Unsafe {
+		/// <summary> Are we running on the Mono Runtime? </summary>
+		public static readonly bool MonoRuntime = Type.GetType("Mono.Runtime") != null;
+
 		/// <summary>Extracts the bytes from a generic value type.</summary>
 		/// <typeparam name="T">Generic type. </typeparam>
 		/// <param name="obj">Instance of generic type <paramref name="T"/> to convert</param>
@@ -37,14 +44,24 @@ namespace Ex {
 		public static unsafe byte[] ToBytes<T>(T value) where T : struct {
 			byte[] bytes = new byte[StructInfo<T>.size];
 			TypedReference valueRef = __makeref(value);
+			// Debug.Log($"Memory around ref of {typeof(T)}:\n{InspectMemory(&valueRef)}");
+
 			// Unsafe Abuse
 			// First of all we're getting a pointer to valueref (so that's a reference to our reference), 
 			// and treating it as a pointer to an IntPtr instead of a pointer to a TypedReference. 
 			// This works because the first 4/8 bytes in the TypedReference struct are an IntPtr 
 			// specifically the pointer to value. Then we dereference that IntPtr pointer to a regular old IntPtr, 
 			// and finally cast that IntPtr to a byte* so we can use it in the copy code below.
-			byte* valuePtr = (byte*)*((IntPtr*)&valueRef);
-
+			byte* valuePtr;
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				valuePtr = (byte*) *( ((IntPtr*)&valueRef) + 1 );
+			} else {
+				valuePtr = (byte*)*((IntPtr*)&valueRef);
+			}
+			
 			for (int i = 0; i < bytes.Length; ++i) {
 				bytes[i] = valuePtr[i];
 			}
@@ -64,9 +81,17 @@ namespace Ex {
 
 			T result = default(T);
 			TypedReference resultRef = __makeref(result);
+			byte* resultPtr;
 			// has exactly the same idea behind it as the similar line in the ToBytes method- 
 			// we're getting the pointer to result.
-			byte* resultPtr = (byte*)*((IntPtr*)&resultRef);
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				resultPtr = (byte*) *( ((IntPtr*)&resultRef) + 1 );
+			} else {
+				resultPtr = (byte*)*((IntPtr*)&resultRef);
+			}
 
 			for (int i = 0; i < sizeOfT; ++i) {
 				resultPtr[i] = source[i];
@@ -90,7 +115,18 @@ namespace Ex {
 			TypedReference resultRef = __makeref(result);
 			// has exactly the same idea behind it as the similar line in the ToBytes method- 
 			// we're getting the pointer to result.
-			byte* resultPtr = (byte*)*((IntPtr*)&resultRef);
+
+			byte* resultPtr;
+			// has exactly the same idea behind it as the similar line in the ToBytes method- 
+			// we're getting the pointer to result.
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				resultPtr = (byte*) *( ((IntPtr*)&resultRef) + 1 );
+			} else {
+				resultPtr = (byte*)*((IntPtr*)&resultRef);
+			}
 
 			for (int i = 0; i < sizeOfT; ++i) {
 				resultPtr[i] = source[i];
@@ -147,32 +183,77 @@ namespace Ex {
 				case TypeCode.Decimal:
 					return sizeof(decimal);
 				default: unsafe {
-					
-#if !USE_ARRAY
-					Two<T> two = Two<T>.instance;
-					// static refs to structs should not need to be pinned...
-					TypedReference ref0 = __makeref(two.first);
-					TypedReference ref1 = __makeref(two.second);
-					
-					IntPtr p0 = *((IntPtr*)&ref0);
-					IntPtr p1 = *((IntPtr*)&ref1);
-					
-					return (int)(((byte*)p1) - ((byte*)p0));
-#else
+#if USE_ARRAY
 					T[] array = ArrayOfTwoElements<T>.Value;
 					GCHandle pin = GCHandle.Alloc(array, GCHandleType.Pinned);
 					try {
-						var ref1 = __makeref(array[0]);
-						var ref2 = __makeref(array[1]);
+						var ref0 = __makeref(array[0]);
+						var ref1 = __makeref(array[1]);
+						IntPtr p0, p1;
+					
+						if (MonoRuntime) {
+							// @oddity @hack
+							// Mono's implementation of the TypedReference struct has the type first and the reference second
+							// So we have to dereference the second segment to get the actual reference.
+							p0 = *( ((IntPtr*)&ref0) + 1);
+							p1 = *( ((IntPtr*)&ref1) + 1);
 
-						IntPtr ptr1 = *((IntPtr*)&ref1);
-						IntPtr ptr2 = *((IntPtr*)&ref2);
+						} else {
+							p0 = *((IntPtr*)&ref0);
+							p1 = *((IntPtr*)&ref1);
+						}
 
-						return (int)(((byte*)ptr2) - ((byte*)ptr1));
+						return (int)(((byte*)p1) - ((byte*)p0));
 					} finally { pin.Free(); }
+#else
+					Two<T> two = Two<T>.instance;
+					TypedReference ref0 = __makeref(two.first);
+					TypedReference ref1 = __makeref(two.second);
+					IntPtr p0, p1;
+					
+					if (MonoRuntime) {
+						// @oddity @hack
+						// Mono's implementation of the TypedReference struct has the type first and the reference second
+						// So we have to dereference the second segment to get the actual reference.
+						p0 = *( ((IntPtr*)&ref0) + 1);
+						p1 = *( ((IntPtr*)&ref1) + 1);
+
+					} else {
+						p0 = *((IntPtr*)&ref0);
+						p1 = *((IntPtr*)&ref1);
+					}
 #endif
+					
+					return (int)(((byte*)p1) - ((byte*)p0));
+					
 				}
 			}
+		}
+
+		/// <summary> Inspect the raw memory around a pointer </summary>
+		/// <param name="p"> Pointer to inspect </param>
+		/// <param name="length"> Total number of bytes to inspect </param>
+		/// <param name="stride"> Number of bytes to put on a single line </param>
+		/// <returns> String holding hexdump of the memory at the given location </returns>
+		public static unsafe string InspectMemory(IntPtr p, int length = 16, int stride = 8) {
+			return InspectMemory((void*)p, length, stride);
+		}
+
+		/// <summary> Inspect the raw memory around a pointer </summary>
+		/// <param name="p"> Pointer to inspect </param>
+		/// <param name="length"> Total number of bytes to inspect </param>
+		/// <param name="stride"> Number of bytes to put on a single line </param>
+		/// <returns> String holding hexdump of the memory at the given location </returns>
+		public static unsafe string InspectMemory(void* p, int length = 16, int stride = 8) {
+			StringBuilder str = "";
+			byte* bp = (byte*) p;
+			for (int i = 0; i < length; i++) {
+				if (i%stride == 0) {
+					str += (i==0?"0x":"\n0x");
+				}
+				str += String.Format("{0:X2}", bp[i]);
+			}
+			return str.ToString();
 		}
 
 
@@ -191,10 +272,19 @@ namespace Ex {
 			if (sizeBytes != StructInfo<TOut>.size) { return result; }
 
 			TypedReference resultRef = __makeref(result);
-			byte* resultPtr = (byte*)*((IntPtr*)&resultRef);
-
 			TypedReference valRef = __makeref(val);
-			byte* valPtr = (byte*)*((IntPtr*)&valRef);
+			byte* resultPtr, valPtr;
+
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				resultPtr = (byte*) *( ((IntPtr*)&resultRef + 1));
+				valPtr = (byte*) *( ((IntPtr*)&valRef + 1));			
+			} else {
+				resultPtr = (byte*) *( ((IntPtr*)&resultRef));
+				valPtr = (byte*) *( ((IntPtr*)&valRef));
+			}
 
 			for (int i = 0; i < sizeBytes; ++i) {
 				resultPtr[i] = valPtr[i];
@@ -202,12 +292,12 @@ namespace Ex {
 
 			return result;
 		}
-
-
+		
 	}
-	
-	public class Unsafe_Tests {
 
+	public class Unsafe_Tests {
+		
+		[Serializable]
 		public struct TestBlah { public float a,b,c; }
 		public struct FourBytes { public byte a,b,c,d; }
 

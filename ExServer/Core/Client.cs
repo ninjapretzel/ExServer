@@ -1,3 +1,4 @@
+using BakaBaka.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Ex.RPCMessage;
 
 namespace Ex {
 
@@ -66,10 +68,9 @@ namespace Ex {
 		#endregion
 
 		/// <summary> Encryption </summary>
-		public Crypt enc = (b) => b;
+		internal Crypt enc = (b) => b;
 		/// <summary> Decryption </summary>
-		public Crypt dec = (b) => b;
-
+		internal Crypt dec = (b) => b;
 		#endregion
 
 		public Client(TcpClient tcpClient, Server server = null) {
@@ -88,6 +89,16 @@ namespace Ex {
 			this.stream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
 			
 			outgoing = new ConcurrentQueue<string>();
+
+			{ // Temp encryption
+				EncDec encryptor = new EncDec();
+				Crypt e = (b) => encryptor.Encrypt(b);
+				Crypt d = (b) => encryptor.Decrypt(b);
+				SetEncDec(e, d);
+				//enc = e;
+				//dec = d;
+			}
+
 			
 
 			Log.Info($"\\eClient \\y {identity}\\e connected from \\y {localEndpoint} -> {remoteEndPoint}");
@@ -198,6 +209,130 @@ namespace Ex {
 		public T GetService<T>() where T : Service { return server.GetService<T>(); }
 		#endregion
 
+
+		#region Crypt
+		private static readonly string testMessage = ("holy s-t g*d-n this is an annoying f-n song." + EOT
+				+ "Now you'll get it stuck inside your head and you'll sing it all night long." + EOT
+				+ "This is the game." + EOT
+				+ "That doesn't end." + EOT
+				+ "One hundred levels." + EOT
+				+ "And start again." + EOT
+				+ "While you were stuck in the basement all day." + EOT
+				+ "Other children were out to play." + EOT
+				+ "*Gunshot*" + EOT
+				+ "Anyone who takes anything they find on the internet seriously should be dragged out and shot." + EOT
+				+ "Everything here is satire, only a fool would take it seriously." + EOT
+				+ "Don't you dare make negative memes about CNN" + EOT
+				+ "SOME" + EOT + "VERY" + EOT + "SHORT" + EOT + "MESSAGES " + EOT + "HERE" + EOT
+				+ "EVN" + EOT + "MORE" + EOT + "SHRT" + EOT + "MSGS" + EOT + "HRE " + EOT + "YEP" + EOT
+				+ "SHUT IT DOWN THEY KNOW" + EOT
+				+ "Clown World" + EOT
+				+ "Is this enough test data yet?" + EOT
+				+ "Nuke California" + EOT
+				+ "何だ？ 女人の写真？ 綺麗な人はな。誰？ ｍａｉ ｗａｉｆｕ。嘘！" + EOT
+				+ "なんだ？ おなのひとのしゃしん？ きれいなひとはな。 だれ？ ｍａｉ ｗａｉｆｕ。うそ!" + EOT
+				+ "I'm running out of ideas." + EOT
+				+ "Epic Games Exclusivity made Mechwarrior 5 a dumpster fire." + EOT
+				+ "I just want my son back" + EOT
+				+ "The easiest way to make money is to make a game where everyone is on an island trying to shoot each other. I don't want to make that - Hideo Kojima, SDCC2019" + EOT
+				+ "TradChad" + EOT
+				+ "动态网自由门 天安門 天安门 法輪功 李洪志 Free Tibet 六四天安門事件 The Tiananmen Square protests of 1989 天安門大屠殺 The Tiananmen Square Massacre 反右派鬥爭 " 
+				+ "The Anti-Rightist Struggle 大躍進政策 The Great Leap Forward 文化大革命 The Great Proletarian Cultural Revolution 人權 Human Rights 民運 " 
+				+ " Democratization 自由 Freedom 獨立 Independence 多黨制 Multi-party system 台灣 臺灣 Taiwan Formosa 中華民國 Republic of China 西藏 土伯特 唐古特 " 
+				+ "Tibet 達賴喇嘛 Dalai Lama 法輪功 Falun Dafa 新疆維吾爾自治區 The Xinjiang Uyghur Autonomous Region 諾貝爾和平獎 Nobel Peace Prize 劉暁波 Liu Xiaobo 民主 言論 思想 反共 "
+				+ "反革命 抗議 運動 騷亂 暴亂 騷擾 擾亂 抗暴 平反 維權 示威游行 李洪志 法輪大法 大法弟子 強制斷種 強制堕胎 民族淨化 人體實驗 肅清 胡耀邦 趙紫陽 魏京生 王丹 還政於民 和平演變 激流中國 北京之春 "
+				+ "大紀元時報 九評論共産黨 獨裁 專制 壓制 統一 監視 鎮壓 迫害 侵略 掠奪 破壞 拷問 屠殺 活摘器官 誘拐 買賣人口 遊進 走私 毒品 賣淫 春畫 賭博 六合彩 天安門 天安门 法輪功 李洪志 Winnie the Pooh 劉曉波动态网自由门" + EOT
+				+ "I can't sleep eddy, I keep thinking. How's this possible? A bakery existed for 5 years and had 15 ovens to bake breads. "
+				+ "Each oven could only bake one bread an hour. 15x24 hours = 360, 360x365 days = 131,400, 131,400x5 years = 657,000. "
+				+ "And yet people say they bought 6 million breads from that bakery" + EOT
+				+ "Today is the day we take the stairs." + EOT
+				+ "Would you like to know more?" + EOT
+				+ "With the glass ceiling broken, all the oppressed groups shall prosper. Especially the most oppressed group of all: Gamers." + EOT
+				+ "Digger is our word, but you can say digga." + EOT
+				+ "TetraDev: Follow your dreams! YokoTaro: I'll follow your dreams!" + EOT
+				+ "Klarth: Mint has that quiet elegance about her, but I bet Arche f---- like a tiger." + EOT
+				+ "Storm Area 51" + EOT
+				+ "Yes Epstien was SPIRIT COOKING." + EOT
+				+ "Don't worry, it's just fake news." + EOT
+			).Replace(' ', SEPARATOR);
+
+		/// <summary>
+		/// Attempts to set enc and dec to a pair of methods.
+		/// Tests them agains some test data in a loop similar to how data is handled over the network, 
+		/// and makes sure that arbitrary cuts on the data doesn't break the encryption scheme.
+		/// </summary>
+		/// <param name="encrypt"> Function for encrypting the data </param>
+		/// <param name="decrypt"> Function for decrypting the data </param>
+		public void SetEncDec(Crypt encrypt, Crypt decrypt) {
+			Log.Info("Doing encrypt/decrypt self test");
+			if (encrypt == null || decrypt == null) {
+				Log.Warning("Proper Encryption/Decryption functions must be provided to clients...");
+				return;
+			}
+
+			byte[] oneEnc = encrypt(oneByte);
+			byte[] oneDec = decrypt(oneEnc);
+
+			if (oneDec.Length != 1 && oneDec[0] != oneByte[0]) { 
+				Log.Warning("!Encryption/decryption must properly handle tiny things as well! (One byte in size)");
+				return;
+			}
+
+			List<byte[]> wew = new List<byte[]>();
+			StringBuilder recieved = "";
+			int stringpos = 0;
+			SRNG rand = new SRNG();
+			while (stringpos < testMessage.Length) {
+				int next = stringpos + rand.NextInt(1, 42);
+				if (next > testMessage.Length) { next = testMessage.Length; }
+
+				int diff = next - stringpos;
+				string cut = testMessage.Substring(stringpos, diff);
+				stringpos = next;
+
+				wew.Add(cut.ToBytesUTF8());
+			}
+
+			byte[][] multibytearraydrifting = wew.ToArray();
+			StringBuilder held = "";
+			string str;
+			int pos = 0;
+			foreach (var bytes in multibytearraydrifting) {
+				byte[] message = encrypt(bytes);
+				message = decrypt(message);
+				str = message.GetStringUTF8();
+
+				held += str;
+				int index = held.IndexOf(EOT);
+				while (index >= 0) {
+					string pulled = held.Substring(0, index);
+					held = held.Remove(0, index + 1);
+					index = held.IndexOf(EOT);
+
+					if (pulled.Length > 0) {
+						recieved = recieved + pulled + EOT;
+					}
+				}
+				pos++;
+			}
+
+
+
+			string fullRecieved = recieved.ToString();
+			if (fullRecieved == testMessage) {
+				enc = encrypt;
+				dec = decrypt;
+			} else {
+				string s = "Client.SetEncDec: Attempted to set Encryption/Decryption methods, but they did not work properly."
+					+ "\n\nExpected: " + testMessage + "\n\nRecieved: " + fullRecieved;
+				Log.Warning(s);
+				enc = null;
+				dec = null;
+			}
+
+		}
+
+		#endregion
 	}
 
 }

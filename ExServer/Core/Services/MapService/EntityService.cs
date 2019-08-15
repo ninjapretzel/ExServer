@@ -96,7 +96,10 @@ namespace Ex {
 			entities = null;
 			components = null;
 #if !UNITY
-			GetService<LoginService>().initializer -= InitializeEntityInfo;
+			var login = GetService<LoginService>();
+			if (login != null) {
+				login.initializer -= InitializeEntityInfo;
+			}
 #endif
 
 		}
@@ -111,8 +114,8 @@ namespace Ex {
 
 #if !UNITY
 		public override void OnDisconnected(Client client) {
-			Entity entity;
-			entity = entities[client.id];
+			Entity entity = entities.ContainsKey(client.id) ? entities[client.id] : null;
+
 			TRS trs = GetComponent<TRS>(entity);
 			OnMap onMap = GetComponent<OnMap>(entity);
 
@@ -171,7 +174,7 @@ namespace Ex {
 				trs.position = info.position;
 				trs.rotation = info.rotation;
 				trs.scale = Vector3.one;
-				GetService<MapService>().EnterMap(client, info.map);
+				GetService<MapService>().EnterMap(client, info.map, info.position, info.rotation);
 			
 			} else {
 
@@ -212,6 +215,7 @@ namespace Ex {
 
 			return component;
 		}
+
 		/// <summary> Adds a component of type T for the given entity. </summary>
 		/// <typeparam name="T"> Generic type of Component to add </typeparam>
 		/// <param name="id"> ID of Entity to add Component to </param>
@@ -236,6 +240,22 @@ namespace Ex {
 		/// <param name="id"> ID of Entity to get Componment from </param>
 		/// <returns> Component of type T if it exists on entity, otherwise null. </returns>
 		public T GetComponent<T>(Guid id) where T : Comp { return GetComponent<T>(this[id]); }
+
+		/// <summary> Checks the entity for a given component type, and if it exists, returns it, otherwise adds one and returns it. </summary>
+		/// <typeparam name="T"> Generic type of Component to add </typeparam>
+		/// <param name="entity"> Entity to check and/or add Component to </param>
+		/// <returns> Previously existing or newly created component </returns>
+		public T RequireComponent<T>(Entity entity) where T : Comp {
+			if (entity == null) { return null; }
+			var c = GetComponent<T>(entity);
+			if (c != null) { return c; }
+			return AddComponent<T>(entity);
+		}
+		/// <summary> Checks the entity for a given component type, and if it exists, returns it, otherwise adds one and returns it. </summary>
+		/// <typeparam name="T"> Generic type of Component to add </typeparam>
+		/// <param name="id"> ID of Entity to check and/or add Component to </param>
+		/// <returns> Previously existing or newly created component </returns>
+		public T RequireComponent<T>(Guid id) where T : Comp { return RequireComponent<T>(this[id]); }
 
 		/// <summary> Removes a component from the given entity  </summary>
 		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
@@ -357,6 +377,10 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of component to get </typeparam>
 		/// <returns> Component of type T that is on this entity, or null if none exists </returns>
 		public T GetComponent<T>() where T : Comp { return service.GetComponent<T>(this); }
+		/// <summary> Checks for a component associated with this entity, returns it or creates a new one if it does not exist </summary>
+		/// <typeparam name="T"> Generic type of component to get </typeparam>
+		/// <returns> Component of type T that is on this entity, or was just added </returns>
+		public T RequireComponent<T>() where T : Comp { return service.RequireComponent<T>(this); }
 		/// <summary> Removes a component associated with this entity. </summary>
 		/// <typeparam name="T"> Generic type of component to remove </typeparam>
 		/// <returns> True if a component was removed, otherwise false. </returns>
@@ -440,12 +464,14 @@ namespace Ex {
 	}
 
 
+
 	/// <summary> Component that places an entity on a map. </summary>
 	public class OnMap : Comp {
 		public string mapId;
+		public int? mapInstanceIndex;
 	}
 
-	/// <summary> Component that gives entity physical location </summary>
+	/// <summary> Component that gives entity a physical location </summary>
 	public class TRS : Comp {
 		public Vector3 position;
 		public Vector4 rotation;

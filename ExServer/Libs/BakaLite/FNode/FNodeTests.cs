@@ -6,7 +6,7 @@ using FNODE;
 using FF = FNODE.FNode<string>;
 using FJ = FNODE.FNode<JsonObject>;
 using System.Linq;
-using Baka;
+using BakaBaka.Utils;
 
 public static class FNode_Tests {
 

@@ -1,0 +1,27 @@
+{
+	// Limbo is a map used to hold players when they connect
+	// before they are transferred to any other maps.
+	name: "Limbo",
+	procedural: false,
+	cellSize: 10,
+	cellDist: 2,
+	showOthers: false,
+	is3d: false,
+	axes: "xz",
+	bounds: [
+		0,40,0,
+		1000,40,1000,
+	},
+	sparse: false,
+	solo: true,
+	
+	skybox: {
+		material: "EternusBase",
+		generator: "basic",
+		seed: 52
+	},
+	
+	
+	
+	
+}

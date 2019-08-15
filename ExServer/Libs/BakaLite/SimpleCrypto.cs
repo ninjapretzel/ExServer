@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Baka {
+namespace BakaBaka.Utils {
 
 	/// <summary> Crude, Simple RNG </summary>
 	/// <remarks> 

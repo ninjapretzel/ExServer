@@ -190,7 +190,7 @@ namespace Ex {
 				try {
 					json = json ?? File.ReadAllText(file);
 				} catch (Exception e) {
-					Log.Warning($"Seeder could not find {{{file}}}.");
+					Log.Warning($"Seeder could not find {{{file}}}.", e);
 				}
 
 				JsonValue data = Json.Parse(json);

@@ -89,6 +89,7 @@
     <Compile Include="Core\Utils\Trender.cs" />
     <Compile Include="Core\Utils\Unsafe.cs" />
     <Compile Include="Core\Utils\Vectors.cs" />
+    <Compile Include="Core\Utils\WorkPool.cs" />
     <Compile Include="Core\VersionInfo.cs" />
     <Compile Include="Libs\BakaLite\BakaTest.cs" />
     <Compile Include="Libs\BakaLite\FNode\FNodeTests.cs" />

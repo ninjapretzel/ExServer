@@ -1,0 +1,9 @@
+{
+	model: "Spider",
+	name: "Spider",
+	maxHp: 155,
+	curHp: 155,
+	ap: 30,
+	dp: 5,
+	radius: 4,
+}

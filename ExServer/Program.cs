@@ -14,7 +14,8 @@ using Ex.Utils;
 
 namespace Ex {
 
-	public static class Program {
+public static class Program {
+		
 		public static string SourceFileDirectory([CallerFilePath] string callerPath = "[NO PATH]") {
 			return callerPath.Substring(0, callerPath.Replace('\\', '/').LastIndexOf('/'));
 		}
@@ -32,13 +33,15 @@ namespace Ex {
 				// Still more visible than doing some weird VS build command hook.
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
 				SelfTest();
 
 				StaticSetup();
 
 				ActualProgram();
+				
+				// Console.Read();
 				
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
@@ -51,8 +54,8 @@ namespace Ex {
 			JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
 
 		}
-
-
+		
+		
 		static void ActualProgram() {
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
@@ -106,8 +109,9 @@ namespace Ex {
 			logstuff();
 
 			Log.Info("Color Test." +
-				"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp\\aa\\ss\\dd" +
-				"\n\\ff\\gg\\hh\\jj\\kk\\ll\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
+				"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" +
+				"\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" +
+				"\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
 		}
 
 		private static void SetupServer() {
@@ -185,7 +189,8 @@ namespace Ex {
 				Console.WriteLine($"\t{str}");
 			}
 		}
+
 	}
 
-}
 
+}

@@ -117,39 +117,49 @@ namespace Ex {
 			Running = true;
 			if (isMaster) {
 				listenThread = StartThread(Listen);
+				listenThread.Name = "Listen Thread";
 			}
 
 			globalUpdateThread = StartThread(GlobalUpdate);
+			globalUpdateThread.Name = "Global Update Thread";
 			mainSendThread = StartThread(SendLoop);
+			mainSendThread.Name = "Main Send Thread";
 			mainRecrThread = StartThread(RecrLoop);
+			mainRecrThread.Name = "Main Recr Thread";
 		}
 
 		public void Stop() {
 			if (!Running || Stopping) { return; }
-			// Set flags and push to RAM.
+			/// Set flags and push to RAM.
 			Running = false;
 			Stopping = true;
 			Thread.MemoryBarrier();
-
-			// Wait for threads to finish their work
+			
+			/// Wait for threads to finish their work
 			listener?.Stop();
 			globalUpdateThread?.Join();
 			listenThread?.Join();
 			mainSendThread?.Join();
 			mainRecrThread?.Join();
 
-			// Clean up on slave: just tell the server you closed.
+			/// Stop all services 
+			List<Type> servicesToStop = new List<Type>();
+			foreach (var pair in services) { servicesToStop.Add(pair.Key); }
+			for (int i = servicesToStop.Count-1; i >= 0; i--) { RemoveService(servicesToStop[i]); }
+
+			/// Clean up on slave: just tell the server you closed.
 			if (isSlave) {
 				localClient.Call(Members<CoreService>.i.Closed);
 				SendData(localClient);
 				Close(localClient);
 			} else {
 
-				// @Todo: Cleanup master by telling all clients server is closed
+				/// @Todo: Cleanup master by sending packet to all clients: server is closed
 				List<Client> toClose = connections.Values.ToList();
 				foreach (var client in toClose) {
 					Close(client);
 				}
+
 			}
 			
 			Stopping = false;
@@ -560,6 +570,22 @@ namespace Ex {
 				Type type = typeof(T);
 				servicesByName.Remove(type.ShortName());
 				services.Remove(type);
+
+				return true;
+			}
+			return false;
+		}
+
+		public bool RemoveService(Type t) {
+			if (t != null 
+				&& typeof(Service).IsAssignableFrom(t)
+				&& services.ContainsKey(t)) {
+				
+				Service removed = services[t];
+				removed.Disable();
+				
+				servicesByName.Remove(t.ShortName());
+				services.Remove(t);
 
 				return true;
 			}

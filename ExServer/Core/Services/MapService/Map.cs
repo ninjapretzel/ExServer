@@ -21,18 +21,26 @@ using System.Runtime.CompilerServices;
 #if !UNITY
 
 namespace Ex {
-
-
+	
 	/// <summary> A single instance of a map. </summary>
 	public class Map {
 
-		public MapInfo info;
-		public Guid id;
-		public List<Client> clients;
-		public Dictionary<Vector3Int, Cell> cells;
-		public Dictionary<Guid, Entity> entities;
+		/// <summary> Service the map is bound to. Used to facilitate interactions with the <see cref="EntityService"/> and other functionality </summary>
+		public MapService service { get; private set; }
+		/// <summary> Information about this map. </summary>
+		public MapInfo info { get; private set; }
+		/// <summary> ID assigned to map </summary>
+		public Guid id { get; private set; }
+		/// <summary> Clients in the map </summary>
+		public List<Client> clients { get; private set; }
+		/// <summary> Cells in the map </summary>
+		public Dictionary<Vector3Int, Cell> cells { get; private set; }
+		/// <summary> Entities in the map </summary>
+		public Dictionary<Guid, Entity> entities { get; private set; }
+		/// <summary> All ids in the map. </summary>
+		public List<Guid> idsInMap { get; private set; }
 		
-		public MapService service;
+		public EntityService entityService { get { return service.GetService<EntityService>(); } }
 
 		public bool is3d { get { return info.is3d; } }
 		public string name { get { return info.name; } }
@@ -42,25 +50,29 @@ namespace Ex {
 		private ConcurrentQueue<Guid> toDespawn;
 		private ConcurrentQueue<EntityMoveRequest> toMove;
 
+		/// <summary> Time Taken during spawning part of update tick </summary>
 		public Trender spawnTrend = new Trender();
+		/// <summary> Time Taken during despawning part of update tick </summary>
 		public Trender despawnTrend = new Trender();
+		/// <summary> Time Taken during entity update part of update tick </summary>
 		public Trender updateTrend = new Trender();
+		/// <summary> Time Taken during collision part of update tick </summary>
 		public Trender collideTrend = new Trender();
 
-		public Map(MapService service) {
+		public Map(MapService service, MapInfo info) {
 			this.service = service;
+			this.info = info;
 			id = Guid.NewGuid();
 
 			clients = new List<Client>();
 			cells = new Dictionary<Vector3Int, Cell>();
 			entities = new Dictionary<Guid, Entity>();
+			idsInMap = new List<Guid>();
 			toDespawn = new ConcurrentQueue<Guid>();
 			toMove = new ConcurrentQueue<EntityMoveRequest>();
-
-			service.server.CreateUpdateThread(Update);
 			
-
 		}
+
 
 		private Stopwatch sw = new Stopwatch();
 		/// <summary> Update function, called in server update thread. </summary>
@@ -73,15 +85,16 @@ namespace Ex {
 			updateTrend.Record(sw.ElapsedMilliseconds);
 			sw.Reset();
 
-			long total = 0;
+			long collideTime = 0;
 			foreach (var pair in cells) {
 				Cell cell = pair.Value;
 				sw.Start();
 				CollideCell(cell);
 				sw.Stop();
-				total += sw.ElapsedMilliseconds;
+				collideTime += sw.ElapsedMilliseconds;
+				sw.Reset();
 			}
-			sw.Reset();
+			collideTrend.Record(collideTime);
 
 			sw.Start();
 			if (!toDespawn.IsEmpty) {
@@ -109,15 +122,28 @@ namespace Ex {
 		}
 
 		public void EnterMap(Client c) {
+			Entity entity = entityService[c.id];
+
+			var onMap = entity.RequireComponent<OnMap>();
+			if (onMap != null && onMap.mapId != null) {
+				var oldMap = service.GetMap(onMap.mapId, onMap.mapInstanceIndex);
+				oldMap.ExitMap(c);
+			}
 
 		}
 
 		public void ExitMap(Client c) {
 
+			toDespawn.Enqueue(c.id);
+
 		}
 
 		private void OnDespawn(Guid id) {
 
+		}
+		
+		public IEnumerable<T> All<T>() where T : Comp {
+			return entityService.GetEntities<T>() as IEnumerable<T>;
 		}
 		
 		/// <summary> Gets the coordinate of the cell that <paramref name="position"/> belongs to. </summary>

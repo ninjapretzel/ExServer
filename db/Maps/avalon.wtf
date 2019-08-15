@@ -18,20 +18,23 @@
 	// if most of the gameplay is actually only 2d (no verticality)
 	// For example, if there is a map with a wide terrain. 
 	is3d: false,
+	// axes are for what axes are entities allowed to move over for non-2d maps.
+	axes: "xz",
 	// Bounds where entities are allowed.
-	// y is ignored in 2d mode.
-	bounds: {
-		center: { x: 0, y: 40, z: 0 },
-		size: { x: 1000, y: 40, z: 0 },
-	},
-	
+	// y is ignored in 2d mode. (server reads/writes vector-like primitives to database as an array)
+	bounds: [ 
+		0, 40, 0,
+		1000, 40, 0,
+	],
 	
 	// sparse maps update objects only around players, 
 	// and destroy cells when they are not visible to players.
 	// This also means any entities that are in such cells get poofed.
 	// Procedural maps should be sparse.
 	sparse: false,
-	
+	// Solo maps do not show other client's entities to any connected players.
+	// They may show other entities belonging to the client.
+	solo: false,
 	
 	// Information about skybox to use 
 	skybox: {
@@ -51,7 +54,7 @@
 	// All information must be here to configure 
 	terrain: {
 		// Physical size of a terrain tile.
-		tileSize: { x: 100, y: 100, z: 100 },
+		tileSize: [ 100, 100, 100 ],
 		// Maximum radius of terrain tiles that a client may simulate.
 		repeating: 14,
 		// Samples of heightmap for a single terrain tile 
@@ -78,7 +81,7 @@
 			"FaultZone180",
 			"LunarTarget438",
 		],
-		
+		noises: [],
 		ubers: [
 			{
 				octaves: 4,

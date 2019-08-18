@@ -22,10 +22,100 @@ namespace Ex {
 	
 
 	/// <summary> Static generic template-like class to cache information about structs </summary>
-	/// <typeparam name="T"></typeparam>
+	/// <typeparam name="T"> Struct type to cache information for </typeparam>
 	public static class StructInfo<T> where T : struct {
-		public static int size = Unsafe.SizeOf<T>();
+		/// <summary> Size of struct in bytes </summary>
+		public static readonly int size = Unsafe.SizeOf<T>();
 	}
+	#region Util Structs
+	/// <summary> Interop struct for packing a string into a struct, to allow proper use of network strings embedded in structs </summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe struct InteropString32 {
+		private const int LENGTH = 32;
+		/// <summary> Embedded char array </summary>
+		public fixed char fixedBuffer[LENGTH];
+		
+		/// <summary> Get or set the string value of this struct </summary>
+		public string value { 
+			get {
+				fixed (char* c = fixedBuffer) {
+					return new string(c);
+				}
+
+			}
+			set {
+				fixed (char* c = fixedBuffer) {
+					int len = value.Length;
+					for (int i = 0; i < LENGTH - 1; i++) {
+						if (i < len) {
+							c[i] = value[i];
+						} else {
+							c[i] = '\0';
+						}
+					}
+					// Ensure final char in buffer is always null.
+					c[LENGTH - 1] = '\0';
+				}
+			}
+		}
+
+		public override string ToString() { return value; }
+		public override int GetHashCode() { return value.GetHashCode(); }
+		public override bool Equals(object obj) {
+			if (obj is InteropString32) { return value.Equals(((InteropString32)obj).value); }
+			// may be bad...
+			if (obj is string) { return ToString().Equals(obj.ToString()); }
+			return false;
+		}
+
+		public static implicit operator string (InteropString32 s) { return s.value; }
+		public static implicit operator InteropString32(string str) { InteropString32 s; s.value = str; return s; }
+	}
+	/// <summary> Interop struct for packing a string into a struct, to allow proper use of network strings embedded in structs </summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe struct InteropString256 {
+		private const int LENGTH = 256;
+		/// <summary> Embedded char array </summary>
+		public fixed char fixedBuffer[LENGTH];
+
+		/// <summary> Get or set the string value of this struct </summary>
+		public string value {
+			get {
+				fixed (char* c = fixedBuffer) {
+					return new string(c);
+				}
+
+			}
+			set {
+				fixed (char* c = fixedBuffer) {
+					int len = value.Length;
+					for (int i = 0; i < LENGTH - 1; i++) {
+						if (i < len) {
+							c[i] = value[i];
+						} else {
+							c[i] = '\0';
+						}
+					}
+					// Ensure final char in buffer is always null.
+					c[LENGTH - 1] = '\0';
+				}
+			}
+		}
+
+		public override string ToString() { return value; }
+		public override int GetHashCode() { return value.GetHashCode(); }
+		public override bool Equals(object obj) {
+			if (obj is InteropString256) { return value.Equals(((InteropString256)obj).value); }
+			// may be bad...
+			if (obj is string) { return ToString().Equals(obj.ToString()); }
+			return false;
+		}
+
+		public static implicit operator string(InteropString256 s) { return s.value; }
+		public static implicit operator InteropString256(string str) { InteropString256 s; s.value = str; return s; }
+	}
+
+	#endregion
 
 	/// <summary> 
 	/// Not your safe-space. 
@@ -147,8 +237,8 @@ namespace Ex {
 			public static readonly Two<T> instance = default(Two<T>);
 		}
 
-		/// <summary> Generic, runtime sizeof() for value types </summary>
-		/// <typeparam name="T">Type to check size of</typeparam>
+		/// <summary> Generic, runtime sizeof() for value types. </summary>
+		/// <typeparam name="T">Type to check size of </typeparam>
 		/// <returns>Size of the type passed, in bytes. Returns the pointer size for </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal static int SizeOf<T>() where T : struct {
@@ -450,6 +540,75 @@ namespace Ex {
 				} catch (Exception ee) { e = ee; }
 
 				e.ShouldNotBe(null);
+			}
+		}
+
+		struct StringAndStuff {
+			public int x;
+			public InteropString32 str;
+			public float y;
+			public StringAndStuff(int x, string str, float y) { this.x = x; this.y = y; this.str = str; }
+			public override bool Equals(object obj) {
+				if (obj is StringAndStuff) {
+					StringAndStuff s = (StringAndStuff) obj;
+					bool nullStr = str == null;
+					bool snullStr = s.str == null;
+					return s.x == x && s.y == y && (nullStr ? (snullStr) : (str.Equals(s.str)));
+				}
+				return false;
+			}
+			public override int GetHashCode() {
+				return (x.GetHashCode() << 3) ^ (str.GetHashCode()) ^ (y.GetHashCode() >> 3);
+			}
+		}
+
+		public static void TestInteropStrings() {
+			{
+				StructInfo<InteropString32>.size.ShouldBe(32 * sizeof(char));
+				StructInfo<InteropString256>.size.ShouldBe(256 * sizeof(char));
+
+				InteropString32 str = "a short string";
+				string converted = str;
+				str.ShouldEqual("a short string");
+			}
+
+			{
+				string source = "aStringThatIsExactly31CharsLong";
+				source.Length.ShouldBe(31);
+				InteropString32 str = source;
+				string converted = str;
+				converted.ShouldEqual(source);
+			}
+
+			{
+				string source = "a string that is much longer than thirty one characters long, but still less than two hundred and fifty six characters long.";
+				(source.Length > 31).ShouldBeTrue();
+				(source.Length < 256).ShouldBeTrue();
+
+				InteropString32 str = source;
+				string converted = str;
+				converted.ShouldNotEqual(source);
+				
+				InteropString256 str256 = source;
+				string converted256 = str256;
+				converted256.ShouldEqual(source);
+			}
+
+
+
+		}
+
+		public static void TestDeserializeString() {
+			{
+				StringAndStuff s = new StringAndStuff(123, "omg wtf lol bbq", 123.456f);
+				StructInfo<StringAndStuff>.size.ShouldBe(sizeof(int) + StructInfo<InteropString32>.size + sizeof(float) );
+				s.x = 123;
+				s.y = 123.456f;
+				s.str = "omg wtf lol bbq";
+				byte[] bytes = Unsafe.ToBytes(s);
+
+				Unsafe.FromBytes<StringAndStuff>(bytes).ShouldEqual(new StringAndStuff(123, "omg wtf lol bbq", 123.456f));
+
 			}
 		}
 

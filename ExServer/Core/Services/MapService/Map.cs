@@ -44,6 +44,8 @@ namespace Ex {
 
 		public bool is3d { get { return info.is3d; } }
 		public string name { get { return info.name; } }
+		/// <summary> Instance index of this map. </summary>
+		public int instanceIndex { get; private set; }
 		public float cellSize { get { return info.cellSize; } }
 		public int cellDist { get { return info.cellDist; } }
 
@@ -59,11 +61,11 @@ namespace Ex {
 		/// <summary> Time Taken during collision part of update tick </summary>
 		public Trender collideTrend = new Trender();
 
-		public Map(MapService service, MapInfo info) {
+		public Map(MapService service, MapInfo info, int? instanceIndex = null) {
 			this.service = service;
 			this.info = info;
 			id = Guid.NewGuid();
-
+			this.instanceIndex = instanceIndex ?? 0;
 			clients = new List<Client>();
 			cells = new Dictionary<Vector3Int, Cell>();
 			entities = new Dictionary<Guid, Entity>();
@@ -121,6 +123,24 @@ namespace Ex {
 
 		}
 
+		public void Move(Guid entityId, Vector3? position, Vector4? rotation, bool serverMove = false) {
+			EntityMoveRequest move = new EntityMoveRequest();
+			move.id = entityId;
+			TRS trs = entityService.GetComponent<TRS>(entityId);
+			if (trs == null) {
+				entityService.AddComponent<TRS>(entityId);
+				serverMove = true;
+			}
+
+			move.oldPos = trs.position;
+			move.oldRot = trs.rotation;
+			move.newPos = position ?? trs.position;
+			move.newRot = rotation ?? trs.rotation;
+			move.serverMove = serverMove;
+
+			toMove.Enqueue(move);
+		}
+
 		public void EnterMap(Client c) {
 			Entity entity = entityService[c.id];
 
@@ -130,11 +150,15 @@ namespace Ex {
 				oldMap.ExitMap(c);
 			}
 
+			onMap.mapId = name;
+			onMap.mapInstanceIndex = instanceIndex;
+
 		}
 
 		public void ExitMap(Client c) {
 
-			toDespawn.Enqueue(c.id);
+			// toDespawn.Enqueue(c.id);
+			
 
 		}
 
@@ -167,5 +191,4 @@ namespace Ex {
 
 
 }
-
 #endif

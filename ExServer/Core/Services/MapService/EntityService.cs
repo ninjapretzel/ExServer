@@ -89,16 +89,21 @@ namespace Ex {
 			entities = new ConcurrentDictionary<Guid, Entity>();
 			components = new ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>();
 #if !UNITY
-			GetService<LoginService>().initializer += InitializeEntityInfo;
+			if (isMaster) {
+				GetService<LoginService>().initializer += InitializeEntityInfo;
+			}
 #endif
 		}
 		public override void OnDisable() {
 			entities = null;
 			components = null;
 #if !UNITY
-			var login = GetService<LoginService>();
-			if (login != null) {
-				login.initializer -= InitializeEntityInfo;
+			if (isMaster) {
+
+				var login = GetService<LoginService>();
+				if (login != null) {
+					login.initializer -= InitializeEntityInfo;
+				}
 			}
 #endif
 
@@ -114,41 +119,43 @@ namespace Ex {
 
 #if !UNITY
 		public override void OnDisconnected(Client client) {
-			Entity entity = entities.ContainsKey(client.id) ? entities[client.id] : null;
+			if (isMaster) {
+				Entity entity = entities.ContainsKey(client.id) ? entities[client.id] : null;
 
-			TRS trs = GetComponent<TRS>(entity);
-			OnMap onMap = GetComponent<OnMap>(entity);
+				TRS trs = GetComponent<TRS>(entity);
+				OnMap onMap = GetComponent<OnMap>(entity);
 
-			var db = GetService<DBService>();
-			var loginService = GetService<LoginService>();
+				var db = GetService<DBService>();
+				var loginService = GetService<LoginService>();
 
-			LoginService.Session? session = loginService.GetLogin(client);
-			Credentials creds;
-			if (session.HasValue) {
-				creds = session.Value.credentials;
-				Log.Verbose($"Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
+				LoginService.Session? session = loginService.GetLogin(client);
+				Credentials creds;
+				if (session.HasValue) {
+					creds = session.Value.credentials;
+					Log.Verbose($"Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
 
-				var info = db.Get<UserEntityInfo>(creds.userId);
+					var info = db.Get<UserEntityInfo>(creds.userId);
 
-				if (info == null) {
-					info = new UserEntityInfo();
-					if (trs != null) {
-						info.position = trs.position;
-						info.rotation = trs.position;
+					if (info == null) {
+						info = new UserEntityInfo();
+						if (trs != null) {
+							info.position = trs.position;
+							info.rotation = trs.position;
+						}
+						if (onMap != null) {
+							info.map = onMap.mapId;
+						}
 					}
-					if (onMap != null) {
-						info.map = onMap.mapId;
-					}
+				
+					db.Save(info);
+
+				} else {
+				
+					Log.Verbose($"No login session for {client.identity}, skipping saving entity data.");
 				}
-				
-				db.Save(info);
 
-			} else {
-				
-				Log.Verbose($"No login session for {client.identity}, skipping saving entity data.");
+				entities.TryRemove(client.id, out entity);
 			}
-
-			entities.TryRemove(client.id, out entity);
 		}
 
 
@@ -184,6 +191,8 @@ namespace Ex {
 
 		}
 #endif
+
+		
 
 		/// <summary> Gets the ConditionalWeakTable for a given entity type. </summary>
 		/// <typeparam name="T"> Generic type of table to get </typeparam>
@@ -473,17 +482,46 @@ namespace Ex {
 
 	/// <summary> Component that gives entity a physical location </summary>
 	public class TRS : Comp {
+		/// <summary> Location of entity </summary>
 		public Vector3 position;
-		public Vector4 rotation;
+		/// <summary> Rotation of entity (euler angles) </summary>
+		public Vector3 rotation;
+		/// <summary> Scale of entity's display </summary>
 		public Vector3 scale;
 	}
-	public class Moveable : Comp {
+
+	/// <summary> Component that moves an entity's TRS every tick. </summary>
+	public class Mover : Comp {
+		/// <summary> Delta position per second </summary>
 		public Vector3 velocity;
+		/// <summary> Delta rotation per second </summary>
 		public Vector3 angVelocity;
 	}
 
+	/// <summary> Component that gives entity a simple radius-based collision </summary>
 	public class Sphere : Comp {
+		/// <summary> Radius of entity </summary>
 		public float radius;
+		/// <summary> Is this sphere a trigger client side? </summary>
+		public bool isTrigger;
+		/// <summary> Layer for client side collision to be on? </summary>
+		public int layer;
+	}
+
+	/// <summary> Component that gives entity a box-based collision </summary>
+	public class Box : Comp {
+		/// <summary> Axis Aligned Bounding Box </summary>
+		public Bounds bounds;
+		/// <summary> Is this sphere a trigger client side? </summary>
+		public bool isTrigger;
+		/// <summary> Layer for client side collision to be on? </summary>
+		public int layer;
+	}
+
+	/// <summary> Component that gives one entity control over another. </summary>
+	public class Owned : Comp {
+		/// <summary> ID of owner of this entity, who is also allowed to send commands to this entity. </summary>
+		public Guid owner;
 	}
 
 

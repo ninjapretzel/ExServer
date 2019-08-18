@@ -33,7 +33,7 @@ namespace Ex {
 		public ConcurrentDictionary<string, MapInfo> mapInfoByName;
 
 		/// <summary> All map instances </summary>
-		public ConcurrentDictionary<string, ConcurrentSet<Guid>> instances;
+		public ConcurrentDictionary<string, List<Guid>> instances;
 
 		/// <summary> Live map instances </summary>
 		public ConcurrentDictionary<Guid, Map> maps;
@@ -55,7 +55,7 @@ namespace Ex {
 			#if !UNITY
 			if (isMaster) {
 				mapInfoByName = new ConcurrentDictionary<string, MapInfo>();
-				instances = new ConcurrentDictionary<string, ConcurrentSet<Guid>>();
+				instances = new ConcurrentDictionary<string, List<Guid>>();
 				maps = new ConcurrentDictionary<Guid, Map>();
 				mapWorkPool = new WorkPool<Map>(UpdateMap);
 			}
@@ -98,15 +98,16 @@ namespace Ex {
 			if (!instances.ContainsKey(mapName)) {
 				Initialize(info);
 			}
-			ConcurrentSet<Guid> instanceIds = instances[mapName];
+			List<Guid> instanceIds = instances[mapName];
 			
 			if (mapInstanceIndex == null) {
-				return maps[instanceIds.First()];
+				return maps[instanceIds[0]];
 			}
 
 			int ind = mapInstanceIndex.Value % instanceIds.Count;
 			if (ind < 0) { ind *= -1; }
-			Guid id = instanceIds.ElementAt(ind);
+			var id = instanceIds[ind];
+			
 			return maps[id];
 			
 		}
@@ -117,7 +118,7 @@ namespace Ex {
 			Log.Info($"Initializing MapInfo for {info.name}. {(info.instanced ? info.numInstances : 1)} instances");
 			if (info.instanced) {
 				for (int i = 0; i < info.numInstances; i++) {
-					SpinUp(info);
+					SpinUp(info, i);
 				}
 
 			} else {
@@ -128,12 +129,13 @@ namespace Ex {
 		/// <summary> Initializes a single instance from a <see cref="MapInfo"/>. </summary>
 		/// <param name="info"> Data to use to initialize map instance </param>
 		/// <returns> Newly created map instance</returns>
-		private Map SpinUp(MapInfo info) {
-			Map map = new Map(this, info);
+		private Map SpinUp(MapInfo info, int? instanceIndex = null) {
+			Map map = new Map(this, info, instanceIndex);
+
 			maps[map.id] = map;
-			ConcurrentSet<Guid> instanceIds = instances.ContainsKey(info.name) 
+			List<Guid> instanceIds = instances.ContainsKey(info.name) 
 				? instances[info.name] 
-				: (instances[info.name] = new ConcurrentSet<Guid>());
+				: (instances[info.name] = new List<Guid>());
 
 			instanceIds.Add(map.id);
 			mapWorkPool.Add(map);
@@ -159,14 +161,14 @@ namespace Ex {
 			localMapId = msg[2];
 		}
 		
-		/// <summary> RPC, Server->Client, tells the client to move the entity to a position </summary>
+		/// <summary> RPC, Server->Client, tells the client to move the local entity to a position </summary>
 		/// <param name="msg"> RPC Message info </param>
 		public void SetPosition(RPCMessage msg) {
 			// Vector3 pos = Unpack<Vector3>(msg[0]);
 			localPosition = Unpack.Base64<Vector3>(msg[0]);
 		}
 		
-		/// <summary> RPC, Server->Client, tells the client to rotate the entity to a rotation </summary>
+		/// <summary> RPC, Server->Client, tells the client to rotate the local entity to a rotation </summary>
 		/// <param name="msg"> RPC Message info </param>
 		public void SetRotation(RPCMessage msg) {
 			localRotation = Unpack.Base64<Vector4>(msg[0]);
@@ -190,8 +192,12 @@ namespace Ex {
 
 			Log.Info($"\\jGot map { map.id }");
 			map.EnterMap(client);
+			if (position != null || rotation != null) {
+				map.Move(client.id, position, rotation);
+			}
 			
 			
+
 
 			
 			

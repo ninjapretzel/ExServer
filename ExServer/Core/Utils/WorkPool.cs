@@ -280,7 +280,8 @@ namespace Ex.Utils {
 				} else {
 					//Console.WriteLine($"No work to do, skipped in {this}");
 					try { Thread.Sleep(sleepTime); } 
-					catch (Exception e) {
+					catch {
+					//catch (Exception e) {
 						//throw new Exception($"WorkPool {id} thread interrupted!", e);
 					}
 				}

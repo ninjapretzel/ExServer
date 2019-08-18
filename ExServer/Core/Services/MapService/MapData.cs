@@ -5,6 +5,7 @@
 using UnityEngine;
 #else
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson;
 #endif
 
 using System;
@@ -14,7 +15,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Ex.Utils;
-using MongoDB.Bson;
 
 namespace Ex {
 
@@ -72,40 +72,16 @@ namespace Ex {
 
 	}
 	
-#endif
-	
-	/// <summary> Request to move an entity to a position </summary>
-	/// <remarks> 
-	/// Server uses these internally, but also recieves them from clients.
-	/// <see cref="serverMove"/> is set false on any that come in from a client, 
-	/// so even if a client tries to pretend they are the server, it should not work.
-	/// </remarks>
-	public struct EntityMoveRequest {
-		/// <summary> ID of entity to move </summary>
-		public Guid id;
-		/// <summary> Assumed old position of the entity </summary>
-		public Vector3 oldPos;
-		/// <summary> new position of the entity </summary>
-		public Vector3 newPos;
-		/// <summary> true if the server is instigating this movement, false if it is a client </summary>
-		public bool serverMove;
-	}
-
 	/// <summary> Entity information. </summary>
-#if !UNITY
 	[BsonIgnoreExtraElements]
-#endif
 	public class EntityInfo {
 		/// <summary> Kind of entity </summary>
 		public string type { get; set; }
 		/// <summary> Information about <see cref="Comp"/>s attached to entity </summary>
 		public ComponentInfo[] components;
 	}
-
 	/// <summary> Information about <see cref="Comp"/>s attached to an entity </summary>
-#if !UNITY
 	[BsonIgnoreExtraElements]
-#endif
 	public class ComponentInfo {
 		/// <summary> name of type of component </summary>
 		public string type { get; set; }
@@ -115,9 +91,7 @@ namespace Ex {
 
 	/// <summary> <see cref="MapInfo"/> embedded entity information. 
 	/// These are spawned into entities when the map starts. </summary>
-#if !UNITY
 	[BsonIgnoreExtraElements]
-#endif
 	public class EntityInstanceInfo {
 		/// <summary> Location of Entity </summary>
 		public Vector3 position { get; set; }
@@ -131,9 +105,7 @@ namespace Ex {
 
 	/// <summary> <see cref="MapInfo"/> embedded background object information.
 	/// These are spawned on the client, but not tracked by the server. </summary>
-#if !UNITY
 	[BsonIgnoreExtraElements]
-#endif
 	public class BackgroundObjectInfo {
 		/// <summary> Location of object </summary>
 		public Vector3 position { get; set; }
@@ -144,6 +116,7 @@ namespace Ex {
 		/// <summary> Name of object prefab to load </summary>
 		public string name { get; set; }
 	}
+#endif
 
 	/// <summary> <see cref="MapInfo"/> embedded skybox information </summary>
 #if !UNITY
@@ -224,6 +197,29 @@ namespace Ex {
 		public float slopeErosion { get; set; }
 		public float gain { get; set; }
 		public float startAmplitude { get; set; }
+	}
+
+
+	/// <summary> Request to move an entity to a position </summary>
+	/// <remarks> 
+	/// Server uses these internally, but also recieves them from clients.
+	/// <see cref="serverMove"/> is set false on any that come in from a client, 
+	/// so even if a client tries to pretend they are the server, it should not work.
+	/// </remarks>
+	public struct EntityMoveRequest {
+		/// <summary> ID of entity to move </summary>
+		public Guid id;
+		/// <summary> Assumed old position of the entity </summary>
+		public Vector3 oldPos;
+		/// <summary> new position of the entity </summary>
+		public Vector3 newPos;
+		/// <summary> Assumed old rotation of the entity </summary>
+		public Vector3 oldRot;
+		/// <summary> new rotation of the entity </summary>
+		public Vector3 newRot;
+		/// <summary> true if the server is instigating this movement, false if it is a client </summary>
+		public bool serverMove;
+		
 	}
 
 }

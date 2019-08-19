@@ -193,6 +193,7 @@ namespace Ex {
 			
 		}
 #endif
+
 		private int _isAttemptingLogin;
 		public bool isAttemptingLogin { get { return _isAttemptingLogin != 0; } }
 		private string loginName;
@@ -202,6 +203,7 @@ namespace Ex {
 		/// <returns> True, if the login is propagated to the server, false otherwise. (Login already in progress, already logged in, or called on a server instance) </returns>
 		public bool Login_Slave(string user, string pass) {
 			if (!isSlave) { return false; }
+
 			if (localLogin != null) { return false; }
 			if (isAttemptingLogin) { return false; }
 			if (Interlocked.CompareExchange(ref _isAttemptingLogin, 1, 0) != 0) { return false; }
@@ -216,7 +218,7 @@ namespace Ex {
 		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
 		/// <param name="msg"> RPC Info. </param>
 		public void LoginResponse(RPCMessage msg) {
-			_isAttemptingLogin = 0;
+			Interlocked.Exchange(ref _isAttemptingLogin, 0);
 			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
 			if (msg[0] == "succ") {
 				localLogin = new Credentials(loginName, msg[1]);

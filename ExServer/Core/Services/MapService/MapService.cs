@@ -42,8 +42,6 @@ namespace Ex {
 		public WorkPool<Map> mapWorkPool;
 		#endif
 
-		/// <summary> Local entity ID used for the client to ask for movement. </summary>
-		public Guid? localGuid = null;
 		/// <summary> Position of locally controlled entity. </summary>
 		public Vector3 localPosition = Vector3.zero;
 		/// <summary> Rotation of locally controlled entity. </summary>
@@ -143,42 +141,6 @@ namespace Ex {
 			return map;
 		}
 		#endif
-
-		/// <summary> RPC, Server -> Client, Informs the client of their assigned GUID </summary>
-		/// <param name="msg"> RPC Message info </param>
-		public void SetGUID(RPCMessage msg) {
-			Guid id;
-			if (Guid.TryParse(msg[0], out id)) {
-				localGuid = id;
-			}
-		}
-
-		/// <summary> RPC, Server-> Client, tells the client to move to position/rotation/map in one call. </summary>
-		/// <param name="msg"> RPC Message info </param>
-		public void SetInfo(RPCMessage msg) {
-			localPosition = Unpack.Base64<Vector3>(msg[0]);
-			localRotation = Unpack.Base64<Vector4>(msg[1]);
-			localMapId = msg[2];
-		}
-		
-		/// <summary> RPC, Server->Client, tells the client to move the local entity to a position </summary>
-		/// <param name="msg"> RPC Message info </param>
-		public void SetPosition(RPCMessage msg) {
-			// Vector3 pos = Unpack<Vector3>(msg[0]);
-			localPosition = Unpack.Base64<Vector3>(msg[0]);
-		}
-		
-		/// <summary> RPC, Server->Client, tells the client to rotate the local entity to a rotation </summary>
-		/// <param name="msg"> RPC Message info </param>
-		public void SetRotation(RPCMessage msg) {
-			localRotation = Unpack.Base64<Vector4>(msg[0]);
-		}
-		
-		/// <summary> RPC, Server->Client, tells the client to load a map </summary>
-		/// <param name="msg"> RPC Message info </param>
-		public void SetMap(RPCMessage msg) {
-			localMapId = msg[0];
-		}
 
 		// Server-side logic
 #if !UNITY

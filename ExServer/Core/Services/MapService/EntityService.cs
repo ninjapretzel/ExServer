@@ -53,7 +53,17 @@ namespace Ex {
 		private ConcurrentDictionary<Guid, Entity> entities;
 		/// <summary> Components for entities </summary>
 		public ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>> components;
-		
+		/// <summary> Subscriptions, server only. </summary>
+		public ConcurrentDictionary<Client, ConcurrentSet<Guid>> subscriptions;
+		/// <summary> Subscribers, server only. </summary>
+		public ConcurrentDictionary<Guid, ConcurrentSet<Client>> subscribers;
+		/// <summary> Types of components </summary>
+		private ConcurrentDictionary<string, Type> componentTypes;
+
+		/// <summary> Local entity ID used for the client to ask for movement. </summary>
+		public Guid? localGuid = null;
+
+
 		/// <summary> Gets an entity by ID, or null if none exist. </summary>
 		/// <param name="id"> ID of entity to try and get </param>
 		/// <returns> Entity for ID, or null if no entity exists for that ID </returns>
@@ -68,9 +78,13 @@ namespace Ex {
 		/// <summary> Creates a new entity, and returns the reference to it. </summary>
 		/// <returns> Reference to the newly created entity </returns>
 		public Entity CreateEntity() {
-			Entity entity = new Entity(this);
-			entities[entity.guid] = entity;
-			return entity;
+			if (isMaster) {
+				Entity entity = new Entity(this);
+				entities[entity.guid] = entity;
+				subscribers[entity.guid] = new ConcurrentSet<Client>();
+				return entity;
+			}
+			return null;
 		}
 
 		/// <summary> Revokes an entity by ID </summary>
@@ -78,8 +92,16 @@ namespace Ex {
 		/// <returns> True if Entity existed prior and was removed, false otherwise. </returns>
 		public bool Revoke(Guid guid) {
 			if (entities.ContainsKey(guid)) {
-				Entity __;
-				entities.TryRemove(guid, out __);
+				{ Entity _; entities.TryRemove(guid, out _); }
+				ConcurrentSet<Client> subs;
+
+				
+				if (isMaster && subscribers.TryRemove(guid, out subs)) {
+					foreach (var sub in subs) {
+						subscriptions[sub].Remove(guid);
+					}
+				}
+				
 				return true;
 			}
 			return false;
@@ -88,24 +110,127 @@ namespace Ex {
 		public override void OnEnable() {
 			entities = new ConcurrentDictionary<Guid, Entity>();
 			components = new ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>();
-#if !UNITY
+
 			if (isMaster) {
+				subscriptions = new ConcurrentDictionary<Client, ConcurrentSet<Guid>>();
+				subscribers = new ConcurrentDictionary<Guid, ConcurrentSet<Client>>();
+#if !UNITY
 				GetService<LoginService>().initializer += InitializeEntityInfo;
-			}
 #endif
+			}
 		}
 		public override void OnDisable() {
 			entities = null;
 			components = null;
-#if !UNITY
 			if (isMaster) {
-
+#if !UNITY
 				var login = GetService<LoginService>();
 				if (login != null) {
 					login.initializer -= InitializeEntityInfo;
 				}
-			}
 #endif
+			}
+
+		}
+
+		/// <summary> Server -> Client RPC. Requests that the client spawn a new entity </summary>
+		/// <param name="msg"> RPC Info. </param>
+		public void SpawnEntity(RPCMessage msg) {
+			/// noop on server
+			if (isMaster) { return; }
+
+			Guid id;
+			if (Guid.TryParse(msg[0], out id)) {
+				entities[id] = new Entity(this);
+			}
+
+			bool islocalEntity = msg.numArgs > 1 && msg[1] == "local";
+			if (islocalEntity) {
+				localGuid = id;
+			}
+		}
+
+		/// <summary> Server -> Client RPC. Requests that the client despawn an existing entity. </summary>
+		/// <param name="msg"></param>
+		public void DespawnEntity(RPCMessage msg) {
+			/// noop on server
+			if (isMaster) { return; }
+
+			Guid id;
+			if (Guid.TryParse(msg[0], out id)) { Revoke(id); }
+		}
+
+
+		private Type GetCompType(string name) {
+			if (componentTypes.ContainsKey(name)) { return componentTypes[name]; }
+			Type t = Type.GetType(name);
+			if (t != null) {
+				if (typeof(Comp).IsAssignableFrom(t)) {
+					componentTypes[name] = t;
+					return t;
+				}
+
+				Log.Warning($"Type {name} does not inherit from {typeof(Comp)}.");
+				componentTypes[name] = null;
+
+			}
+			Log.Warning($"No Type {name} could be found");
+			componentTypes[name] = null;
+			return null;
+		}
+
+		/// <summary> Server -> Client RPC. Requests the client add a component to an entity </summary>
+		/// <param name="info"> RPC Info </param>
+		public void AddComp(RPCMessage msg) {
+			/// noop on server
+			if (isMaster) { return; }
+
+			Guid id;
+			if (Guid.TryParse(msg[0], out id)) {
+				string typeName = msg[1];
+				Type type = GetCompType(typeName);
+				AddComponent(id, type);
+			}
+		}
+
+		/// <summary> Server -> Client RPC. Requests the client set information into a component. </summary>
+		/// <param name="msg"></param>
+		public void SetComponentInfo(RPCMessage msg) {
+			/// noop on server
+			if (isMaster) { return; }
+			/// I really don't know if this is the right kind of approach 
+			/// Idea would be to shoot name/value pairs over the RPC info
+			/// and reflect the info into the entities
+			Guid id;
+			if (Guid.TryParse(msg[0], out id)) {
+				string typeName = msg[1];
+				Type type = GetCompType(typeName);
+				Comp component = GetComponent(id, type);
+				if (component != null) {
+					for (int i = 2; i < msg.numArgs; i += 2) {
+						string field = msg[i];
+						string data = msg[i+1];
+					}
+				}
+
+			}
+		}
+
+		public void Subscribe(Client client, Guid id) {
+			
+			var subsA = subscribers[id];
+			var subsB = subscriptions[client];
+			
+			if (!subsA.Contains(client) && !subsB.Contains(id)) {
+				subsA.Add(client);
+				subsB.Add(id);
+				if (id == client.id) {
+					client.Call(SpawnEntity, id, "local");
+				} else { 
+					client.Call(SpawnEntity, id);
+				}
+			}
+
 
 		}
 
@@ -114,6 +239,8 @@ namespace Ex {
 				Entity entity = new Entity(this, client.id);
 				entities[client.id] = entity;
 				Log.Info($"OnConnected for {client.id}, entity created");
+
+				client.Call(SpawnEntity, client.id);
 			}
 		}
 
@@ -199,91 +326,104 @@ namespace Ex {
 		/// <returns> ConditionalWeakTable mapping entities to Components of type T </returns>
 		private ConditionalWeakTable<Entity, Comp> GetTable<T>() {
 			Type type = typeof(T);
-			var table = !components.ContainsKey(type) 
-				? (components[type] = new ConditionalWeakTable<Entity, Comp>()) 
-				: components[type];
-			return table;
+			return GetTable(type);
 		}
 
-		/// <summary> Adds a component of type T for the given entity. </summary>
-		/// <typeparam name="T"> Generic type of Component to add </typeparam>
-		/// <param name="entity"> Entity to add Component to </param>
-		/// <returns> Newly created component </returns>
-		public T AddComponent<T>(Entity entity) where T : Comp {
-			if (entity == null) { return null; }
-			var table = GetTable<T>();
-			
-			Comp check;
-			if (table.TryGetValue(entity, out check)) { 
-				throw new InvalidOperationException($"Entity {entity.guid} already has a component of type {typeof(T)}!"); 
-			}
-
-			T component = Activator.CreateInstance<T>();
-			component.Bind(entity);
-			table.Add(entity, component);
-
-			return component;
+		/// <summary> Gets the ConditionalWeakTable for a given entity type. </summary>
+		/// <param name="type"> Type of table to get </typeparam>
+		/// <returns> ConditionalWeakTable mapping entities to Components of type T </returns>
+		private ConditionalWeakTable<Entity, Comp> GetTable(Type type) {
+			return !components.ContainsKey(type)
+							? (components[type] = new ConditionalWeakTable<Entity, Comp>())
+							: components[type];
 		}
 
 		/// <summary> Adds a component of type T for the given entity. </summary>
 		/// <typeparam name="T"> Generic type of Component to add </typeparam>
 		/// <param name="id"> ID of Entity to add Component to </param>
 		/// <returns> Newly created component </returns>
-		public T AddComponent<T>(Guid id) where T : Comp { return AddComponent<T>(this[id]); }
+		public T AddComponent<T>(Guid id) where T : Comp { return (T) AddComponent(this[id], typeof(T)); }
 
-		/// <summary> Gets a component for the given entity </summary>
-		/// <typeparam name="T"> Generic type of Component to get </typeparam>
-		/// <param name="entity"> Entity to get Componment from </param>
-		/// <returns> Component of type T if it exists on entity, otherwise null. </returns>
-		public T GetComponent<T>(Entity entity) where T : Comp {
-			if (entity == null) { return null; }
-			var table = GetTable<T>();
+		/// <summary> Adds a component of type T for the given entity. </summary>
+		/// <param name="t"> Type of Component to add </typeparam>
+		/// <param name="id"> ID of Entity to add Component to </param>
+		/// <returns> Newly created component </returns>
+		public Comp AddComponent(Guid id, Type t) {
+			Entity entity = this[id];
+			if (!typeof(Comp).IsAssignableFrom(t)) { throw new Exception($"{t} is not a valid ECS Component type."); }
+			var table = GetTable(t);
 
-			Comp c;
-			if (table.TryGetValue(entity, out c)) { return (T) c; }
+			Comp check;
+			if (table.TryGetValue(entity, out check)) {
+				throw new InvalidOperationException($"Entity {entity.guid} already has a component of type {t}!");
+			}
 
-			return null;
+			Comp component = (Comp)Activator.CreateInstance(t);
+			component.Bind(entity);
+			table.Add(entity, component);
+
+			return component;
 		}
+
 		/// <summary> Gets a component for the given entity </summary>
 		/// <typeparam name="T"> Generic type of Component to get </typeparam>
 		/// <param name="id"> ID of Entity to get Componment from </param>
 		/// <returns> Component of type T if it exists on entity, otherwise null. </returns>
-		public T GetComponent<T>(Guid id) where T : Comp { return GetComponent<T>(this[id]); }
+		public T GetComponent<T>(Guid id) where T : Comp { return (T)GetComponent(this[id], typeof(T)); }
 
+		/// <summary> Gets a component for the given entity </summary>
+		/// <param name="t"> Type of Component to get </typeparam>
+		/// <param name="entity"> Entity to get Componment from </param>
+		/// <returns> Component of type T if it exists on entity, otherwise null. </returns>
+		public Comp GetComponent(Guid id, Type t) {
+			Entity entity = this[id];
+			if (entity == null) { return null; }
+			var table = GetTable(t);
+
+			Comp c;
+			if (table.TryGetValue(entity, out c)) { return (Comp) c; }
+
+			return null;
+		}
+		
 		/// <summary> Checks the entity for a given component type, and if it exists, returns it, otherwise adds one and returns it. </summary>
 		/// <typeparam name="T"> Generic type of Component to add </typeparam>
 		/// <param name="entity"> Entity to check and/or add Component to </param>
 		/// <returns> Previously existing or newly created component </returns>
-		public T RequireComponent<T>(Entity entity) where T : Comp {
-			if (entity == null) { return null; }
-			var c = GetComponent<T>(entity);
-			if (c != null) { return c; }
-			return AddComponent<T>(entity);
-		}
+		public T RequireComponent<T>(Guid id) where T : Comp { return (T) RequireComponent(id, typeof(T)); }
+
 		/// <summary> Checks the entity for a given component type, and if it exists, returns it, otherwise adds one and returns it. </summary>
-		/// <typeparam name="T"> Generic type of Component to add </typeparam>
+		/// <param name="t"> Type of Component to add </typeparam>
 		/// <param name="id"> ID of Entity to check and/or add Component to </param>
 		/// <returns> Previously existing or newly created component </returns>
-		public T RequireComponent<T>(Guid id) where T : Comp { return RequireComponent<T>(this[id]); }
+		public Comp RequireComponent(Guid id, Type t) {
+			Entity entity = this[id];
+			if (entity == null) { return null; }
+			var c = GetComponent(id, t);
+			if (c != null) { return c; }
+			return AddComponent(id, t); 
+		}
+
+		/// <summary> Removes a component from the given entity  </summary>
+		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
+		/// <param name="id"> ID of Entity to remove component from </param>
+		/// <returns> True if component existed prior  and was removed, false otherwise. </returns>
+		public bool RemoveComponent<T>(Guid id) where T : Comp { return RemoveComponent(id, typeof(T)); }
 
 		/// <summary> Removes a component from the given entity  </summary>
 		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
 		/// <param name="entity"> Entity to remove component from </param>
 		/// <returns> True if component existed prior  and was removed, false otherwise. </returns>
-		public bool RemoveComponent<T>(Entity entity) where T : Comp {
+		public bool RemoveComponent(Guid id, Type t) {
+			Entity entity = this[id];
 			if (entity == null) { return false; }
-			var table = GetTable<T>();
+			var table = GetTable(t);
 
 			Comp c;
 			if (table.TryGetValue(entity, out c)) { c.Invalidate(); }
 
 			return table.Remove(entity);
 		}
-		/// <summary> Removes a component from the given entity  </summary>
-		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
-		/// <param name="id"> ID of Entity to remove component from </param>
-		/// <returns> True if component existed prior  and was removed, false otherwise. </returns>
-		public bool RemoveComponent<T>(Guid id) where T : Comp { return RemoveComponent<T>(this[id]); }
 
 		/// <summary> Get a list of all entities that have the given component. </summary>
 		/// <typeparam name="T"> Component type to search for </typeparam>

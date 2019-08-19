@@ -110,6 +110,7 @@ namespace Ex {
 		public override void OnEnable() {
 			entities = new ConcurrentDictionary<Guid, Entity>();
 			components = new ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>();
+			componentTypes = new ConcurrentDictionary<string, Type>();
 
 			if (isMaster) {
 				subscriptions = new ConcurrentDictionary<Client, ConcurrentSet<Guid>>();
@@ -122,12 +123,16 @@ namespace Ex {
 		public override void OnDisable() {
 			entities = null;
 			components = null;
+			componentTypes = null;
 			if (isMaster) {
 #if !UNITY
 				var login = GetService<LoginService>();
 				if (login != null) {
 					login.initializer -= InitializeEntityInfo;
 				}
+				/// Should have already sent disconnect messages to connected clients 
+				subscriptions.Clear();
+				subscribers.Clear();
 #endif
 			}
 

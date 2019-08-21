@@ -2,20 +2,18 @@
 #define UNITY
 #endif
 
+#if !UNITY
+using MongoDB.Bson.Serialization.Attributes;
+#else
+using UnityEngine;
+#endif
 using Ex.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using System.Reflection;
-#if !UNITY
-using MongoDB.Bson.Serialization.Attributes;
-#else
-using UnityEngine;
-#endif
 
 namespace Ex {
 	/// <summary> Service which manages the creation and tracking of entities. 
@@ -208,6 +206,9 @@ namespace Ex {
 			return null;
 		}
 
+		/// <summary> Loads required information for interacting with a component of type T. </summary>
+		/// <param name="name"> FullName of type </param>
+		/// <param name="t"> Type </param>
 		private void LoadCompType(string name, Type t) {
 			Log.Debug($"Master: {isMaster} Loading component {t}");
 			TypeInfo info = new TypeInfo();
@@ -327,16 +328,12 @@ namespace Ex {
 						unpackerArgs[0] = msg[i + 2];
 						try {
 							
-							// @TODO: Test which one of these is faster. Either one of these should work in theory. 
-							// field.SetValue(component, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
-							field.SetValueDirect(cref, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+							field.SetValue(component, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+							//This doesn't work inside of unity because mono.
+							//field.SetValueDirect(cref, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
 						} catch (Exception e) {
 							Log.Warning(e, $"Failed to unpack and set {field.FieldType} {type}.{field.Name}");
 						}
-						
-
-						
-						
 					}
 					Log.Debug($"slave.SetComponentInfo:\nAfter: {component}");
 				} else {
@@ -732,193 +729,7 @@ namespace Ex {
 		}
 
 	}
-
-	/// <summary> An Entity is just a name/id, used to look up Components that are attached </summary>
-	public class Entity {
-		/// <summary> ID of this entity </summary>
-		public Guid guid { get; private set; }
-		/// <summary> EntityService this entity belongs to </summary>
-		public EntityService service { get; private set; }
-		/// <summary> Constructor for creating a new Entity identity </summary>
-		/// <remarks> Internal, not intended to be used outside of EntityService. </remarks>
-		internal Entity(EntityService service) { 
-			this.service = service;
-			guid = Guid.NewGuid(); 
-		}
-
-		/// <summary> Constructor for wrapping an existing ID with an Entity </summary>
-		/// <remarks> Internal, not intended to be used outside of EntityService. </remarks>
-		internal Entity(EntityService service, Guid id) {
-			this.service = service;
-			guid = id;
-		}
-		
-		/// <summary> Adds a component to this entity. </summary>
-		/// <typeparam name="T"> Generic type of component to add </typeparam>
-		/// <returns> Component of type T that was added </returns>
-		public T AddComponent<T>() where T : Comp { return service.AddComponent<T>(guid); }
-		/// <summary> Gets another component associated with this entity </summary>
-		/// <typeparam name="T"> Generic type of component to get </typeparam>
-		/// <returns> Component of type T that is on this entity, or null if none exists </returns>
-		public T GetComponent<T>() where T : Comp { return service.GetComponent<T>(guid); }
-		/// <summary> Checks for a component associated with this entity, returns it or creates a new one if it does not exist </summary>
-		/// <typeparam name="T"> Generic type of component to get </typeparam>
-		/// <returns> Component of type T that is on this entity, or was just added </returns>
-		public T RequireComponent<T>() where T : Comp { return service.RequireComponent<T>(guid); }
-		/// <summary> Removes a component associated with this entity. </summary>
-		/// <typeparam name="T"> Generic type of component to remove </typeparam>
-		/// <returns> True if a component was removed, otherwise false. </returns>
-		public bool RemoveComponent<T>() where T : Comp { return service.RemoveComponent<T>(guid); }
-
-		/// <summary> Coercion from Entity to Guid, since they are the same information. </summary>
-		public static implicit operator Guid(Entity e) { return e.guid; }
-	}
-
-	/// <summary> Empty base class for components. Simply stores some data for entities. </summary>
-	/// <remarks> Instances of these are stored in <see cref="ConditionalWeakTable{TKey, TValue}"/>s, and references to them should not be held onto long term. </remarks>
-	public abstract class Comp {
-
-		/// <summary> GUID of bound entity, if bound. </summary>
-		private Guid? _entityId;
-
-		/// <summary> Service of bound entity, if bound. </summary>
-		private EntityService service;
-
-		/// <summary> Is this component on a master server? </summary>
-		public bool isMaster { get { return service.server.isMaster; } }
-		
-		/// <summary> Send component data to all subscribers. </summary>
-		public void Send() {
-			service.SendComponent(this);
-		}
-
-		/// <summary> Dynamic lookup of attached entity. </summary>
-		private Entity entity { 
-			get { 
-				if (!_entityId.HasValue || service == null) {
-					throw new InvalidOperationException($"Component of type {GetType()} has already been removed, and is invalid. Please don't persist references to Entity or Component");
-				}
-				return service[_entityId.Value]; 
-			}
-		}
-
-		/// <summary> Called when a component is removed to discard references. </summary>
-		internal void Invalidate() {
-			_entityId = null;
-			service = null;
-		}
-		/// <summary> Binds this component to an entity. </summary>
-		/// <param name="entity"> Entity to bind to </param>
-		internal void Bind(Entity entity) {
-			if (_entityId.HasValue || service != null) { 
-				throw new InvalidOperationException($"Component of {GetType()} is already bound to {_entityId.Value}."); 
-			}
-			_entityId = entity;
-			service = entity.service;
-		}
-
-		/// <summary> ID of entity </summary>
-		public Guid entityId { get { return _entityId.HasValue ? _entityId.Value : Guid.Empty; } }
-
-		/// <summary> If this component is bound to an entity, associates another component with that entity. </summary>
-		/// <typeparam name="T"> Generic type of Component to add </typeparam>
-		/// <returns> Component of type T added to Entity </returns>
-		public T AddComponent<T>() where T : Comp { return entity.AddComponent<T>(); }
-		/// <summary> If this component is bound to an entity, gets another component associated with that entity. </summary>
-		/// <typeparam name="T"> Generic type of Component to get  </typeparam>
-		/// <returns> Component of type T on the same Entity, or null. </returns>
-		public T GetComponent<T>() where T : Comp { return entity.GetComponent<T>(); }
-		/// <summary> If this component is bound to an entity, removes another component associated with that entity. </summary>
-		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
-		/// <returns> True if a component was removed, otherwise false. </returns>
-		public bool RemoveComponent<T>() where T : Comp { return entity.RemoveComponent<T>(); }
-
-	}
-
-
-	/// <summary> Base class for systems. </summary>
-	public abstract class Sys { 
-		/// <summary> Connected EntityService </summary>
-		public EntityService service { get; private set; }
-
-		/// <summary> Binds this system to an EntityService </summary>
-		/// <param name="service"> Service to bind to </param>
-		/// <param
-		public void Bind(EntityService service, Type[] types, Delegate callback) {
-			if (service != null) {
-				throw new InvalidOperationException($"System of {GetType()} has already been bound.");
-			}
-			this.service = service;
-		}
-		
-	}
-
-
-
-	/// <summary> Component that places an entity on a map. </summary>
-	public class OnMap : Comp {
-		/// <summary> ID of map </summary>
-		public InteropString32 mapId;
-		/// <summary> </summary>
-		public int mapInstanceIndex;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} {mapId}#{mapInstanceIndex}"; }
-	}
-
-	/// <summary> Component that gives entity a physical location </summary>
-	public class TRS : Comp {
-		/// <summary> Location of entity </summary>
-		public Vector3 position;
-		/// <summary> Rotation of entity (euler angles) </summary>
-		public Vector3 rotation;
-		/// <summary> Scale of entity's display </summary>
-		public Vector3 scale;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} TRS {position} : {rotation} : {scale}"; }
-	}
-
-	/// <summary> Component that moves an entity's TRS every tick. </summary>
-	public class Mover : Comp {
-		/// <summary> Delta position per second </summary>
-		public Vector3 velocity;
-		/// <summary> Delta rotation per second </summary>
-		public Vector3 angVelocity;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} Mover {velocity} : {angVelocity}"; }
-
-	}
-
-	/// <summary> Component that gives entity a simple radius-based collision </summary>
-	public class Sphere : Comp {
-		/// <summary> Radius of entity </summary>
-		public float radius;
-		/// <summary> Is this sphere a trigger client side? </summary>
-		public bool isTrigger;
-		/// <summary> Layer for client side collision to be on? </summary>
-		public int layer;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} Sphere {radius} : {isTrigger} : {layer}"; }
-	}
-
-	/// <summary> Component that gives entity a box-based collision </summary>
-	public class Box : Comp {
-		/// <summary> Axis Aligned Bounding Box </summary>
-		public Bounds bounds;
-		/// <summary> Is this sphere a trigger client side? </summary>
-		public bool isTrigger;
-		/// <summary> Layer for client side collision to be on? </summary>
-		public int layer;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} Box {bounds} : {isTrigger} : {layer}"; }
-	}
-
-	/// <summary> Component that gives one entity control over another. </summary>
-	public class Owned : Comp {
-		/// <summary> ID of owner of this entity, who is also allowed to send commands to this entity. </summary>
-		public Guid owner;
-		/// <inheritdoc />
-		public override string ToString() { return $"{entityId} Owned by {owner}"; }
-	}
+	
 
 
 

@@ -157,8 +157,6 @@ namespace Ex {
 			if (position != null || rotation != null) {
 				map.Move(client.id, position, rotation);
 			}
-			
-			
 
 
 			

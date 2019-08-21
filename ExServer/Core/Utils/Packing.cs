@@ -40,7 +40,7 @@ namespace Ex.Utils {
 		/// <param name="ret"> Return location </param>
 		/// <returns> True if successful, false if failure, and sets ret to the resulting unpacked data, or default, respectively.  </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static bool Base64<T>(string encoded, out T ret) where T : struct {
+		public static bool Base64Out<T>(string encoded, out T ret) where T : struct {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
 				Unsafe.FromBytes(bytes, out ret);
@@ -83,7 +83,7 @@ namespace Ex.Utils {
 				decoded.ShouldEqual(new Vector3(123, 456, 789));
 
 				decoded = default(Vector3);
-				Unpack.Base64(encoded, out decoded);
+				Unpack.Base64Out(encoded, out decoded);
 				decoded.ShouldBe<Vector3>(new Vector3(123,456,789));
 				decoded.ShouldEqual(new Vector3(123, 456, 789));
 			}

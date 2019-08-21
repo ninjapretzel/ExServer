@@ -98,9 +98,7 @@ namespace Ex {
 				//enc = e;
 				//dec = d;
 			}
-
 			
-
 			Log.Info($"\\eClient \\y {identity}\\e connected from \\y {localEndpoint} -> {remoteEndPoint}");
 			buffer = new byte[4096];
 		}
@@ -293,6 +291,8 @@ namespace Ex {
 				wew.Add(cut.ToBytesUTF8());
 			}
 
+
+			string[] testMessages = testMessage.Split(EOT);
 			byte[][] multibytearraydrifting = wew.ToArray();
 			StringBuilder held = "";
 			string str;
@@ -308,12 +308,15 @@ namespace Ex {
 					string pulled = held.Substring(0, index);
 					held = held.Remove(0, index + 1);
 					index = held.IndexOf(EOT);
-
+					
 					if (pulled.Length > 0) {
+						if (pulled != testMessages[pos]) { 
+							Log.Warning($"Failed to convert message {pos} accurately. Expected {testMessage[pos]}, got { pulled }");
+						}
 						recieved = recieved + pulled + EOT;
+						pos++;
 					}
 				}
-				pos++;
 			}
 
 

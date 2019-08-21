@@ -124,6 +124,8 @@ namespace Ex {
 	/// </summary>
 	public static class Unsafe {
 		/// <summary> Are we running on the Mono Runtime? </summary>
+		/// @TODO: Eventually check to see the version.
+		/// We may need to further branch if mono changes the TypedReference struct in a later version.
 		public static readonly bool MonoRuntime = Type.GetType("Mono.Runtime") != null;
 
 		/// <summary>Extracts the bytes from a generic value type.</summary>
@@ -224,18 +226,13 @@ namespace Ex {
 			ret = result;
 		}
 
-		/// <summary>Helper class for generic SizeOf&lt;T&gt; method</summary>
-		/// <typeparam name="T"></typeparam>
-		private static class ArrayOfTwoElements<T> { 
-			public static readonly T[] Value = new T[2];
-		}
-		/// <summary>Helper class for generic SizeOf&lt;T&gt; method</summary>
-		/// <typeparam name="T"></typeparam>
+		/// <summary> Helper class for generic SizeOf&lt;T&gt; method</summary>
+		/// <typeparam name="T">Struct type to hold two of </typeparam>
+		private static class ArrayOfTwoElements<T> where T : struct { public static readonly T[] Value = new T[2]; }
+		/// <summary> Helper class for generic SizeOf&lt;T&gt; method</summary>
+		/// <typeparam name="T"> Struct type to whole two of </typeparam>
 		[StructLayout(LayoutKind.Sequential, Pack=1)]
-		private struct Two<T> {
-			public T first, second;
-			public static readonly Two<T> instance = default(Two<T>);
-		}
+		private struct Two<T> where T : struct { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
 
 		/// <summary> Generic, runtime sizeof() for value types. </summary>
 		/// <typeparam name="T">Type to check size of </typeparam>
@@ -530,7 +527,7 @@ namespace Ex {
 			}
 		}
 
-		public static void TestFromBytesShouldThrow() {
+		public static void TestFromBytesShouldThrowForWrongSize() {
 			{
 				byte[] bytes = new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
 				Exception e = null;
@@ -598,7 +595,7 @@ namespace Ex {
 
 		}
 
-		public static void TestDeserializeString() {
+		public static void TestDeserializeInteropString() {
 			{
 				StringAndStuff s = new StringAndStuff(123, "omg wtf lol bbq", 123.456f);
 				StructInfo<StringAndStuff>.size.ShouldBe(sizeof(int) + StructInfo<InteropString32>.size + sizeof(float) );

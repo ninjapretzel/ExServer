@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Reflection;
 #if !UNITY
 using MongoDB.Bson.Serialization.Attributes;
 #else
@@ -52,13 +53,25 @@ namespace Ex {
 		/// <summary> Current set of entities. </summary>
 		private ConcurrentDictionary<Guid, Entity> entities;
 		/// <summary> Components for entities </summary>
-		public ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>> components;
+		public ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>> componentTables;
 		/// <summary> Subscriptions, server only. </summary>
 		public ConcurrentDictionary<Client, ConcurrentSet<Guid>> subscriptions;
 		/// <summary> Subscribers, server only. </summary>
 		public ConcurrentDictionary<Guid, ConcurrentSet<Client>> subscribers;
+		/// <summary> Holds pre-processed type information for a given type. </summary>
+		private class TypeInfo {
+			/// <summary> Type of cached information </summary>
+			public Type type;
+			/// <summary> Names of fields that are sync'd </summary>
+			public FieldInfo[] syncedFields;
+			/// <summary> Cached setter functions </summary>
+			public Delegate[] syncedFieldSetters;
+			/// <summary> Cached getter functions </summary>
+			public Delegate[] syncedFieldGetters;
+		}
 		/// <summary> Types of components </summary>
-		private ConcurrentDictionary<string, Type> componentTypes;
+		private ConcurrentDictionary<string, TypeInfo> componentTypes;
+		
 
 		/// <summary> Local entity ID used for the client to ask for movement. </summary>
 		public Guid? localGuid = null;
@@ -77,14 +90,15 @@ namespace Ex {
 		
 		/// <summary> Creates a new entity, and returns the reference to it. </summary>
 		/// <returns> Reference to the newly created entity </returns>
-		public Entity CreateEntity() {
+		public Entity CreateEntity(Guid? id = null) {
+			Entity entity = (id == null) ? new Entity(this) : new Entity(this, id.Value);
+			entities[entity.guid] = entity;
+
 			if (isMaster) {
-				Entity entity = new Entity(this);
-				entities[entity.guid] = entity;
 				subscribers[entity.guid] = new ConcurrentSet<Client>();
-				return entity;
 			}
-			return null;
+
+			return entity;
 		}
 
 		/// <summary> Revokes an entity by ID </summary>
@@ -92,14 +106,15 @@ namespace Ex {
 		/// <returns> True if Entity existed prior and was removed, false otherwise. </returns>
 		public bool Revoke(Guid guid) {
 			if (entities.ContainsKey(guid)) {
+				Log.Debug($"Master:{isMaster}, revoking entity {guid}");
 				{ Entity _; entities.TryRemove(guid, out _); }
-				ConcurrentSet<Client> subs;
-
 				
+				ConcurrentSet<Client> subs;
 				if (isMaster && subscribers.TryRemove(guid, out subs)) {
 					foreach (var sub in subs) {
 						subscriptions[sub].Remove(guid);
 					}
+					
 				}
 				
 				return true;
@@ -109,9 +124,9 @@ namespace Ex {
 
 		public override void OnEnable() {
 			entities = new ConcurrentDictionary<Guid, Entity>();
-			components = new ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>();
-			componentTypes = new ConcurrentDictionary<string, Type>();
-
+			componentTables = new ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>();
+			componentTypes = new ConcurrentDictionary<string, TypeInfo>();
+			
 			if (isMaster) {
 				subscriptions = new ConcurrentDictionary<Client, ConcurrentSet<Guid>>();
 				subscribers = new ConcurrentDictionary<Guid, ConcurrentSet<Client>>();
@@ -122,7 +137,7 @@ namespace Ex {
 		}
 		public override void OnDisable() {
 			entities = null;
-			components = null;
+			componentTables = null;
 			componentTypes = null;
 			if (isMaster) {
 #if !UNITY
@@ -146,13 +161,16 @@ namespace Ex {
 
 			Guid id;
 			if (Guid.TryParse(msg[0], out id)) {
-				entities[id] = new Entity(this);
+				CreateEntity(id);
+				bool islocalEntity = msg.numArgs > 1 && msg[1] == "local";
+				Log.Debug($"slave.SpawnEntity: Spawned entity {id}. local? {islocalEntity} ");
+				if (islocalEntity) {
+					localGuid = id;
+				}
+			} else {
+				Log.Debug($"slave.SpawnEntity: No properly formed guid to spawn.");
 			}
 
-			bool islocalEntity = msg.numArgs > 1 && msg[1] == "local";
-			if (islocalEntity) {
-				localGuid = id;
-			}
 		}
 
 		/// <summary> Server -> Client RPC. Requests that the client despawn an existing entity. </summary>
@@ -162,16 +180,22 @@ namespace Ex {
 			if (isMaster) { return; }
 
 			Guid id;
-			if (Guid.TryParse(msg[0], out id)) { Revoke(id); }
+			if (Guid.TryParse(msg[0], out id)) { 
+				Revoke(id); 
+				Log.Debug($"slave.DespawnEntity: Despawning entity {id}");
+			}
+				
 		}
 
-
+		/// <summary> Loads a ECS Component type by name. Prepares getters and setters for any value-type data fields </summary>
+		/// <param name="name"> Name of type to load </param>
+		/// <returns> Type of given ECS component by name, if valid and found. Null otherwise. </returns>
 		private Type GetCompType(string name) {
-			if (componentTypes.ContainsKey(name)) { return componentTypes[name]; }
+			if (componentTypes.ContainsKey(name)) { return componentTypes[name].type; }
 			Type t = Type.GetType(name);
 			if (t != null) {
 				if (typeof(Comp).IsAssignableFrom(t)) {
-					componentTypes[name] = t;
+					LoadCompType(name, t);
 					return t;
 				}
 
@@ -179,23 +203,105 @@ namespace Ex {
 				componentTypes[name] = null;
 
 			}
-			Log.Warning($"No Type {name} could be found");
+			Log.Warning($"No valid Type {name} could be found");
 			componentTypes[name] = null;
 			return null;
 		}
 
-		/// <summary> Server -> Client RPC. Requests the client add a component to an entity </summary>
+		private void LoadCompType(string name, Type t) {
+			Log.Debug($"Master: {isMaster} Loading component {t}");
+			TypeInfo info = new TypeInfo();
+			info.type = t;
+			List<FieldInfo> syncedFields = new List<FieldInfo>();
+			List<Delegate> syncedFieldGetters = new List<Delegate>();
+			List<Delegate> syncedFieldSetters = new List<Delegate>();
+			FieldInfo[] fields = t.GetFields(BindingFlags.Public | BindingFlags.Instance);
+			foreach (var field in fields) {
+				if (field.FieldType.IsValueType) {
+					syncedFields.Add(field);
+
+					Func<object, dynamic> getDel = (obj) => { 
+						try {
+							return field.GetValue(obj); 
+						} catch (Exception e) { Log.Warning(e, $"Failed to Get field {t}.{field.Name}"); }
+						return null;
+					};
+					Action<object, dynamic> setDel = (obj, val) => { 
+						try {
+							field.SetValue(obj, val); 
+						} catch (Exception e) { Log.Warning(e, $"Failed to Set field {t}.{field.Name} to a value of type {val.GetType()} "); }
+					};
+					syncedFieldGetters.Add(getDel);
+					syncedFieldSetters.Add(setDel);
+					
+				}
+			}
+			info.syncedFields = syncedFields.ToArray();
+			info.syncedFieldGetters = syncedFieldGetters.ToArray();
+			info.syncedFieldSetters = syncedFieldSetters.ToArray();
+
+			componentTypes[name] = info;
+		}
+
+		/// <summary> Server -> Client RPC. Requests the client add components to an entity </summary>
 		/// <param name="info"> RPC Info </param>
-		public void AddComp(RPCMessage msg) {
+		public void AddComps(RPCMessage msg) {
 			/// noop on server
 			if (isMaster) { return; }
 
 			Guid id;
 			if (Guid.TryParse(msg[0], out id)) {
-				string typeName = msg[1];
-				Type type = GetCompType(typeName);
-				AddComponent(id, type);
+				Log.Debug($"slave.AddComps: Adding {msg.numArgs-1} Comps to entity {id}");
+				for (int i = 1; i < msg.numArgs; i++) {
+					string typeName = msg[i];
+					Type type = GetCompType(typeName);
+					AddComponent(id, type);
+				}
 			}
+		}
+
+		/// <summary> Server -> Client RPC. Requests the client removes components from an entity </summary>
+		/// <param name="info"> RPC Info </param>
+		public void RemoveComps(RPCMessage msg) {
+			/// noop on server
+			if (isMaster) { return; }
+
+			Guid id;
+			if (Guid.TryParse(msg[0], out id)) {
+				Log.Debug($"slave.AddComps: Removing {msg.numArgs - 1} Comps to entity {id}");
+
+				for (int i = 1; i < msg.numArgs; i++) {
+					string typeName = msg[i];
+					Type type = GetCompType(typeName);
+					RemoveComponent(id, type);
+				}
+			}
+		}
+
+		/// @BAD @HACKY @IMPROVEME - Baking generic args for packers/unpackers. 
+		/// There has gotta be a more efficient way to bind generic types to unknown function calls.
+		/// Maybe bake lambdas instead? I know those can leak captures....
+		private static MethodInfo PACKER;
+		private static MethodInfo UNPACKER;
+		private static ConcurrentDictionary<Type, MethodInfo> GENERIC_PACKERS;
+		private static ConcurrentDictionary<Type, MethodInfo> GENERIC_UNPACKERS;
+		public static MethodInfo GET_PACKER(Type t) {
+			if (!t.IsValueType) { return null; }
+			if (PACKER == null) { INITIALIZEPACKERS(); }
+			if (!GENERIC_PACKERS.ContainsKey(t)) { GENERIC_PACKERS[t] = PACKER.MakeGenericMethod(t); }
+			return GENERIC_PACKERS[t];
+		}
+		public static MethodInfo GET_UNPACKER(Type t) {
+			if (!t.IsValueType) { return null; }
+			if (PACKER == null) { INITIALIZEPACKERS(); }
+			if (!GENERIC_UNPACKERS.ContainsKey(t)) { GENERIC_UNPACKERS[t] = UNPACKER.MakeGenericMethod(t); }
+			return GENERIC_UNPACKERS[t];
+		}
+		private static void INITIALIZEPACKERS() {
+			PACKER = typeof(Pack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
+			UNPACKER = typeof(Unpack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
+			GENERIC_PACKERS = new ConcurrentDictionary<Type, MethodInfo>();
+			GENERIC_UNPACKERS = new ConcurrentDictionary<Type, MethodInfo>();
 		}
 
 		/// <summary> Server -> Client RPC. Requests the client set information into a component. </summary>
@@ -203,49 +309,123 @@ namespace Ex {
 		public void SetComponentInfo(RPCMessage msg) {
 			/// noop on server
 			if (isMaster) { return; }
-			/// I really don't know if this is the right kind of approach 
-			/// Idea would be to shoot name/value pairs over the RPC info
-			/// and reflect the info into the entities
 			Guid id;
 			if (Guid.TryParse(msg[0], out id)) {
 				string typeName = msg[1];
 				Type type = GetCompType(typeName);
+				TypeInfo info = componentTypes[typeName];
+
+				Log.Debug($"slave.SetComponentInfo: Setting info for {id}.{typeName}, {msg.numArgs-2} fields.");
 				Comp component = GetComponent(id, type);
+				TypedReference cref = __makeref(component);
+				
 				if (component != null) {
-					for (int i = 2; i < msg.numArgs; i += 2) {
-						string field = msg[i];
-						string data = msg[i+1];
+					Log.Debug($"slave.SetComponentInfo:\nBefore: {component}");
+					object[] unpackerArgs = new object[1];
+					for (int i = 0; i+2 < msg.numArgs && i < info.syncedFields.Length; i++) {
+						FieldInfo field = info.syncedFields[i];
+						unpackerArgs[0] = msg[i + 2];
+						try {
+							
+							// @TODO: Test which one of these is faster. Either one of these should work in theory. 
+							// field.SetValue(component, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+							field.SetValueDirect(cref, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+						} catch (Exception e) {
+							Log.Warning(e, $"Failed to unpack and set {field.FieldType} {type}.{field.Name}");
+						}
+						
+
+						
+						
 					}
+					Log.Debug($"slave.SetComponentInfo:\nAfter: {component}");
+				} else {
+
+					Log.Debug($"slave.SetComponentInfo: No COMPONENT {type} FOUND on {id}! ");
 				}
 
 			}
 		}
 
 		public void Subscribe(Client client, Guid id) {
+			if (isMaster) {
+				Entity entity = this[id];
+				if (entity == null) { 
+					Log.Debug($"Master: no entity for {id} to subscribe {client.identity} to");
+					return; 
+				}
+
+				var subsA = subscribers[id];
+				var subsB = subscriptions[client];
 			
-			var subsA = subscribers[id];
-			var subsB = subscriptions[client];
-			
-			if (!subsA.Contains(client) && !subsB.Contains(id)) {
-				subsA.Add(client);
-				subsB.Add(id);
-				if (id == client.id) {
-					client.Call(SpawnEntity, id, "local");
-				} else { 
-					client.Call(SpawnEntity, id);
+				if (!subsA.Contains(client) && !subsB.Contains(id)) {
+					Log.Debug($"Master: Subscribing {client.identity} to {id}");
+					subsA.Add(client);
+					subsB.Add(id);
+					if (id == client.id) {
+						client.Call(SpawnEntity, id, "local");
+					} else { 
+						client.Call(SpawnEntity, id);
+					}
+
+					// Todo: Clean this up and separate into deltas once it works 
+					Comp[] components = GetComponents(id);
+					List<object> addArgs = new List<object>();
+					addArgs.Add(id);
+					foreach (var component in components) { addArgs.Add(component.GetType().FullName); }
+					client.Call(AddComps, addArgs.ToArray());
+					
+					List<object[]> argLists = PackSetComponentArgs(id, components);
+					foreach (var args in argLists) {
+						client.Call(SetComponentInfo, args);
+					}
+					
+				} else {
+					Log.Debug($"Master: {client.id} already subscribed to {id}");
 				}
 			}
+		}
 
+		private List<object[]> PackSetComponentArgs(Guid id) {
+			var components = GetComponents(id);
+			return PackSetComponentArgs(id, components);
+		}
 
+		private object[] PackSetComponentArgs(Guid id, Comp component) {
+			List<object> args = new List<object>();
+			args.Add(id);
+			string typeName = component.GetType().FullName;
+			args.Add(typeName);
+			var type = GetCompType(typeName);
+			var typeInfo = componentTypes[typeName];
+
+			for (int i = 0; i < typeInfo.syncedFields.Length; i++) {
+				dynamic value = typeInfo.syncedFieldGetters[i].DynamicInvoke(component);
+				args.Add(Pack.Base64(value));
+			}
+
+			return args.ToArray();
+		}
+
+		private List<object[]> PackSetComponentArgs(Guid id, Comp[] components) {
+			List<object[]> argLists = new List<object[]>();
+			foreach (var component in components) {
+				argLists.Add(PackSetComponentArgs(id, component));
+			}
+
+			return argLists;
 		}
 
 		public override void OnConnected(Client client) {
 			if (isMaster) {
-				Entity entity = new Entity(this, client.id);
-				entities[client.id] = entity;
+				Entity entity = CreateEntity(client.id);
+				subscriptions[client] = new ConcurrentSet<Guid>();
+
 				Log.Info($"OnConnected for {client.id}, entity created");
 
-				client.Call(SpawnEntity, client.id);
+				Subscribe(client, client.id);
+			} else {
+				Log.Info($"Clientside OnConnected.");
 			}
 		}
 
@@ -286,7 +466,11 @@ namespace Ex {
 					Log.Verbose($"No login session for {client.identity}, skipping saving entity data.");
 				}
 
-				entities.TryRemove(client.id, out entity);
+				Revoke(client.id);
+				{ ConcurrentSet<Guid> _; subscriptions.TryRemove(client, out _); }
+			} else {
+
+				Log.Info($"Clientside OnDisconnected.");
 			}
 		}
 
@@ -306,13 +490,16 @@ namespace Ex {
 			var db = GetService<DBService>();
 			var info = db.Get<UserEntityInfo>(userId);
 			var trs = AddComponent<TRS>(clientId);
-			Log.Info($"user {clientId} -> { username } / {userId }, {info}, {trs}");
+			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 
 			if (info != null) {
 
 				trs.position = info.position;
 				trs.rotation = info.rotation;
 				trs.scale = Vector3.one;
+
+				trs.Send();
+
 				GetService<MapService>().EnterMap(client, info.map, info.position, info.rotation);
 			
 			} else {
@@ -338,10 +525,11 @@ namespace Ex {
 		/// <param name="type"> Type of table to get </typeparam>
 		/// <returns> ConditionalWeakTable mapping entities to Components of type T </returns>
 		private ConditionalWeakTable<Entity, Comp> GetTable(Type type) {
-			return !components.ContainsKey(type)
-							? (components[type] = new ConditionalWeakTable<Entity, Comp>())
-							: components[type];
+			return !componentTables.ContainsKey(type)
+							? (componentTables[type] = new ConditionalWeakTable<Entity, Comp>())
+							: componentTables[type];
 		}
+
 
 		/// <summary> Adds a component of type T for the given entity. </summary>
 		/// <typeparam name="T"> Generic type of Component to add </typeparam>
@@ -366,6 +554,15 @@ namespace Ex {
 			Comp component = (Comp)Activator.CreateInstance(t);
 			component.Bind(entity);
 			table.Add(entity, component);
+			if (isMaster) {
+				var subs = subscribers[id];
+				string addMsg = Client.FormatCall(AddComps, id, t.FullName);
+				foreach (var client in subs) { client.SendMessageDirectly(addMsg); }
+
+				var args = PackSetComponentArgs(id, component);
+				string setMsg = Client.FormatCall(SetComponentInfo, args);
+				foreach (var client in subs) { client.SendMessageDirectly(setMsg); }
+			}
 
 			return component;
 		}
@@ -390,7 +587,25 @@ namespace Ex {
 
 			return null;
 		}
-		
+
+		/// <summary> Gets all associated components with an entity by a given id </summary>
+		/// <param name="id"> ID of entity to check </param>
+		/// <returns> Array of Components associated with the given Entity id </returns>
+		/// <remarks> as with <see cref="Comp"/>, do NOT hold onto references to the array. </remarks>
+		public Comp[] GetComponents(Guid id) {
+			Entity e = this[id];
+			if (e == null) { return new Comp[0]; }
+
+			List<Comp> components = new List<Comp>();
+			foreach (var pair in componentTables) {
+				Type type = pair.Key;
+				var table = pair.Value;
+				Comp comp;
+				if (table.TryGetValue(e, out comp)) { components.Add(comp); }
+			}
+			return components.ToArray();
+		}
+
 		/// <summary> Checks the entity for a given component type, and if it exists, returns it, otherwise adds one and returns it. </summary>
 		/// <typeparam name="T"> Generic type of Component to add </typeparam>
 		/// <param name="entity"> Entity to check and/or add Component to </param>
@@ -426,8 +641,23 @@ namespace Ex {
 
 			Comp c;
 			if (table.TryGetValue(entity, out c)) { c.Invalidate(); }
+			if (isMaster) {
+				var subs = subscribers[id];
+				foreach (var client in subs) { client.Call(RemoveComps, id, t.FullName); }
+			}
 
 			return table.Remove(entity);
+		}
+
+		/// <summary> Sends the information for a component to all subscribers of that component's entity </summary>
+		/// <param name="comp"> Component to send </param>
+		public void SendComponent(Comp comp) {
+			Guid id = comp.entityId;
+			var subs = subscribers[id];
+			var args = PackSetComponentArgs(id, comp);
+			foreach (var sub in subs) {
+				sub.Call(SetComponentInfo, args);
+			}
 		}
 
 		/// <summary> Get a list of all entities that have the given component. </summary>
@@ -526,25 +756,26 @@ namespace Ex {
 		/// <summary> Adds a component to this entity. </summary>
 		/// <typeparam name="T"> Generic type of component to add </typeparam>
 		/// <returns> Component of type T that was added </returns>
-		public T AddComponent<T>() where T : Comp { return service.AddComponent<T>(this); }
+		public T AddComponent<T>() where T : Comp { return service.AddComponent<T>(guid); }
 		/// <summary> Gets another component associated with this entity </summary>
 		/// <typeparam name="T"> Generic type of component to get </typeparam>
 		/// <returns> Component of type T that is on this entity, or null if none exists </returns>
-		public T GetComponent<T>() where T : Comp { return service.GetComponent<T>(this); }
+		public T GetComponent<T>() where T : Comp { return service.GetComponent<T>(guid); }
 		/// <summary> Checks for a component associated with this entity, returns it or creates a new one if it does not exist </summary>
 		/// <typeparam name="T"> Generic type of component to get </typeparam>
 		/// <returns> Component of type T that is on this entity, or was just added </returns>
-		public T RequireComponent<T>() where T : Comp { return service.RequireComponent<T>(this); }
+		public T RequireComponent<T>() where T : Comp { return service.RequireComponent<T>(guid); }
 		/// <summary> Removes a component associated with this entity. </summary>
 		/// <typeparam name="T"> Generic type of component to remove </typeparam>
 		/// <returns> True if a component was removed, otherwise false. </returns>
-		public bool RemoveComponent<T>() where T : Comp { return service.RemoveComponent<T>(this); }
+		public bool RemoveComponent<T>() where T : Comp { return service.RemoveComponent<T>(guid); }
 
 		/// <summary> Coercion from Entity to Guid, since they are the same information. </summary>
 		public static implicit operator Guid(Entity e) { return e.guid; }
 	}
 
 	/// <summary> Empty base class for components. Simply stores some data for entities. </summary>
+	/// <remarks> Instances of these are stored in <see cref="ConditionalWeakTable{TKey, TValue}"/>s, and references to them should not be held onto long term. </remarks>
 	public abstract class Comp {
 
 		/// <summary> GUID of bound entity, if bound. </summary>
@@ -555,6 +786,11 @@ namespace Ex {
 
 		/// <summary> Is this component on a master server? </summary>
 		public bool isMaster { get { return service.server.isMaster; } }
+		
+		/// <summary> Send component data to all subscribers. </summary>
+		public void Send() {
+			service.SendComponent(this);
+		}
 
 		/// <summary> Dynamic lookup of attached entity. </summary>
 		private Entity entity { 
@@ -573,7 +809,7 @@ namespace Ex {
 		}
 		/// <summary> Binds this component to an entity. </summary>
 		/// <param name="entity"> Entity to bind to </param>
-		public void Bind(Entity entity) {
+		internal void Bind(Entity entity) {
 			if (_entityId.HasValue || service != null) { 
 				throw new InvalidOperationException($"Component of {GetType()} is already bound to {_entityId.Value}."); 
 			}
@@ -621,8 +857,12 @@ namespace Ex {
 
 	/// <summary> Component that places an entity on a map. </summary>
 	public class OnMap : Comp {
-		public string mapId;
-		public int? mapInstanceIndex;
+		/// <summary> ID of map </summary>
+		public InteropString32 mapId;
+		/// <summary> </summary>
+		public int mapInstanceIndex;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} {mapId}#{mapInstanceIndex}"; }
 	}
 
 	/// <summary> Component that gives entity a physical location </summary>
@@ -633,6 +873,8 @@ namespace Ex {
 		public Vector3 rotation;
 		/// <summary> Scale of entity's display </summary>
 		public Vector3 scale;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} TRS {position} : {rotation} : {scale}"; }
 	}
 
 	/// <summary> Component that moves an entity's TRS every tick. </summary>
@@ -641,6 +883,9 @@ namespace Ex {
 		public Vector3 velocity;
 		/// <summary> Delta rotation per second </summary>
 		public Vector3 angVelocity;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} Mover {velocity} : {angVelocity}"; }
+
 	}
 
 	/// <summary> Component that gives entity a simple radius-based collision </summary>
@@ -651,6 +896,8 @@ namespace Ex {
 		public bool isTrigger;
 		/// <summary> Layer for client side collision to be on? </summary>
 		public int layer;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} Sphere {radius} : {isTrigger} : {layer}"; }
 	}
 
 	/// <summary> Component that gives entity a box-based collision </summary>
@@ -661,12 +908,16 @@ namespace Ex {
 		public bool isTrigger;
 		/// <summary> Layer for client side collision to be on? </summary>
 		public int layer;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} Box {bounds} : {isTrigger} : {layer}"; }
 	}
 
 	/// <summary> Component that gives one entity control over another. </summary>
 	public class Owned : Comp {
 		/// <summary> ID of owner of this entity, who is also allowed to send commands to this entity. </summary>
 		public Guid owner;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} Owned by {owner}"; }
 	}
 
 

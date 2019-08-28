@@ -97,7 +97,7 @@ namespace Ex {
 		/// <summary> Scale of Entity </summary>
 		public Vector3 scale { get; set; }
 		/// <summary> ID of entity <see cref="EntityInfo"/> object in database </summary>
-		public string id { get; set; }
+		public string type { get; set; }
 	}
 	
 	

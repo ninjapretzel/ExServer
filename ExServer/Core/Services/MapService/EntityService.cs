@@ -378,7 +378,7 @@ namespace Ex {
 						client.Call(SpawnEntity, id);
 					}
 
-					// Todo: Clean this up and separate into deltas once it works 
+					// Todo: Clean this up and separate into deltas
 					Comp[] components = GetComponents(id);
 					List<object> addArgs = new List<object>();
 					addArgs.Add(id);

@@ -96,7 +96,7 @@ namespace Ex {
 
 			// First time? initialize instances collection of map 
 			if (!instances.ContainsKey(mapName)) {
-				Initialize(info);
+				SpinUp(info);
 			}
 			List<Guid> instanceIds = instances[mapName];
 			
@@ -114,22 +114,22 @@ namespace Ex {
 
 		/// <summary> Initialize default set of Map instances for a MapInfo </summary>
 		/// <param name="info"> Info to initialize </param>
-		private void Initialize(MapInfo info) {
+		private void SpinUp(MapInfo info) {
 			Log.Info($"Initializing MapInfo for {info.name}. {(info.instanced ? info.numInstances : 1)} instances");
 			if (info.instanced) {
 				for (int i = 0; i < info.numInstances; i++) {
-					SpinUp(info, i);
+					Initialize(info, i);
 				}
 
 			} else {
-				SpinUp(info);
+				Initialize(info);
 			}
 		}
 		
 		/// <summary> Initializes a single instance from a <see cref="MapInfo"/>. </summary>
 		/// <param name="info"> Data to use to initialize map instance </param>
 		/// <returns> Newly created map instance</returns>
-		private Map SpinUp(MapInfo info, int? instanceIndex = null) {
+		private Map Initialize(MapInfo info, int? instanceIndex = null) {
 			Map map = new Map(this, info, instanceIndex);
 			map.Initialize();
 

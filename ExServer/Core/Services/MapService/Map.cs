@@ -37,8 +37,9 @@ namespace Ex {
 		public Dictionary<Vector3Int, Cell> cells { get; private set; }
 		/// <summary> Entities in the map, other than globals. </summary>
 		public Dictionary<Guid, Entity> entities { get; private set; }
-		/// <summary> All ids in the map, other than globals. </summary>
-		public List<Guid> idsInMap { get; private set; }
+
+		// <summary> All ids in the map, other than globals. </summary>
+		//public List<Guid> idsInMap { get; private set; }
 
 		/// <summary>  Global entity list. 
 		/// These are visible for all connected clients, regardless of position. 
@@ -89,7 +90,8 @@ namespace Ex {
 			clients = new List<Client>();
 			cells = new Dictionary<Vector3Int, Cell>();
 			entities = new Dictionary<Guid, Entity>();
-			idsInMap = new List<Guid>();
+			//idsInMap = new List<Guid>();
+			globalEntities = new List<Guid>();
 			toSpawn = new ConcurrentQueue<Guid>();
 			toDespawn = new ConcurrentQueue<Guid>();
 			toMove = new ConcurrentQueue<EntityMoveRequest>();
@@ -99,18 +101,36 @@ namespace Ex {
 		}
 
 		public void Initialize() {
-			foreach (var spawnInfo in info.entities) {
+			foreach (EntityInstanceInfo spawnInfo in info.entities) {
+				Log.Debug($"Map {identity} creating entity for {spawnInfo.type} at T{ spawnInfo.position } R{spawnInfo.rotation} S {spawnInfo.scale}");
+
 				Entity entity = entityService.CreateEntity();
 				Guid id = entity.guid;
-				EntityInfo entityInfo = entityService.GetEntityInfo(spawnInfo.id);
+				EntityInfo entityInfo = entityService.GetEntityInfo(spawnInfo.type);
 				
+				TRS trs = entity.AddComponent<TRS>();
+				trs.position = spawnInfo.position;
+				trs.rotation = spawnInfo.rotation;
+				trs.scale = spawnInfo.scale;
+
+				OnMap onMap = entity.AddComponent<OnMap>();
+				onMap.mapId = name;
+				onMap.mapInstanceIndex = instanceIndex;
+
 				foreach (var comp in entityInfo.components) {
-					var type = entityService.GetCompType(comp.type);
+					var type = entityService.GetCompType(comp.type);	
 
 					if (type != null) {
 						entityService.AddComponent(id, type);
 					}
 				}
+
+				if (entityInfo.global) {
+					globalEntities.Add(id);
+				} else {
+					RequireCell(CellPositionFor(spawnInfo.position)).AddEntity(id);
+				}
+
 			}
 		}
 
@@ -163,10 +183,7 @@ namespace Ex {
 				sw.Start();
 				Guid id;
 				while (toDespawn.TryDequeue(out id)) {
-					if (entities.ContainsKey(id)) {
-						OnDespawn(id);
-						entities.Remove(id);
-					}
+					OnDespawn(id);
 				}
 				sw.Stop();
 				despawnTrend.Record(sw.ElapsedMilliseconds);
@@ -177,10 +194,8 @@ namespace Ex {
 				sw.Start();
 				Guid id;
 				while (toSpawn.TryDequeue(out id)) {
-					if (!entities.ContainsKey(id)) {
-						OnSpawn(id);
-						entities[id] = entityService[id];
-					}
+					OnSpawn(id);
+						
 				}
 				sw.Stop();
 				spawnTrend.Record(sw.ElapsedMilliseconds);
@@ -225,10 +240,10 @@ namespace Ex {
 							
 							oldCell.TransferEntity(newCell, move.id);
 
+							Log.Debug($"Entity {move.id} moved from {oldCellPos} => {newCellPos}.");
 						}
 
 
-						Log.Debug($"Entity {move.id} moved. ");
 					} else {
 						Log.Warning($"Entity {move.id} Tried to move too far!");
 						// Todo: Rubberband.
@@ -298,19 +313,20 @@ namespace Ex {
 						Log.Warning($"Double Map entry of {identity} / {c.identity}");
 						return;
 					}
+
 				} else if (onMap == null) {
 					onMap = entity.AddComponent<OnMap>();
 				}
 
 
-				Log.Debug($"Map {identity} entry of client {c.identity}");
+				Log.Debug($"Map {identity} \\jentry of client {c.identity}");
 				onMap.mapId = name;
 				onMap.mapInstanceIndex = instanceIndex;
 				onMap.Send();
 
 				clients.Add(c);
 
-				entities[c.id] = entity;
+				// entities[c.id] = entity;
 				toSpawn.Enqueue(c.id);
 			
 			}
@@ -325,6 +341,8 @@ namespace Ex {
 				foreach (var id in entities.Keys) {
 					entityService.Unsubscribe(c, id);
 				}
+				Log.Debug($"Map {identity} \\jexit of client {c.identity}");
+
 				clients.Remove(c);
 				toDespawn.Enqueue(c.id);
 			}
@@ -333,9 +351,17 @@ namespace Ex {
 		/// <summary> Called when entity is spawned. </summary>
 		private void OnSpawn(Guid id) {
 			if (service.isMaster) {
-				TRS trs = entityService.GetComponent<TRS>(id);
-				Client client = service.server.GetClient(id);
+				if (entities.ContainsKey(id)) {
+					Log.Warning($"Map.OnSpawn: Tried to spawn entity {id} on map {identity}, but the entity is already in that map!");
+					return;
+				}
+				Entity entity = entityService[id];
+				entities[id] = entity;
 				
+				TRS trs = entity.GetComponent<TRS>();
+				Client client = service.server.GetClient(id);
+				Log.Debug($"Map {identity} \\jspawn of entity {id}");
+
 				if (client != null) {
 					foreach (var e in globalEntities) {
 						entityService.Subscribe(client, e);
@@ -354,21 +380,29 @@ namespace Ex {
 		/// <summary> Called when entity is despawned. </summary>
 		private void OnDespawn(Guid id) {
 			if (service.isMaster) {
+				if (!entities.ContainsKey(id)) {
+					Log.Warning($"Map.OnDespawn: Tried to remove entity {id} from map {identity}, but the entity is not in that map!");
+					return;
+				}
+				entities.Remove(id);
+
 				TRS trs = entityService.GetComponent<TRS>(id);
 				Client client = service.server.GetClient(id);
+				Log.Debug($"Map {identity} \\jdespawn of entity {id}");
 
 				if (client != null) {
 					foreach (var e in globalEntities) {
 						entityService.Unsubscribe(client, e);
 					}
 				}
+
 				if (trs != null) {
 					Vector3Int cellPos = CellPositionFor(trs.position);
 					Cell cell = GetCell(cellPos);
 					if (cell != null) {
 						cell.RemoveEntity(id);
 					} else {
-						Log.Warning($"Map.OnDespawn: Tried to remove entity {id} from cell {cellPos}, but the cell did not exist!");
+						Log.Warning($"Map.OnDespawn: Tried to remove entity {id} from map {identity} cell {cellPos}, but the cell did not exist!");
 					}
 				}
 			}

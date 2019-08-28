@@ -1,19 +1,12 @@
 {
 	type: "Terrain",
+	global: true,
 	components: [
-		{ 
-			type: "EX.TRS",
-			data: {
-				position: [ 0, 0, 0 ],
-				rotation: [ 0, 0, 0 ],
-				scale: [ 1, 1, 1 ],
-			},
-		},
 		{
 			// Terrain Component 
 			// Defines a procedural terrain that gets created client-side
 			// MAX ONE OF THESE PER MAP.
-			type: "EX.Terrain",
+			type: "Ex.Terrain",
 			data: {
 				/// These are all builtin/required parameters. 
 				/// How big is a single terrain sheet?

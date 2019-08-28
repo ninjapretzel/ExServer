@@ -121,7 +121,8 @@ namespace Ex {
 					var type = entityService.GetCompType(comp.type);	
 
 					if (type != null) {
-						entityService.AddComponent(id, type);
+						Comp c = entityService.AddComponent(id, type);
+						c.LoadFromDB(comp.data);
 					}
 				}
 
@@ -231,9 +232,13 @@ namespace Ex {
 					if (move.serverMove || delta.magnitude < speedCap) {
 						Log.Debug($"Moving {move.id}\n\tposition {move.oldPos} => {move.newPos}\n\trotation {move.oldRot} => {move.newRot}");
 						
+						trs.position = move.newPos;
+						trs.rotation = move.newRot;
+						trs.Send();
+
 						var oldCellPos = CellPositionFor(move.oldPos);
 						var newCellPos = CellPositionFor(move.newPos);
-						
+
 						if (oldCellPos != newCellPos) {
 							Cell oldCell = GetCell(oldCellPos);
 							Cell newCell = RequireCell(newCellPos);
@@ -242,8 +247,7 @@ namespace Ex {
 
 							Log.Debug($"Entity {move.id} moved from {oldCellPos} => {newCellPos}.");
 						}
-
-
+						
 					} else {
 						Log.Warning($"Entity {move.id} Tried to move too far!");
 						// Todo: Rubberband.

@@ -3,6 +3,7 @@
 #endif
 
 #if !UNITY
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 #else
 using UnityEngine;
@@ -70,6 +71,14 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
 		/// <returns> True if a component was removed, otherwise false. </returns>
 		public bool RemoveComponent<T>() where T : Comp { return entity.RemoveComponent<T>(); }
+
+		#if !UNITY 
+		public void LoadFromDB(BsonDocument bdoc) {
+
+		}
+
+
+		#endif
 
 	}
 

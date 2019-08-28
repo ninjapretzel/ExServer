@@ -53,6 +53,25 @@ namespace Ex {
 
 	public class LoginService : Service {
 
+		#region MESSAGE_STRUCTS
+		/// <summary> Message type sent on a client when a login attempt was successful </summary>
+		public struct LoginSuccess_Client { public Credentials credentials; }
+		/// <summary> Message type sent on a client when a login attempt was failed. </summary>
+		public struct LoginFailure_Client { public string reason; }
+
+		/// <summary> Message type sent on server when a login attempt was successful. </summary>
+		public struct LoginSuccess_Server {
+			public readonly Client client;
+			public LoginSuccess_Server(Client client) { this.client = client; }
+		}
+		/// <summary> Message type sent on server when a login attempt was failed</summary>
+		public struct LoginFailure_Server {
+			public string ip;
+			public string reason;
+			public int sequence;
+		}
+		#endregion
+
 #if !UNITY
 		/// <summary> Database object storing user login info </summary>
 		[BsonIgnoreExtraElements]
@@ -228,22 +247,6 @@ namespace Ex {
 			}	
 		}
 
-		/// <summary> Message type sent on a client when a login attempt was successful </summary>
-		public struct LoginSuccess_Client { public Credentials credentials; }
-		/// <summary> Message type sent on a client when a login attempt was failed. </summary>
-		public struct LoginFailure_Client { public string reason; }
-		/// <summary> Message type sent on server when a login attempt was successful. </summary>
-		public struct LoginSuccess_Server {
-			public readonly Client client;
-			public LoginSuccess_Server(Client client) { this.client = client; }
-		}
-		/// <summary> Message type sent on server when a login attempt was failed</summary>
-		public struct LoginFailure_Server {
-			public string ip;
-			public string reason;
-			public int sequence;
-		}
-
 		string _VERSION_MISMATCH = null;
 		string VERSION_MISMATCH {
 			get {
@@ -251,7 +254,6 @@ namespace Ex {
 				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
 			}
 		}
-
 
 		/// <summary> Connected database service </summary>
 		DBService dbService { get { return GetService<DBService>(); } }

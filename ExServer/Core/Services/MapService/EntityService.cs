@@ -19,7 +19,20 @@ namespace Ex {
 	/// <summary> Service which manages the creation and tracking of entities. 
 	/// Entities are automatically created for connecting clients and removed for disconnecting ones.  </summary>
 	public class EntityService : Service {
-		
+		#region MESSAGE_STRUCTS
+		/// <summary> Message sent when an entity was created. </summary>
+		public struct EntitySpawned { public Guid id; }
+		/// <summary> Message sent when an entity was removed. </summary>
+		public struct EntityDespawned { public Guid id; }
+		/// <summary> Message sent when an entity has a new component. </summary>
+		public struct ComponentAdded { public Guid id; public Type componentType; }
+		/// <summary> Message sent when an entity has new data. </summary>
+		public struct ComponentChanged { public Guid id; public Type componentType; }
+		/// <summary> Message sent when an entity no longer has a component. </summary>
+		public struct ComponentRemoved { public Guid id; public Type componentType; }
+		#endregion
+
+
 #if !UNITY
 		[BsonIgnoreExtraElements]
 		public class UserEntityInfo : DBEntry {
@@ -176,6 +189,8 @@ namespace Ex {
 				if (islocalEntity) {
 					localGuid = id;
 				}
+
+				server.On(new EntitySpawned(){ id = id });
 			} else {
 				Log.Debug($"slave.SpawnEntity: No properly formed guid to spawn.");
 			}
@@ -192,6 +207,7 @@ namespace Ex {
 				Guid id;
 				if (Guid.TryParse(msg[i], out id)) { 
 					Revoke(id); 
+					server.On(new EntityDespawned(){ id = id });
 					Log.Debug($"slave.DespawnEntity: Despawning entity {id}");
 				}
 			}
@@ -270,6 +286,7 @@ namespace Ex {
 					string typeName = msg[i];
 					Type type = GetCompType(typeName);
 					AddComponent(id, type);
+					server.On(new ComponentAdded() { id = id, componentType = type });
 				}
 			}
 		}
@@ -287,7 +304,9 @@ namespace Ex {
 				for (int i = 1; i < msg.numArgs; i++) {
 					string typeName = msg[i];
 					Type type = GetCompType(typeName);
-					RemoveComponent(id, type);
+					RemoveComponent(id, type); 
+					server.On(new ComponentRemoved() { id = id, componentType = type });
+
 				}
 			}
 		}
@@ -349,6 +368,8 @@ namespace Ex {
 						}
 					}
 					Log.Debug($"slave.SetComponentInfo:\nAfter: {component}");
+
+					server.On(new ComponentChanged() { id = id, componentType = type });
 				} else {
 
 					Log.Debug($"slave.SetComponentInfo: No COMPONENT {type} FOUND on {id}! ");
@@ -357,6 +378,9 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Makes the client be subscribed to all messages for the given entity by id </summary>
+		/// <param name="client"> Client to subscribe </param>
+		/// <param name="id"> ID of entity to subscribe to </param>
 		public void Subscribe(Client client, Guid id) {
 			if (isMaster) {
 				Entity entity = this[id];
@@ -454,7 +478,7 @@ namespace Ex {
 
 			return argLists;
 		}
-
+		
 		public override void OnConnected(Client client) {
 			if (isMaster) {
 				Entity entity = CreateEntity(client.id);

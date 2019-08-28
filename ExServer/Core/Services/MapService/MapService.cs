@@ -55,7 +55,9 @@ namespace Ex {
 				mapInfoByName = new ConcurrentDictionary<string, MapInfo>();
 				instances = new ConcurrentDictionary<string, List<Guid>>();
 				maps = new ConcurrentDictionary<Guid, Map>();
-				mapWorkPool = new WorkPool<Map>(UpdateMap);
+				mapWorkPool = new WorkPool<Map>(UpdateMap
+				//	, null, 5, 100
+				);
 			}
 			#endif
 
@@ -85,7 +87,7 @@ namespace Ex {
 				var loadedMap = dbService.Get<MapInfo>("Content", "name", map) ?? dbService.Get<MapInfo>("Content", "name", "Limbo");
 				mapInfoByName[map] = loadedMap;
 				string s = loadedMap?.ToString() ?? "NULL";
-				Log.Debug($"Loaded MapInfo for {map}");
+				Log.Debug($"Loaded MapInfo for {{{map}}}");
 			}
 
 			// A requested map may have been routed to limbo if it does not exist.
@@ -129,6 +131,7 @@ namespace Ex {
 		/// <returns> Newly created map instance</returns>
 		private Map SpinUp(MapInfo info, int? instanceIndex = null) {
 			Map map = new Map(this, info, instanceIndex);
+			map.Initialize();
 
 			maps[map.id] = map;
 			List<Guid> instanceIds = instances.ContainsKey(info.name) 
@@ -154,6 +157,7 @@ namespace Ex {
 
 			Log.Info($"\\jGot map { map.id }");
 			map.EnterMap(client);
+
 			if (position != null || rotation != null) {
 				map.Move(client.id, position, rotation);
 			}

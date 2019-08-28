@@ -15,12 +15,8 @@
 	sparse: false,
 	solo: true,
 	
-	skybox: {
-		material: "EternusBase",
-		generator: "basic",
-		seed: 52
-	},
 	
+	entities: [],
 	
 	
 	

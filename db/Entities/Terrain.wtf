@@ -1,0 +1,123 @@
+{
+	type: "Terrain",
+	components: [
+		{ 
+			type: "EX.TRS",
+			data: {
+				position: [ 0, 0, 0 ],
+				rotation: [ 0, 0, 0 ],
+				scale: [ 1, 1, 1 ],
+			},
+		},
+		{
+			// Terrain Component 
+			// Defines a procedural terrain that gets created client-side
+			// MAX ONE OF THESE PER MAP.
+			type: "EX.Terrain",
+			data: {
+				/// These are all builtin/required parameters. 
+				/// How big is a single terrain sheet?
+				tileSize: [100, 100, 100],
+				/// Radius of terrain sheets to create (roughly n^2)
+				viewDist: 14,
+				/// height samples per sheet (n^2)
+				meshSegments: 64,
+				/// splat samples per sheet (n^2)
+				splatSegments: 64,
+				/// angle required for painting a slope texture?
+				slopeAngle: 60,
+				/// Seed for this terrain
+				seed: 2845,
+				/// Chunk prefab
+				chunks: [ "LunarChunk" ],
+				/// Shader name
+				shader: "Craters",
+				/// height kernel name within shader 
+				heightmapKernelName: "Heightmap",
+				/// splat kernel name within shader 
+				splatmapKernelName: "Splatmap",
+				/// layers of terrain texture. First is base, second is slope, all others are gravy
+				terrainLayers: [ 
+					"FoothillsOfAriloa384",
+					"DeepCaves142",
+					"SlumberingVolcaino178",
+					"FaultZone180",
+					"LunarTarget438",
+				],
+				
+				// Terrain data. This is an arbitrary object used to drive shader kernel parameters.
+				// Each shader kernel may  have different parameters.
+				// Some kernels may have arrays of parameters as well.
+				// All data needed to be provided for terrain generation should be present here.
+				extra: { 
+					craterEffect: .3,
+					craterPoint: -33,
+					warpAmt: 91.57,
+					objectNoise: {
+						octaves: 4, 
+						persistence: 0.5,
+						scale: 0.07,
+						octaveScale: 1.6,
+						noiseOffset: [ 155, 137, 149 ],
+					},
+					heightmapNoise: {
+						octaves: 6, 
+						persistence: 1.0,
+						scale: 0.0006,
+						octaveScale: 2,
+						noiseOffset: [ 24.4, 2, 1 ],
+					},
+					splatmapNoise: {
+						octaves: 4, 
+						persistence: 1,
+						scale: 0.0015,
+						octaveScale: 2,
+						noiseOffset: [ 155, 141.98, 149 ],
+					},
+					objectUberNoise: {
+						octaves: 2,
+						perturb: 0,
+						sharpness: 0,
+						amplify: 0,
+						altitudeErosion: 0,
+						ridgeErosion: 0,
+						slopeErosion: 0,
+						lacunarity: 2,
+						gain: .5,
+						startAmplitude: .9,
+						scale: 1,
+					},
+					heightmapUberNoise: {
+						octaves: 4,
+						perturb: 0.27,
+						sharpness: 0.034,
+						amplify: 0.208,
+						altitudeErosion: 0.2122,
+						ridgeErosion: 0.586,
+						slopeErosion: 0.402,
+						lacunarity: 2,
+						gain: .5,
+						startAmplitude: .3,
+						scale: .002,
+					},
+					splatmapUberNoise: {
+						octaves: 2,
+						perturb: -0.223,
+						sharpness: -0.27,
+						amplify: 0.343,
+						altitudeErosion: 0.1882,
+						ridgeErosion: 0.616,
+						slopeErosion: 0.07,
+						lacunarity: 2,
+						gain: .5,
+						startAmplitude: 3,
+						scale: 0.001,
+					},
+				}
+			}
+		
+		}
+		
+	]
+	
+}

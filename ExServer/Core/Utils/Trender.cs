@@ -7,9 +7,13 @@ namespace Ex.Utils {
 	/// <summary> Utility class for profiling data collection. </summary>
 	public class Trender {
 
+		/// <summary> Position in internal array to store at </summary>
 		private int at;
+		/// <summary> Total number of records taken </summary>
 		private int recorded;
+		/// <summary> Record data </summary>
 		private double[] record;
+		/// <summary> Changed without having been recalculated</summary>
 		private bool dirty = false;
 
 		private double _average;
@@ -24,7 +28,7 @@ namespace Ex.Utils {
 		public double min { get { if (dirty) { Recalc(); } return _min; } }
 
 
-		public Trender(int size = 33) {
+		public Trender(int size = 32) {
 			record = new double[size];
 			at = 0;
 			recorded = 0;
@@ -41,6 +45,7 @@ namespace Ex.Utils {
 			recorded++;
 		}
 
+		/// <summary> Actually recalculates current min/max/avg </summary>
 		private void Recalc() {
 			double total = 0;
 			int cnt = 0;

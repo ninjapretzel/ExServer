@@ -22,7 +22,7 @@ namespace Ex {
 		public List<Guid> entities { get; private set; }
 		/// <summary> Clients connected to the cell </summary>
 		public List<Client> clients { get; private set; }
-		/// <summary> Cached cell visibility </summary>
+		/// <summary> Cached cell visibility. Won't change during a cell's lifetime. </summary>
 		private List<Vector3Int> _visibility = null;
 		/// <summary> All visible Cells from this Cell </summary>
 		public IEnumerable<Vector3Int> visibility {
@@ -36,12 +36,131 @@ namespace Ex {
 		public Vector3Int cellPos { get; private set; }
 		/// <summary> Map this cell belongs to </summary>
 		public Map map { get; private set; }
-
+		
 		public Cell(Map map, Vector3Int cellPos) {
 			this.map = map;
 			this.cellPos = cellPos;
 			entities = new List<Guid>();
 			clients = new List<Client>();
+		}
+
+		public void AddEntity(Guid id) {
+			if (!entities.Contains(id)) {
+
+				entities.Add(id);
+				Client c = map.service.server.GetClient(id);
+				if (c != null) {
+					clients.Add(c);
+				}
+
+				foreach (var cellPos in visibility) {
+					Cell cell = map.GetCell(cellPos);
+					if (cell != null) {
+						foreach (var client in cell.clients) {
+							if (client.id == id) { continue; }
+							map.entityService.Subscribe(client, id);
+						}
+						if (c != null) {
+							foreach (var entityId in cell.entities) {
+								if (entityId == id) { continue; }
+								map.entityService.Subscribe(c, entityId);
+							}
+						}
+					}
+				}
+
+			} else {
+				Log.Warning($"Cell.AddEntity: Map {map.identity} cell {cellPos} already contains entity {id}");
+			}
+
+		}
+
+		public void RemoveEntity(Guid id) {
+			if (entities.Contains(id)) {
+
+				entities.Remove(id);
+				Client c = map.service.server.GetClient(id);
+				if (c != null) {
+					clients.Remove(c);
+				}
+
+				foreach (var cellPos in visibility) {
+					Cell cell = map.GetCell(cellPos);
+					if (cell != null) {
+
+						foreach (var client in cell.clients) {
+							if (client.id == id) { continue; }
+							map.entityService.Unsubscribe(client, id);
+						}
+						if (c != null) {
+							foreach (var entityId in cell.entities) {
+								if (entityId == id) { continue; }
+								map.entityService.Unsubscribe(c, entityId);
+							}
+						}
+					}
+				}
+		
+
+			} else {
+				Log.Warning($"Cell.RemoveEntity: Map {map.identity} cell {cellPos} does not contains entity {id}");
+			}
+		}
+
+		/// <summary> Transfer an entity by <paramref name="id"/> from this cell to <paramref name="other"/>.
+		/// Unsubscribes clients that no longer see the entity, and subsribes new clients that see it.
+		/// If a client belongs to the entity, that client is included. </summary>
+		/// <param name="other"> Cell to transfer to </param>
+		/// <param name="id"> Id of entity to transfer </param>
+		public void TransferEntity(Cell other, Guid id) {
+			if (entities.Contains(id) && !other.entities.Contains(id)) {
+				entities.Remove(id);
+				other.entities.Add(id);
+				Client c = map.service.server.GetClient(id);
+				if (c != null) {
+					clients.Remove(c);
+					other.clients.Add(c);
+				}
+
+				foreach (var missingPos in MissingVisibility(other)) {
+					var cell = map.GetCell(missingPos);
+					if (cell != null) {
+						foreach (var client in cell.clients) { if (client == c) { continue; } map.entityService.Unsubscribe(client, id); } 
+						if (c != null) {
+							foreach (var entity in cell.entities) { if (entity == id) { continue; } map.entityService.Unsubscribe(c, entity); }
+						}
+					}
+				}
+
+				foreach (var newPos in other.MissingVisibility(this)) {
+					var cell = map.GetCell(newPos);
+					if (cell != null) {
+						foreach (var client in cell.clients) { if (client == c) { continue; } map.entityService.Subscribe(client, id); }
+						if (c != null) {
+							foreach (var entity in cell.entities) { if (entity == id) { continue; } map.entityService.Subscribe(c, entity); }
+						}
+					}
+				}
+
+			} else {
+				Log.Warning($"Cell.TransferEntity: Map {map.identity} cell {cellPos} and {other.cellPos} cannot transfer entity {id}");
+			}
+		}
+
+		/// <summary> Gets the shared visibility between two cells </summary>
+		/// <param name="other"> Other cell </param>
+		/// <returns> Shared visibilities between two cells </returns>
+		public IEnumerable<Vector3Int> CommonVisibility(Cell other) {
+			var otherVis = other.visibility;
+			return visibility.Where( (it) => { return otherVis.Contains(it); });
+		}
+
+		/// <summary> Gets the visibility that this cell has, but not the other. </summary>
+		/// <param name="other"> Other Cell </param>
+		/// <returns> Visibilities from this cell, but not the other. </returns>
+		public IEnumerable<Vector3Int> MissingVisibility(Cell other) {
+			var otherVis = other.visibility;
+			return visibility.Where( (it) => { return !otherVis.Contains(it); }); 
 		}
 
 		/// <summary> Provides a list of 2d cell neighbors for a given <paramref name="position"/> and <paramref name="maxDist"/> </summary>

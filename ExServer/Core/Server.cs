@@ -167,6 +167,11 @@ namespace Ex {
 
 		}
 
+		/// <summary> Gets the client that has the given guid </summary>
+		/// <param name="id"> ID of client to get </param>
+		/// <returns> Client for ID, if present, or null if none exists. </returns>
+		public Client GetClient(Guid id) { return connections.ContainsKey(id) ? connections[id] : null; }
+
 		/// <summary> Hooks up details of client so server can handle communication.
 		/// Exposed to allow slave clients to explicitly connect to their server. </summary>
 		/// <param name="client"> Slave client to connect. </param>

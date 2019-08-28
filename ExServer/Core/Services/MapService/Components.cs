@@ -76,4 +76,11 @@ namespace Ex {
 		/// <inheritdoc />
 		public override string ToString() { return $"{entityId} Owned by {owner}"; }
 	}
+
+	/// <summary> Component that holds procedural terrain information. </summary>
+	public class Terrain : Comp {
+		
+
+		public override string ToString() { return $"{entityId} Terrain"; }
+	}
 }

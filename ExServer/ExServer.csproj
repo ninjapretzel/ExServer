@@ -68,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\Client.cs" />
+    <Compile Include="Core\Data\UberData.cs" />
     <Compile Include="Core\Logging.cs" />
     <Compile Include="Core\RPCMessage.cs" />
     <Compile Include="Core\Server.cs" />
@@ -90,6 +91,7 @@
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
     <Compile Include="Core\Utils\Extensions.cs" />
     <Compile Include="Core\Utils\Packing.cs" />
+    <Compile Include="Core\Utils\Random.cs" />
     <Compile Include="Core\Utils\Trender.cs" />
     <Compile Include="Core\Utils\Unsafe.cs" />
     <Compile Include="Core\Utils\Vectors.cs" />

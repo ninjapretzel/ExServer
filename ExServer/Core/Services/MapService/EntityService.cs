@@ -19,7 +19,7 @@ namespace Ex {
 	/// <summary> Service which manages the creation and tracking of entities. 
 	/// Entities are automatically created for connecting clients and removed for disconnecting ones.  </summary>
 	public class EntityService : Service {
-
+		
 #if !UNITY
 		[BsonIgnoreExtraElements]
 		public class UserEntityInfo : DBEntry {
@@ -47,7 +47,15 @@ namespace Ex {
 
 			
 		}
+		
+		/// <summary> EntityInfo (spawn source) data cached from database by type </summary>
+		public ConcurrentDictionary<string, EntityInfo> entityInfos;
+		public EntityInfo GetEntityInfo(string typeName) {
+			if (entityInfos.ContainsKey(typeName)) { return entityInfos[typeName]; }
+			return (entityInfos[typeName] = GetService<DBService>().Get<EntityInfo>("Content", "type", typeName));
+		}
 #endif
+
 		/// <summary> Current set of entities. </summary>
 		private ConcurrentDictionary<Guid, Entity> entities;
 		/// <summary> Components for entities </summary>
@@ -56,7 +64,8 @@ namespace Ex {
 		public ConcurrentDictionary<Client, ConcurrentSet<Guid>> subscriptions;
 		/// <summary> Subscribers, server only. </summary>
 		public ConcurrentDictionary<Guid, ConcurrentSet<Client>> subscribers;
-		/// <summary> Holds pre-processed type information for a given type. </summary>
+
+		/// <summary> Holds pre-processed type information for a given component type. </summary>
 		private class TypeInfo {
 			/// <summary> Type of cached information </summary>
 			public Type type;
@@ -69,8 +78,8 @@ namespace Ex {
 		}
 		/// <summary> Types of components </summary>
 		private ConcurrentDictionary<string, TypeInfo> componentTypes;
-		
 
+		
 		/// <summary> Local entity ID used for the client to ask for movement. </summary>
 		public Guid? localGuid = null;
 
@@ -129,6 +138,7 @@ namespace Ex {
 				subscriptions = new ConcurrentDictionary<Client, ConcurrentSet<Guid>>();
 				subscribers = new ConcurrentDictionary<Guid, ConcurrentSet<Client>>();
 #if !UNITY
+				entityInfos = new ConcurrentDictionary<string, EntityInfo>();
 				GetService<LoginService>().initializer += InitializeEntityInfo;
 #endif
 			}
@@ -139,6 +149,7 @@ namespace Ex {
 			componentTypes = null;
 			if (isMaster) {
 #if !UNITY
+				entityInfos = null;
 				var login = GetService<LoginService>();
 				if (login != null) {
 					login.initializer -= InitializeEntityInfo;
@@ -177,10 +188,12 @@ namespace Ex {
 			/// noop on server
 			if (isMaster) { return; }
 
-			Guid id;
-			if (Guid.TryParse(msg[0], out id)) { 
-				Revoke(id); 
-				Log.Debug($"slave.DespawnEntity: Despawning entity {id}");
+			for (int i = 0; i < msg.numArgs; i++) {
+				Guid id;
+				if (Guid.TryParse(msg[i], out id)) { 
+					Revoke(id); 
+					Log.Debug($"slave.DespawnEntity: Despawning entity {id}");
+				}
 			}
 				
 		}
@@ -188,7 +201,7 @@ namespace Ex {
 		/// <summary> Loads a ECS Component type by name. Prepares getters and setters for any value-type data fields </summary>
 		/// <param name="name"> Name of type to load </param>
 		/// <returns> Type of given ECS component by name, if valid and found. Null otherwise. </returns>
-		private Type GetCompType(string name) {
+		public Type GetCompType(string name) {
 			if (componentTypes.ContainsKey(name)) { return componentTypes[name].type; }
 			Type t = Type.GetType(name);
 			if (t != null) {
@@ -210,7 +223,7 @@ namespace Ex {
 		/// <param name="name"> FullName of type </param>
 		/// <param name="t"> Type </param>
 		private void LoadCompType(string name, Type t) {
-			Log.Debug($"Master: {isMaster} Loading component {t}");
+			Log.Debug($"EntityService.LoadCompType: isMaster?{isMaster} Loading component {t}");
 			TypeInfo info = new TypeInfo();
 			info.type = t;
 			List<FieldInfo> syncedFields = new List<FieldInfo>();
@@ -379,6 +392,35 @@ namespace Ex {
 					
 				} else {
 					Log.Debug($"Master: {client.id} already subscribed to {id}");
+				}
+			}
+		}
+
+		/// <summary> Removes an entity ID from a client's subscription list, if they were subscribed. </summary>
+		/// <param name="client"> Client to unsubscribe </param>
+		/// <param name="id"> ID to unsub from </param>
+		public void Unsubscribe(Client client, Guid id) {
+			if (isMaster) {
+				Entity entity = this[id];
+				if (entity == null) {
+					Log.Debug($"Master: no entity for {id} to unsubscribe {client.identity} from");
+					return;
+				}
+				if (id == client.id) {
+					Log.Debug($"Master: Cannot unsub client from its own entity");
+					return;
+				}
+
+
+				var subsA = subscribers[id];
+				var subsB = subscriptions[client]; 
+
+				if (subsA.Contains(client) && subsB.Contains(id)) {
+					Log.Debug($"Master: Unsubbing {client.id} from {id}");
+					subsA.Remove(client);
+					subsB.Remove(id);
+
+					client.Call(DespawnEntity, id);
 				}
 			}
 		}
@@ -556,9 +598,10 @@ namespace Ex {
 				string addMsg = Client.FormatCall(AddComps, id, t.FullName);
 				foreach (var client in subs) { client.SendMessageDirectly(addMsg); }
 
-				var args = PackSetComponentArgs(id, component);
-				string setMsg = Client.FormatCall(SetComponentInfo, args);
-				foreach (var client in subs) { client.SendMessageDirectly(setMsg); }
+				/// Actually don't need to send data yet, components will be empty right when added.
+				//var args = PackSetComponentArgs(id, component);
+				//string setMsg = Client.FormatCall(SetComponentInfo, args);
+				//foreach (var client in subs) { client.SendMessageDirectly(setMsg); }
 			}
 
 			return component;
@@ -657,7 +700,7 @@ namespace Ex {
 			}
 		}
 
-		/// <summary> Get a list of all entities that have the given component. </summary>
+		/// <summary> Get a snapshot list of all entities that have the given component. </summary>
 		/// <typeparam name="T"> Component type to search for </typeparam>
 		/// <param name="lim"> List of Guids to check </param>
 		/// <returns> A list of Entities for the given guids that exist and have the given component associated with them </returns>

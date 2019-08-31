@@ -68,6 +68,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Core\Client.cs" />
+    <Compile Include="Core\Data\SimplexNoise.cs" />
     <Compile Include="Core\Data\UberData.cs" />
     <Compile Include="Core\Logging.cs" />
     <Compile Include="Core\RPCMessage.cs" />

@@ -7,8 +7,9 @@ using MongoDB.Bson.Serialization.Attributes;
 #else
 using UnityEngine;
 #endif
-using Ex.Utils;
 using System;
+using Ex.Utils;
+using Ex.Data;
 
 namespace Ex {
 
@@ -79,8 +80,53 @@ namespace Ex {
 
 	/// <summary> Component that holds procedural terrain information. </summary>
 	public class Terrain : Comp {
-		
+		/// <summary> Size of each terrain segment </summary>
+		public Vector3 tileSize;
+		/// <summary> Diameter of area in segments to create terrain in </summary>
+		public float viewDist;
 
+		/// <summary> Name of MeshChunk resource to load </summary>
+		public InteropString32 chunk;
+		/// <summary> Name of ComputeShader resource to use </summary>
+		public InteropString32 shader;
+		/// <summary> Name of heightmap kernel to use </summary>
+		public InteropString32 heightmapKernelName;
+		/// <summary> Name of splatmp kernel to use </summary>
+		public InteropString32 splatmapKernelName;
+
+		/// <summary> Name of base terrain layer </summary>
+		public InteropString32 terrainBaseLayer;
+		/// <summary> Name of cliff terrain layer </summary>
+		public InteropString32 terrainCliffLayer;
+		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		public InteropString32 terrainLayer1;
+		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		public InteropString32 terrainLayer2;
+		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		public InteropString32 terrainLayer3;
+		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		public InteropString32 terrainLayer4;
+
+		/// <summary> Number of height samples for terrain segments </summary>
+		public int meshSamples;
+		/// <summary> Number of splatmap samples for terrain segments </summary>
+		public int splatSamples;
+
+		/// <summary> Max angle of terrain before being painted as a cliff </summary>
+		public float slopeAngle;
+
+		/// <summary> Terrain seed value </summary>
+		public long seed;
+
+		/// <summary> Heightmap Ubernoise data </summary>
+		public UberData heightmapUber;
+		/// <summary> Splatmap Ubernoise data </summary>
+		public UberData splatmapUber;
+		/// <summary> Heightmap Simplexnoise data </summary>
+		public SimplexNoise heightmapNoise;
+		/// <summary> Splatmap Simplexnoise data </summary>
+		public SimplexNoise splatmapNoise;
+		
 		public override string ToString() { return $"{entityId} Terrain"; }
 	}
 }

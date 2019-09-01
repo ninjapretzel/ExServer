@@ -36,7 +36,7 @@ namespace Ex.Data {
 		public float startAmplitude;
 		public float scale;
 
-		public UberData(int octaves, BakaBaka.Utils.SRNG rng) {
+		public UberData(int octaves, Ex.Utils.SRNG rng) {
 			this.octaves = octaves;
 
 			perturb = rng.NextFloat(-.4f, .4f);

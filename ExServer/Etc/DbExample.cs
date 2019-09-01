@@ -10,7 +10,7 @@ using Coll = MongoDB.Driver.IMongoCollection<MongoDB.Bson.BsonDocument>;
 
 namespace Learnings {
 
-	public class FunWithDB {
+	public class DbExample {
 		public static MongoClient client;
 
 		public static void FunsWithDB() {

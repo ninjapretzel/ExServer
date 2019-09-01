@@ -7,15 +7,6 @@ using UnityEngine;
 using MongoDB.Bson.Serialization.Attributes;
 #endif
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Ex.Utils;
-
-using BakaBaka.Utils;
-
 namespace Ex.Utils {
 
 	public class Random {

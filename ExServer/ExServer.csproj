@@ -90,7 +90,10 @@
     <Compile Include="Core\Services\SyncService.cs" />
     <Compile Include="Core\Utils\Bitflags.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
-    <Compile Include="Core\Utils\Extensions.cs" />
+    <Compile Include="Core\Utils\DataUtils.cs" />
+    <Compile Include="Core\Utils\HexExtensions.cs" />
+    <Compile Include="Core\Utils\FNode\Editor\FNodeEditor.cs" />
+    <Compile Include="Core\Utils\GZip.cs" />
     <Compile Include="Core\Utils\Packing.cs" />
     <Compile Include="Core\Utils\Random.cs" />
     <Compile Include="Core\Utils\Trender.cs" />
@@ -98,14 +101,14 @@
     <Compile Include="Core\Utils\Vectors.cs" />
     <Compile Include="Core\Utils\WorkPool.cs" />
     <Compile Include="Core\VersionInfo.cs" />
-    <Compile Include="Libs\BakaLite\BakaTest.cs" />
-    <Compile Include="Libs\BakaLite\FNode\FNodeTests.cs" />
-    <Compile Include="Libs\BakaLite\SimpleCrypto.cs" />
+    <Compile Include="Libs\BakaTest.cs" />
+    <Compile Include="Core\Utils\FNode\FNodeTests.cs" />
+    <Compile Include="Core\Utils\SimpleCrypto.cs" />
     <Compile Include="Libs\Extensions\ColorExt.cs" />
     <Compile Include="Libs\Extensions\ControlExt.cs" />
     <Compile Include="Libs\Extensions\DataExt.cs" />
     <Compile Include="Libs\Extensions\ExceptionExt.cs" />
-    <Compile Include="Libs\BakaLite\FNode\FNode.cs" />
+    <Compile Include="Core\Utils\FNode\FNode.cs" />
     <Compile Include="Libs\Extensions\ThreadExt.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON.cs" />
     <Compile Include="Macros\CopySourceMacro.cs" />
@@ -115,7 +118,7 @@
     <Compile Include="MainForm.Designer.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Learning\FunWIthDb.cs" />
+    <Compile Include="Etc\DbExample.cs" />
     <Compile Include="Libs\Extensions\RichTextBoxHelpers.cs" />
     <Compile Include="Libs\StringBuilder.cs" />
     <Compile Include="Program.cs" />

@@ -5,13 +5,10 @@ using UnityEngine;
 
 #endif
 
-using Ex.Libs;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
-namespace BakaBaka.Utils {
+namespace Ex.Utils {
 
 	/// <summary> Crude, Simple RNG </summary>
 	/// <remarks> 
@@ -27,7 +24,7 @@ namespace BakaBaka.Utils {
 		private const long BARF = 0xFFFF8000;
 		/// <summary> BRRAAAAAP </summary>
 		private const long WETFART = 0x1F2FF3F4;//0x8BADF00D;
-												/// <summary> PFFFFFFFT </summary>
+		/// <summary> PFFFFFFFT </summary>
 		private const long DRYFART = 0x83828180;//0x501D1F1D;
 
 		/// <summary> Hashes a <see cref="System.DateTime"/> by itsd Ticks </summary>

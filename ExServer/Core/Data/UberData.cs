@@ -19,7 +19,7 @@ namespace Ex.Data {
 	[System.Serializable]
 	public struct UberData {
 
-		public int octaves;
+		public float octaves;
 
 		//[Range(-.4f, .4f)]
 		public float perturb;
@@ -87,7 +87,7 @@ namespace Ex.Data {
 			UberData noise;
 			context.StartArray();
 
-			noise.octaves = context.ReadInt();
+			noise.octaves = context.ReadFloat();
 
 			noise.perturb = context.ReadFloat();
 			noise.sharpness = context.ReadFloat();
@@ -109,7 +109,7 @@ namespace Ex.Data {
 		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, UberData value) {
 			context.StartArray();
 
-			context.WriteInt(value.octaves);
+			context.WriteFloat(value.octaves);
 
 			context.WriteFloat(value.perturb);
 			context.WriteFloat(value.sharpness);

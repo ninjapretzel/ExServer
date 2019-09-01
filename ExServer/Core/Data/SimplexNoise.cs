@@ -148,7 +148,7 @@ namespace Ex.Data {
 
 
 		/// <summary> Number of octaves to apply </summary>
-		public int octaves;
+		public float octaves;
 		/// <summary> Persistance of 'deep' octaves </summary>
 		public float persistence;
 		/// <summary> Basic noise scale </summary>
@@ -605,7 +605,7 @@ namespace Ex.Data {
 			SimplexNoise noise;
 			context.StartArray();
 
-			noise.octaves = context.ReadInt();
+			noise.octaves = context.ReadFloat();
 
 			noise.persistence = context.ReadFloat();
 			noise.scale = context.ReadFloat();
@@ -622,7 +622,7 @@ namespace Ex.Data {
 		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, SimplexNoise value) {
 			context.StartArray();
 
-			context.WriteInt(value.octaves);
+			context.WriteFloat(value.octaves);
 
 			context.WriteFloat(value.persistence);
 			context.WriteFloat(value.scale);

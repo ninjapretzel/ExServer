@@ -78,11 +78,13 @@
 					.3, // CraterEffect
 					-33, // CraterPoint
 					91.57, // Warp Amount
+					
 					1, // Crater Octaves
 					1, // Crater Persistence
 					.005, // Crater Scale
 					2, // Crater lacunarity
 					111, 136.05, 149, // Crater noise offset
+					
 					1, 0, 0, 1, // Crater Comp
 					.11, .44, .55, // Crater min/max/lip
 				]

@@ -40,7 +40,19 @@ namespace Ex {
 				fixed (float* f = fixedBuffer) { f[i] = value; } 
 			}
 		}
+
+		public static implicit operator float[](InteropFloat64 f) {
+			float[] floats = new float[MAX_LENGTH];
+			for (int i = 0; i < MAX_LENGTH; i++) { floats[i] = f[i]; }
+			return floats;
+		}
+		public static implicit operator InteropFloat64(float[] floats) {
+			InteropFloat64 f;
+			for (int i = 0; i < MAX_LENGTH && i < floats.Length; i++) { f[i] = floats[i]; }
+			return f;
+		}
 	}
+
 
 	/// <summary> Interop struct for packing a float[] into a struct, to allow proper use of network arrays embedded in structs </summary>
 	[StructLayout(LayoutKind.Sequential)]
@@ -56,6 +68,17 @@ namespace Ex {
 				if (i < 0 || i >= MAX_LENGTH) { return; }
 				fixed (float* f = fixedBuffer) { f[i] = value; }
 			}
+		}
+		
+		public static implicit operator float[](InteropFloat32 f) {
+			float[] floats = new float[MAX_LENGTH];
+			for (int i = 0; i < MAX_LENGTH; i++) { floats[i] = f[i]; }
+			return floats;
+		}
+		public static implicit operator InteropFloat32(float[] floats) {
+			InteropFloat32 f;
+			for (int i = 0; i < MAX_LENGTH && i < floats.Length; i++) { f[i] = floats[i]; }
+			return f;
 		}
 	}
 
@@ -189,6 +212,68 @@ namespace Ex {
 				bytes[i] = valuePtr[i];
 			}
 			return bytes;
+		}
+
+		/// <summary> Extracts bytes from a struct value into an existing byte[] array, starting at a position </summary>
+		/// <typeparam name="T"> Generic type of value parameter </typeparam>
+		/// <param name="value"> Value to extract data from </param>
+		/// <param name="bytes"> byte[] to place data into </param>
+		/// <param name="start"> starting index </param>
+		/// <returns> Modified byte[] </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe byte[] ToBytes<T>(T value, byte[] bytes, int start) where T : struct {
+			TypedReference valueRef = __makeref(value);
+
+			byte* valuePtr;
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				valuePtr = (byte*)*(((IntPtr*)&valueRef) + 1);
+			} else {
+				valuePtr = (byte*)*((IntPtr*)&valueRef);
+			}
+			
+
+			for (int i = 0; i+start < bytes.Length; i++) {
+				bytes[i+start] = valuePtr[i];
+			}
+
+			return bytes;
+		}
+		/// <summary> Extracts an arbitrary struct from a byte array, at a given position </summary>
+		/// <typeparam name="T"> Generic type of struct to extract </typeparam>
+		/// <param name="source"> Source byte[] </param>
+		/// <param name="start"> Index struct exists at </param>
+		/// <returns> Struct built from byte array, starting at index </returns>
+		public static unsafe T FromBytes<T>(byte[] source, int start) where T : struct {
+			int sizeOfT = StructInfo<T>.size;
+			if (start < 0) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): start index must be 0 or greater, was {start}");
+			}
+			if (sizeOfT + start > source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, start at {start}, and target is {sizeOfT} bytes in size, out of range.");
+			}
+
+			T result = default(T);
+			TypedReference resultRef = __makeref(result);
+			byte* resultPtr;
+			// has exactly the same idea behind it as the similar line in the ToBytes method- 
+			// we're getting the pointer to result.
+			if (MonoRuntime) {
+				// @oddity @hack
+				// Mono's implementation of the TypedReference struct has the type first and the reference second
+				// So we have to dereference the second segment to get the actual reference.
+				resultPtr = (byte*)*(((IntPtr*)&resultRef) + 1);
+			} else {
+				resultPtr = (byte*)*((IntPtr*)&resultRef);
+			}
+
+			for (int i = 0; i < sizeOfT; ++i) {
+				resultPtr[i] = source[start+i];
+			}
+
+			return result;
 		}
 
 		/// <summary>Converts a byte[] back into a struct.</summary>
@@ -558,6 +643,46 @@ namespace Ex {
 			}
 		}
 
+		public static void TestToFromBytesSubarray() {
+			{
+				byte[] bytes = new byte[sizeof(float) * 4];
+				Vector3 v3a = new Vector3(8.0f,12.0f,16.0f);
+				Unsafe.ToBytes(4.0f, bytes, 0);
+				Unsafe.ToBytes(v3a, bytes, 1 * sizeof(float) );
+
+				float a = Unsafe.FromBytes<float>(bytes, 0 * sizeof(float));
+				float b = Unsafe.FromBytes<float>(bytes, 1 * sizeof(float));
+				float c = Unsafe.FromBytes<float>(bytes, 2 * sizeof(float));
+				float d = Unsafe.FromBytes<float>(bytes, 3 * sizeof(float));
+				
+				a.ShouldBe(4.0f);
+				b.ShouldBe(8.0f);
+				c.ShouldBe(12.0f);
+				d.ShouldBe(16.0f);
+				
+				Vector3 v3b = Unsafe.FromBytes<Vector3>(bytes, 1 * sizeof(float));
+				v3b.ShouldEqual(v3a);
+
+				Vector3 v3a2 = new Vector3(4.0f, 8.0f, 12.0f);
+				Vector3 v3b2 = Unsafe.FromBytes<Vector3>(bytes, 0 * sizeof(float));
+				v3b2.ShouldEqual(v3a2);
+
+				Vector4 v4a = new Vector4(4.0f, 8.0f, 12.0f, 16.0f);
+				Vector4 v4b = Unsafe.FromBytes<Vector4>(bytes, 0); 
+				v4a.ShouldEqual(v4b);
+			}
+			{
+				InteropFloat32 if32;
+				for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) { if32[i] = i * 10.0f; }
+				byte[] bytes = Unsafe.ToBytes(if32);
+				bytes.Length.ShouldBe(InteropFloat32.MAX_LENGTH * sizeof(float));
+
+				float tenInwards = Unsafe.FromBytes<float>(bytes, 10 * sizeof(float));
+				tenInwards.ShouldBe(10 * 10.0f);
+
+			}
+		}
+
 		public static void TestFromBytesShouldThrowForWrongSize() {
 			{
 				byte[] bytes = new byte[] { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
@@ -569,6 +694,27 @@ namespace Ex {
 
 				e.ShouldNotBe(null);
 			}
+		}
+
+		public static void TestInteropFloatArrays() {
+			{ 
+				StructInfo<InteropFloat32>.size.ShouldBe(32 * sizeof(float));
+				StructInfo<InteropFloat64>.size.ShouldBe(64 * sizeof(float));
+
+				InteropFloat32 floats;
+				for (int i = 0; i < 32; i++) { floats[i] = i * 10f; }
+				for (int i = 0; i < 32; i++) { floats[i].ShouldBe(i * 10f); }
+			}
+
+			{
+				float[] floats = new float[32];
+				for (int i = 0; i < floats.Length; i++) { floats[i] = i * 10.0f; }
+
+				InteropFloat32 f = floats;
+
+				f[10].ShouldBe(10 * 10.0f);
+			}
+
 		}
 
 		struct StringAndStuff {
@@ -639,6 +785,8 @@ namespace Ex {
 
 			}
 		}
+
+		
 
 	}
 

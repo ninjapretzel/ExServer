@@ -20,6 +20,7 @@ using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization;
 using Ex.Utils;
 using System.IO;
+using Ex.Data;
 #endif
 
 namespace Ex {
@@ -37,6 +38,7 @@ namespace Ex {
 	/// <summary> Service type for holding database connection. Empty on client. </summary>
 	public class DBService : Service {
 #if !UNITY
+		// Todo: find these and register them automatically
 		public static void RegisterSerializers() {
 			BsonSerializer.RegisterSerializer<Rect>(new RectSerializer());
 			BsonSerializer.RegisterSerializer<Bounds>(new BoundsSerializer());
@@ -50,6 +52,13 @@ namespace Ex {
 			BsonSerializer.RegisterSerializer<Vector3Int>(new Vector3IntSerializer());
 			BsonSerializer.RegisterSerializer<Vector4>(new Vector4Serializer());
 			
+			BsonSerializer.RegisterSerializer<InteropFloat64>(new InteropFloat64Serializer());
+			BsonSerializer.RegisterSerializer<InteropFloat32>(new InteropFloat32Serializer());
+			BsonSerializer.RegisterSerializer<InteropString32>(new InteropString32Serializer());
+			BsonSerializer.RegisterSerializer<InteropString256>(new InteropString256Serializer());
+
+			BsonSerializer.RegisterSerializer<UberData>(new UberDataSerializer());
+			BsonSerializer.RegisterSerializer<SimplexNoise>(new SimplexNoiseSerializer());
 		}
 		
 		/// <summary> MongoDB Connection </summary>

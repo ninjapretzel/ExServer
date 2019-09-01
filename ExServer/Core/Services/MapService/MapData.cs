@@ -82,7 +82,7 @@ namespace Ex {
 	public class ComponentInfo {
 		/// <summary> name of type of component </summary>
 		public string type { get; set; }
-		/// <summary> Arrbitrary Data to merge into component </summary>
+		/// <summary> Arbitrary Data to merge into component </summary>
 		public BsonDocument data { get; set; }
 	}
 

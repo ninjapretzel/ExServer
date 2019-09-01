@@ -4,12 +4,14 @@
 
 #if !UNITY
 using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 #else
 using UnityEngine;
 #endif
 
 using System;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Ex {
@@ -73,7 +75,27 @@ namespace Ex {
 		public bool RemoveComponent<T>() where T : Comp { return entity.RemoveComponent<T>(); }
 
 		#if !UNITY 
-		public void LoadFromDB(BsonDocument bdoc) {
+		public static void LoadFromDB<T>(T t, BsonDocument bdoc) where T : Comp {
+			Type actualType = t.GetType();
+			FieldInfo[] fields = actualType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+			Log.Debug($"\\eLoading a {actualType} component from db. {fields.Length} fields.");
+
+			foreach (var field in fields) {
+				if (field.FieldType.IsValueType) {
+					try {
+						BsonValue bval;
+						if (bdoc.TryGetValue(field.Name, out bval)) {
+							object o = BsonSerializer.Deserialize(bval.ToJson(), field.FieldType);
+							Log.Verbose($"Setting Field {field.FieldType} {field.Name} on {actualType} to {o}");
+							field.SetValue(t, o);
+						}
+					} catch (Exception e) {
+						Log.Warning($"Comp.LoadFromDB<{actualType}>: Failed to reflect value {field.FieldType} {field.Name}", e);
+					}
+
+				}
+
+			}
 
 		}
 

@@ -4,13 +4,17 @@
 #if UNITY
 using UnityEngine;
 #else
-// using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
+using Ex.Utils;
 #endif
+
 
 namespace Ex.Data {
 	
 	#if !UNITY
-	// [BsonIgnoreExtraElements]
+	[BsonIgnoreExtraElements]
 	#endif
 	[System.Serializable]
 	public struct UberData {
@@ -75,4 +79,54 @@ namespace Ex.Data {
 		}
 
 	}
+
+
+#if !UNITY
+	public class UberDataSerializer : SerializerBase<UberData> {
+		public override UberData Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			UberData noise;
+			context.StartArray();
+
+			noise.octaves = context.ReadInt();
+
+			noise.perturb = context.ReadFloat();
+			noise.sharpness = context.ReadFloat();
+			noise.amplify = context.ReadFloat();
+
+			noise.altitudeErosion = context.ReadFloat();
+			noise.ridgeErosion = context.ReadFloat();
+			noise.slopeErosion = context.ReadFloat();
+
+			noise.lacunarity = context.ReadFloat();
+			noise.gain = context.ReadFloat();
+			noise.startAmplitude = context.ReadFloat();
+			noise.scale = context.ReadFloat();
+
+			context.EndArray();
+			return noise;
+		}
+
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, UberData value) {
+			context.StartArray();
+
+			context.WriteInt(value.octaves);
+
+			context.WriteFloat(value.perturb);
+			context.WriteFloat(value.sharpness);
+			context.WriteFloat(value.amplify);
+
+			context.WriteFloat(value.altitudeErosion);
+			context.WriteFloat(value.ridgeErosion);
+			context.WriteFloat(value.slopeErosion);
+
+			context.WriteFloat(value.lacunarity);
+			context.WriteFloat(value.gain);
+			context.WriteFloat(value.startAmplitude);
+			context.WriteFloat(value.scale);
+			
+			context.EndArray();
+		}
+	}
+
+#endif
 }

@@ -79,6 +79,9 @@ namespace Ex {
 	}
 
 	/// <summary> Component that holds procedural terrain information. </summary>
+	#if !UNITY
+	[BsonIgnoreExtraElements]
+	#endif
 	public class Terrain : Comp {
 		/// <summary> Size of each terrain segment </summary>
 		public Vector3 tileSize;
@@ -98,14 +101,18 @@ namespace Ex {
 		public InteropString32 terrainBaseLayer;
 		/// <summary> Name of cliff terrain layer </summary>
 		public InteropString32 terrainCliffLayer;
-		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
 		public InteropString32 terrainLayer1;
-		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
 		public InteropString32 terrainLayer2;
-		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
 		public InteropString32 terrainLayer3;
-		/// <summary> Name of additional terrain layer, or null if unused </summary>
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
 		public InteropString32 terrainLayer4;
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
+		public InteropString32 terrainLayer5;
+		/// <summary> Name of additional terrain layer, or null/empty if unused </summary>
+		public InteropString32 terrainLayer6;
 
 		/// <summary> Number of height samples for terrain segments </summary>
 		public int meshSamples;
@@ -119,13 +126,16 @@ namespace Ex {
 		public long seed;
 
 		/// <summary> Heightmap Ubernoise data </summary>
-		public UberData heightmapUber;
+		public UberData heightmapUberNoise;
 		/// <summary> Splatmap Ubernoise data </summary>
-		public UberData splatmapUber;
+		public UberData splatmapUberNoise;
 		/// <summary> Heightmap Simplexnoise data </summary>
 		public SimplexNoise heightmapNoise;
 		/// <summary> Splatmap Simplexnoise data </summary>
 		public SimplexNoise splatmapNoise;
+
+		/// <summary> Extra data segment for non-builtin generation </summary>
+		public InteropFloat64 extra;
 		
 		public override string ToString() { return $"{entityId} Terrain"; }
 	}

@@ -835,9 +835,23 @@ namespace Ex.Utils {
 	/// <remarks> This may make things more brittle, but should this should not matter, since each of these fundamental types shouldn't be used haphazardly. </remarks>
 	internal static class SerHelper {
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static int ReadInt(this BsonDeserializationContext ctx) {
+			return (int)ctx.Reader.ReadDouble();
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static long ReadLong(this BsonDeserializationContext ctx) {
+			return (long)ctx.Reader.ReadDouble();
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static float ReadFloat(this BsonDeserializationContext ctx) {
 			return (float)ctx.Reader.ReadDouble();
 		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static double ReadDouble(this BsonDeserializationContext ctx) {
+			return ctx.Reader.ReadDouble();
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector4 ReadV4(this BsonDeserializationContext ctx) {
 			float x = (float)ctx.Reader.ReadDouble();
@@ -861,15 +875,15 @@ namespace Ex.Utils {
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector3Int ReadV3I(this BsonDeserializationContext ctx) {
-			int x = ctx.Reader.ReadInt32();
-			int y = ctx.Reader.ReadInt32();
-			int z = ctx.Reader.ReadInt32();
+			int x = (int)ctx.Reader.ReadDouble();
+			int y = (int)ctx.Reader.ReadDouble();
+			int z = (int)ctx.Reader.ReadDouble();
 			return new Vector3Int(x, y, z);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static Vector2Int ReadV2I(this BsonDeserializationContext ctx) {
-			int x = ctx.Reader.ReadInt32();
-			int y = ctx.Reader.ReadInt32();
+			int x = (int)ctx.Reader.ReadDouble();
+			int y = (int)ctx.Reader.ReadDouble();
 			return new Vector2Int(x, y);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -882,10 +896,10 @@ namespace Ex.Utils {
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static RectInt ReadRectInt(this BsonDeserializationContext ctx) {
-			int x = ctx.Reader.ReadInt32();
-			int y = ctx.Reader.ReadInt32();
-			int width = ctx.Reader.ReadInt32();
-			int height = ctx.Reader.ReadInt32();
+			int x = (int)ctx.Reader.ReadDouble();
+			int y = (int)ctx.Reader.ReadDouble();
+			int width = (int)ctx.Reader.ReadDouble();
+			int height = (int)ctx.Reader.ReadDouble();
 			return new RectInt(x, y, width, height);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -897,7 +911,20 @@ namespace Ex.Utils {
 		//////////////////////////////////////////////////////////////////////////////////////////////////
 		// Serialization
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteInt(this BsonSerializationContext ctx, int v) {
+			ctx.Writer.WriteDouble(v);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteLong(this BsonSerializationContext ctx, long v) {
+			ctx.Writer.WriteDouble(v);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void WriteFloat(this BsonSerializationContext ctx, float v) {
+			ctx.Writer.WriteDouble(v);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void WriteDouble(this BsonSerializationContext ctx, float v) {
 			ctx.Writer.WriteDouble(v);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -927,21 +954,21 @@ namespace Ex.Utils {
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void WriteV2I(this BsonSerializationContext ctx, Vector2Int v) {
-			ctx.Writer.WriteInt32(v.x);
-			ctx.Writer.WriteInt32(v.y);
+			ctx.Writer.WriteDouble(v.x);
+			ctx.Writer.WriteDouble(v.y);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void WriteV3I(this BsonSerializationContext ctx, Vector3Int v) {
-			ctx.Writer.WriteInt32(v.x);
-			ctx.Writer.WriteInt32(v.y);
-			ctx.Writer.WriteInt32(v.z);
+			ctx.Writer.WriteDouble(v.x);
+			ctx.Writer.WriteDouble(v.y);
+			ctx.Writer.WriteDouble(v.z);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void WriteRectInt(this BsonSerializationContext ctx, RectInt r) {
-			ctx.Writer.WriteInt32(r.x);
-			ctx.Writer.WriteInt32(r.y);
-			ctx.Writer.WriteInt32(r.width);
-			ctx.Writer.WriteInt32(r.height);
+			ctx.Writer.WriteDouble(r.x);
+			ctx.Writer.WriteDouble(r.y);
+			ctx.Writer.WriteDouble(r.width);
+			ctx.Writer.WriteDouble(r.height);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void StartArray(this BsonSerializationContext ctx) { ctx.Writer.WriteStartArray(); }

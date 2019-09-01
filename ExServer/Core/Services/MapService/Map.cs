@@ -122,7 +122,7 @@ namespace Ex {
 
 					if (type != null) {
 						Comp c = entityService.AddComponent(id, type);
-						c.LoadFromDB(comp.data);
+						Comp.LoadFromDB(c, comp.data);
 					}
 				}
 

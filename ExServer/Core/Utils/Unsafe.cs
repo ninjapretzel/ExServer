@@ -2,7 +2,9 @@
 #define UNITY
 using UnityEngine;
 #else
-
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.IO;
 #endif
 
 using System;
@@ -10,6 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Ex.Utils;
 using BakaTest;
+using Ex;
 
 namespace Ex {
 	
@@ -21,12 +24,48 @@ namespace Ex {
 		public static readonly int size = Unsafe.SizeOf<T>();
 	}
 	#region Util Structs
+
+	/// <summary> Interop struct for packing a float[] into a struct, to allow proper use of network arrays embedded in structs </summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe struct InteropFloat64 {
+		public const int MAX_LENGTH = 64;
+		public fixed float fixedBuffer[MAX_LENGTH];
+		public float this[int i] {
+			get { 
+				if (i < 0 || i >= MAX_LENGTH) { return 0; }
+				fixed (float* f = fixedBuffer) { return f[i]; } 
+			}
+			set {
+				if (i < 0 || i >= MAX_LENGTH) { return; }
+				fixed (float* f = fixedBuffer) { f[i] = value; } 
+			}
+		}
+	}
+
+	/// <summary> Interop struct for packing a float[] into a struct, to allow proper use of network arrays embedded in structs </summary>
+	[StructLayout(LayoutKind.Sequential)]
+	public unsafe struct InteropFloat32 {
+		public const int MAX_LENGTH = 32;
+		public fixed float fixedBuffer[MAX_LENGTH];
+		public float this[int i] {
+			get {
+				if (i < 0 || i >= MAX_LENGTH) { return 0; }
+				fixed (float* f = fixedBuffer) { return f[i]; }
+			}
+			set {
+				if (i < 0 || i >= MAX_LENGTH) { return; }
+				fixed (float* f = fixedBuffer) { f[i] = value; }
+			}
+		}
+	}
+
+
 	/// <summary> Interop struct for packing a string into a struct, to allow proper use of network strings embedded in structs </summary>
 	[StructLayout(LayoutKind.Sequential)]
 	public unsafe struct InteropString32 {
-		private const int LENGTH = 32;
+		public const int MAX_LENGTH = 32;
 		/// <summary> Embedded char array </summary>
-		public fixed char fixedBuffer[LENGTH];
+		public fixed char fixedBuffer[MAX_LENGTH];
 		
 		/// <summary> Get or set the string value of this struct </summary>
 		public string value { 
@@ -39,7 +78,7 @@ namespace Ex {
 			set {
 				fixed (char* c = fixedBuffer) {
 					int len = value.Length;
-					for (int i = 0; i < LENGTH - 1; i++) {
+					for (int i = 0; i < MAX_LENGTH - 1; i++) {
 						if (i < len) {
 							c[i] = value[i];
 						} else {
@@ -47,7 +86,7 @@ namespace Ex {
 						}
 					}
 					// Ensure final char in buffer is always null.
-					c[LENGTH - 1] = '\0';
+					c[MAX_LENGTH - 1] = '\0';
 				}
 			}
 		}
@@ -67,9 +106,9 @@ namespace Ex {
 	/// <summary> Interop struct for packing a string into a struct, to allow proper use of network strings embedded in structs </summary>
 	[StructLayout(LayoutKind.Sequential)]
 	public unsafe struct InteropString256 {
-		private const int LENGTH = 256;
+		public const int MAX_LENGTH = 256;
 		/// <summary> Embedded char array </summary>
-		public fixed char fixedBuffer[LENGTH];
+		public fixed char fixedBuffer[MAX_LENGTH];
 
 		/// <summary> Get or set the string value of this struct </summary>
 		public string value {
@@ -77,12 +116,11 @@ namespace Ex {
 				fixed (char* c = fixedBuffer) {
 					return new string(c);
 				}
-
 			}
 			set {
 				fixed (char* c = fixedBuffer) {
 					int len = value.Length;
-					for (int i = 0; i < LENGTH - 1; i++) {
+					for (int i = 0; i < MAX_LENGTH - 1; i++) {
 						if (i < len) {
 							c[i] = value[i];
 						} else {
@@ -90,7 +128,7 @@ namespace Ex {
 						}
 					}
 					// Ensure final char in buffer is always null.
-					c[LENGTH - 1] = '\0';
+					c[MAX_LENGTH - 1] = '\0';
 				}
 			}
 		}
@@ -604,4 +642,74 @@ namespace Ex {
 
 	}
 
+#if !UNITY
+	public class InteropFloat64Serializer : SerializerBase<InteropFloat64> {
+		public override InteropFloat64 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			InteropFloat64 nums;
+			context.StartArray();
+			
+			for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) {
+				// Ew.
+				try { nums[i] = context.ReadFloat(); } catch { break; }
+			}
+			
+			context.EndArray();
+			
+			return nums;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat64 value) {
+			context.StartArray();
+			
+			for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) { context.WriteFloat(value[i]);	}
+			
+			context.EndArray();
+		}
+	}
+	public class InteropFloat32Serializer : SerializerBase<InteropFloat32> {
+		public override InteropFloat32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			InteropFloat32 nums;
+			context.StartArray();
+
+			for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) {
+				// Ew.
+				try { nums[i] = context.ReadFloat(); } catch { break; }
+			}
+
+			context.EndArray();
+			return nums;
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat32 value) {
+			context.StartArray();
+
+			for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) { context.WriteFloat(value[i]); }
+
+			context.EndArray();
+		}
+	}
+	public class InteropString32Serializer : SerializerBase<InteropString32> {
+		public override InteropString32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			string str = context.Reader.ReadString();
+			if (str.Length <= InteropString32.MAX_LENGTH) {
+				return (InteropString32) str;
+			}
+			throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString32 value) {
+			context.Writer.WriteString(value);
+		}
+	}
+	public class InteropString256Serializer : SerializerBase<InteropString256> {
+		public override InteropString256 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			string str = context.Reader.ReadString();
+			if (str.Length <= InteropString256.MAX_LENGTH) {
+				return (InteropString256) str;
+			}
+			throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
+		}
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString256 value) {
+			context.Writer.WriteString(value);
+		}
+	}
+#endif
 }
+

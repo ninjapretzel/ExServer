@@ -6,13 +6,16 @@ using UnityEngine;
 using static UnityEngine.Mathf;
 #else
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Bson.Serialization;
 using static Ex.Utils.Mathf;
 #endif
 using System;
 using System.Collections.Generic;
-using Ex.Utils;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
+using Ex;
+using Ex.Utils;
 
 namespace Ex.Data {
 	/// <summary> Modified C# port of https://github.com/SRombauts/SimplexNoise/blob/master/src/SimplexNoise.cpp for unity </summary>
@@ -594,5 +597,43 @@ namespace Ex.Data {
 	#if UNITY
 	public delegate float HeightFn(Vector3 position);
 	public delegate Color SplatFn(Vector3 position);
+	#endif
+
+	#if !UNITY
+	public class SimplexNoiseSerializer : SerializerBase<SimplexNoise> {
+		public override SimplexNoise Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+			SimplexNoise noise;
+			context.StartArray();
+
+			noise.octaves = context.ReadInt();
+
+			noise.persistence = context.ReadFloat();
+			noise.scale = context.ReadFloat();
+			noise.octaveScale = context.ReadFloat();
+
+			noise.noiseOffset.x = context.ReadFloat();
+			noise.noiseOffset.y = context.ReadFloat();
+			noise.noiseOffset.z = context.ReadFloat();
+
+			context.EndArray();
+			return noise;
+		}
+
+		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, SimplexNoise value) {
+			context.StartArray();
+
+			context.WriteInt(value.octaves);
+
+			context.WriteFloat(value.persistence);
+			context.WriteFloat(value.scale);
+			context.WriteFloat(value.octaveScale);
+
+			context.WriteFloat(value.noiseOffset.x);
+			context.WriteFloat(value.noiseOffset.y);
+			context.WriteFloat(value.noiseOffset.z);
+
+			context.EndArray();
+		}
+	}
 	#endif
 }

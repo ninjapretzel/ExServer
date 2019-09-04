@@ -10,6 +10,7 @@ using UnityEngine;
 using System;
 using Ex.Utils;
 using Ex.Data;
+using Ex.Utils.Ext;
 
 namespace Ex {
 
@@ -78,9 +79,51 @@ namespace Ex {
 		public override string ToString() { return $"{entityId} Owned by {owner}"; }
 	}
 
-	/// <summary> Component that holds procedural terrain information. </summary>
-	#if !UNITY
+	/// <summary> Component that attaches a visible model to an entity on clients. </summary>
+#if !UNITY
 	[BsonIgnoreExtraElements]
+#endif
+	public class Display : Comp {
+		/// <summary> Prefab to display </summary>
+		public InteropString32 prefab;
+		/// <summary> Adjustment to position, euler</summary>
+		public Vector3 position;
+		/// <summary> Adjustment to rotation, euler angles</summary>
+		public Vector3 rotation;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} display {{{prefab}}} at pos:{{{position}}} / rot:{{{rotation}}}"; }
+	}
+
+	/// <summary> Component that shows a name plate and renames the entity on clients. </summary>
+#if !UNITY
+	[BsonIgnoreExtraElements]
+#endif
+	public class Nameplate : Comp {
+		/// <summary> Animation mapper to use </summary>
+		public InteropString32 name;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} displayname {name}"; }
+	}
+
+	/// <summary> Component that attaches a visible model to an entity on clients. </summary>
+#if !UNITY
+	[BsonIgnoreExtraElements]
+#endif
+	public class AnimData : Comp {
+		/// <summary> Animation mapper to use </summary>
+		public InteropString32 mapper;
+		/// <summary> float animation parameters </summary>
+		public InteropFloat32 floats;
+		/// <summary> Animation flags </summary>
+		public long flags;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} anim {mapper} flags { flags.Hex() }"; }
+	}
+
+
+		/// <summary> Component that holds procedural terrain information. </summary>
+#if !UNITY
+		[BsonIgnoreExtraElements]
 	#endif
 	public class Terrain : Comp {
 		/// <summary> Size of each terrain segment </summary>
@@ -139,4 +182,6 @@ namespace Ex {
 		
 		public override string ToString() { return $"{entityId} Terrain"; }
 	}
+
+
 }

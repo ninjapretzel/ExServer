@@ -4,6 +4,10 @@
 	"components":
 	[
 		{
+			type: "Ex.Nameplate",
+			data: { name: "Terrain2" },
+		},
+		{
 			"type":"Ex.Terrain",
 			"data":
 			{

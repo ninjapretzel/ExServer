@@ -40,7 +40,7 @@
 	// These objects are placed both on the server and client.
 	entities: [
 		{
-			id: "Terrain",
+			type: "Terrain",
 			position: [ 0, 0, 0 ], 
 			rotation: [ 0, 0, 0 ],
 			scale: [ 1, 1, 1 ],

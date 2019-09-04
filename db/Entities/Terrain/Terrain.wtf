@@ -3,6 +3,10 @@
 	global: true,
 	components: [
 		{
+			type: "Ex.Nameplate",
+			data: { name: "Terrain" },
+		},
+		{
 			// Terrain Component 
 			// Defines a procedural terrain that gets created client-side
 			// MAX ONE OF THESE PER MAP.

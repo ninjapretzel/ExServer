@@ -102,11 +102,16 @@ namespace Ex {
 
 		public void Initialize() {
 			foreach (EntityInstanceInfo spawnInfo in info.entities) {
-				Log.Debug($"Map {identity} creating entity for {spawnInfo.type} at T{ spawnInfo.position } R{spawnInfo.rotation} S {spawnInfo.scale}");
 
+				EntityInfo entityInfo = entityService.GetEntityInfo(spawnInfo.type);
+				if (entityInfo == null) {
+					Log.Warning($"Map.Initialize: Initializing map {identity}, no entity of type {{{spawnInfo.type}}} found!");
+					continue;
+				}
+
+				Log.Verbose($"Map.Initialize: {identity} creating entity for {spawnInfo.type} at T{ spawnInfo.position } R{spawnInfo.rotation} S {spawnInfo.scale}");
 				Entity entity = entityService.CreateEntity();
 				Guid id = entity.guid;
-				EntityInfo entityInfo = entityService.GetEntityInfo(spawnInfo.type);
 				
 				TRS trs = entity.AddComponent<TRS>();
 				trs.position = spawnInfo.position;

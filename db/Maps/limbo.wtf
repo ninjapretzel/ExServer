@@ -3,7 +3,7 @@
 	// before they are transferred to any other maps.
 	name: "Limbo",
 	procedural: false,
-	cellSize: 10,
+	cellSize: 200,
 	cellDist: 2,
 	showOthers: false,
 	is3d: false,
@@ -22,8 +22,15 @@
 			position: [ 0, 0, 0 ], 
 			rotation: [ 0, 0, 0 ],
 			scale: [ 1, 1, 1 ],
-			
+		}, 
+		
+		{
+			type: "Spider",
+			position: [ -100, -364, 90], 
+			rotation: [ 0, 0, 0 ],
+			scale: [ 1, 1, 1 ],
 		}
+			
 	],
 	
 	

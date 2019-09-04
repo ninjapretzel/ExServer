@@ -551,9 +551,13 @@ namespace Ex {
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
 
 			var db = GetService<DBService>();
-			var info = db.Get<UserEntityInfo>(userId);
+			UserEntityInfo info = db.Get<UserEntityInfo>(userId);
 			var trs = AddComponent<TRS>(clientId);
+			var nameplate = AddComponent<Nameplate>(clientId);
+
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
+			nameplate.name = username;
+			nameplate.Send();
 
 			if (info != null) {
 

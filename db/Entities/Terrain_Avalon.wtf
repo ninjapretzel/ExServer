@@ -1,0 +1,98 @@
+{
+	type: "Terrain_Avalon",
+	global: true,
+	components: [
+		{
+			// Terrain Component 
+			// Defines a procedural terrain that gets created client-side
+			// MAX ONE OF THESE PER MAP.
+			type: "Ex.Terrain",
+			data: {
+				/// These are all builtin/required parameters. 
+				/// How big is a single terrain sheet?
+				tileSize: [100, 100, 100],
+				/// Radius of terrain sheets to create (roughly n^2)
+				viewDist: 14,
+				/// height samples per sheet (n^2)
+				meshSamples: 64,
+				/// splat samples per sheet (n^2)
+				splatSamples: 64,
+				/// angle required for painting a slope texture?
+				slopeAngle: 60,
+				/// Seed for this terrain
+				seed: 2845,
+				/// Chunk prefab
+				chunk: "LunarChunk",
+				/// Shader name
+				shader: "Craters",
+				/// height kernel name within shader 
+				heightmapKernelName: "Heightmap",
+				/// splat kernel name within shader 
+				splatmapKernelName: "Splatmap",
+				/// layers of terrain texture. First is base, second is slope, all others are gravy
+				terrainBaseLayer: "FoothillsOfAriloa384",
+				terrainCliffLayer: "DeepCaves142",
+				terrainLayer1: "SlumberingVolcaino178",
+				terrainLayer2: "FaultZone180",
+				terrainLayer3: "LunarTarget438",
+				
+				// Simplex Noise: octaves
+				// persistence, scale, lacunarity
+				// noise offset x,y,z
+				objectNoise: [ 4,
+					0.5, 0.07, 1.6,
+					155, 137, 149, ],
+					
+				heightmapNoise: [ 6,
+					1.0, 0.0006, 2,
+					24.4, 2, 1, ],
+					
+				splatmapNoise: [ 4,
+					1, 0.0015, 2,
+					155, 141.98, 149, ],
+					
+				objectUberNoise: [ 2,
+					0, 0, 0,
+					0, 0, 0,
+					2, .5, .9, 1, ],
+				
+				// Uber Noise: octaves
+				// perturb, sharpness, amplify,
+				// altitude erosion, ridge erosion, slope erosion,
+				// lacunarity, gain, start amplitude, scale
+				heightmapUberNoise: [ 4, 
+					0.27, 0.034, 0.208, 
+					0.2122, 0.586, 0.402, 
+					2, .5, .3, .002, ],
+				
+				splatmapUberNoise: [ 2,
+					-0.223, -0.27, 0.343,
+					0.1882, 0.616, 0.07,
+					2, .5, 3, 0.001, ],
+				
+				// Extra data. This is an array used to drive shader kernel parameters.
+				// Max length is 64 floats.
+				// Each shader kernel may  have different parameters.
+				// All data needed to be provided for terrain generation should be present here.
+				extra: [
+					.3, // CraterEffect
+					-33, // CraterPoint
+					91.57, // Warp Amount
+					
+					1, // Crater Octaves
+					1, // Crater Persistence
+					.005, // Crater Scale
+					2, // Crater lacunarity
+					111, 136.05, 149, // Crater noise offset
+					
+					1, 0, 0, 1, // Crater Comp
+					.11, .44, .55, // Crater min/max/lip
+				]
+					
+			}
+		
+		}
+		
+	]
+	
+}

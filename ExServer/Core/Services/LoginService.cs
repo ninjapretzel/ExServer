@@ -184,7 +184,7 @@ namespace Ex {
 		public Func<string, string> Hash = DefaultHash;
 
 		/// <summary> Initializer for a newly logged in user </summary>
-		public Action<Guid> initializer;
+		public Action<Guid> userInitializer;
 
 #if !UNITY
 		public override void OnEnable() {
@@ -299,7 +299,7 @@ namespace Ex {
 						dbService.Save(userInfo);
 
 						try {
-							initializer?.Invoke(userId);
+							userInitializer?.Invoke(userId);
 						
 						} catch (Exception e) {
 							Log.Error($"Error initializing user {user} / {userId} ", e);

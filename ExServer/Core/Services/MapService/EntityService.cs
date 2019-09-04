@@ -152,7 +152,7 @@ namespace Ex {
 				subscribers = new ConcurrentDictionary<Guid, ConcurrentSet<Client>>();
 #if !UNITY
 				entityInfos = new ConcurrentDictionary<string, EntityInfo>();
-				GetService<LoginService>().initializer += InitializeEntityInfo;
+				GetService<LoginService>().userInitializer += InitializeEntityInfo;
 #endif
 			}
 		}
@@ -165,7 +165,7 @@ namespace Ex {
 				entityInfos = null;
 				var login = GetService<LoginService>();
 				if (login != null) {
-					login.initializer -= InitializeEntityInfo;
+					login.userInitializer -= InitializeEntityInfo;
 				}
 				/// Should have already sent disconnect messages to connected clients 
 				subscriptions.Clear();

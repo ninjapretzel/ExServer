@@ -403,30 +403,5 @@ namespace Ex.Libs {
 		}
 
 	}
-
-
-	/// <summary> Implements some methods for <see cref="ConcurrentDictionary{TKey, TValue}"/> which it should have. </summary>
-	public static class ConcurrentDictionaryEx {
-		/// <summary> Acts the same as a <see cref="Dictionary{TKey, TValue}"/>'s Remove method. </summary>
-		/// <typeparam name="TKey"> Key type </typeparam>
-		/// <typeparam name="TValue"> Value type </typeparam>
-		/// <param name="self"> <see cref="ConcurrentDictionary{TKey, TValue}"/> to remove from </param>
-		/// <param name="key"> Key to remove </param>
-		/// <returns> True, if the key was present. False if it was not present. </returns>
-		public static bool Remove<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> self, TKey key) {
-			return ((IDictionary<TKey, TValue>)self).Remove(key);
-		}
-		/// <summary> Calls the <see cref="ConcurrentDictionary{TKey, TValue}"/>'s TryRemove method, and discards the out parameter. </summary>
-		/// <typeparam name="TKey"> Key type </typeparam>
-		/// <typeparam name="TValue"> Value type </typeparam>
-		/// <param name="self"> <see cref="ConcurrentDictionary{TKey, TValue}"/> to remove from </param>
-		/// <param name="key"> Key to remove </param>
-		/// <returns> True, if the key was present. False if it was not present. </returns>
-		public static bool TryRemove<TKey, TValue>(this ConcurrentDictionary<TKey, TValue> self, TKey key) {
-			TValue ignored;
-			return self.TryRemove(key, out ignored);
-		}
-	}
-
-
+	
 }

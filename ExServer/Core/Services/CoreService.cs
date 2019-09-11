@@ -19,8 +19,12 @@ namespace Ex {
 
 		public override void OnDisconnected(Client client) {
 			if (server.isMaster) {
-				client.Call(Closed);
-				server.SendData(client);
+				
+				if (!client.closed) {
+					client.Call(Closed);
+					server.SendData(client);
+				}
+
 			}
 		}
 

@@ -50,6 +50,9 @@ namespace Ex {
 		public bool RemoveComponent<T>() where T : Comp { return service.RemoveComponent<T>(guid); }
 
 		/// <summary> Coercion from Entity to Guid, since they are the same information. </summary>
-		public static implicit operator Guid(Entity e) { return e.guid; }
+		public static implicit operator Guid(Entity e) { 
+			if (e == null) { return Guid.Empty; }
+			return e.guid; 
+		}
 	}
 }

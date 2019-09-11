@@ -190,6 +190,12 @@ namespace Ex {
 
 		}
 
+		/// <summary> Called when the client is no longer needed to remove it from the list of entities.  </summary>
+		/// <remarks> Currently, the client is considered finished when its entity is finally revoked. </remarks>
+		public void Finished() {
+			server.connections.Remove(id);
+		}
+
 		#region Services
 		/// <summary> Adds service of type <typeparamref name="T"/>. </summary>
 		/// <typeparam name="T"> Type of service to add. </typeparam>

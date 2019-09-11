@@ -73,9 +73,9 @@ namespace Ex {
 		private ConcurrentDictionary<Guid, Entity> entities;
 		/// <summary> Components for entities </summary>
 		public ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>> componentTables;
-		/// <summary> Subscriptions, server only. </summary>
+		/// <summary> Subscriptions. Entity IDs a client is subscribed to. server only. </summary>
 		public ConcurrentDictionary<Client, ConcurrentSet<Guid>> subscriptions;
-		/// <summary> Subscribers, server only. </summary>
+		/// <summary> Subscribers. Clients that are subscribed to an Entity ID. server only. </summary>
 		public ConcurrentDictionary<Guid, ConcurrentSet<Client>> subscribers;
 
 		/// <summary> Holds pre-processed type information for a given component type. </summary>
@@ -126,15 +126,35 @@ namespace Ex {
 		/// <returns> True if Entity existed prior and was removed, false otherwise. </returns>
 		public bool Revoke(Guid guid) {
 			if (entities.ContainsKey(guid)) {
-				Log.Debug($"Master:{isMaster}, revoking entity {guid}");
-				{ Entity _; entities.TryRemove(guid, out _); }
+				Log.Debug($"EntityService.Revoke: Master?{isMaster}, revoking entity {guid}");
+
+				Client client = server.GetClient(guid); 
 				
-				ConcurrentSet<Client> subs;
-				if (isMaster && subscribers.TryRemove(guid, out subs)) {
-					foreach (var sub in subs) {
-						subscriptions[sub].Remove(guid);
-					}
+				// Remove subscription sets and ensure that everything has been unsubscribed (debugging)
+				if (isMaster) {
+					ConcurrentSet<Client> subbers;
 					
+					if (subscribers.TryRemove(guid, out subbers) && subbers.Count > 1) {
+						Log.Warning($"EntityService.Revoke: Entity {guid} Had {subbers.Count} remaining subscribers when revoked. Ensure everything has unsubscribed.");
+					}
+
+					if (client != null) {
+
+						ConcurrentSet<Guid> subbed;
+						if (subscriptions.TryRemove(client, out subbed) && subbed.Count > 1) {
+							Log.Warning($"EntityService.Revoke: Client {guid} had {subbed.Count} remaining subscriptions when revoked. Ensure everything has been unsubscribed...");
+						}
+						
+
+					}
+				}
+
+				// Finally, pull the entity and invalidate all WeakReferenceTables for it.
+				{ Entity _; entities.TryRemove(guid, out _); }
+
+				if (client != null) {
+					// Very last thing done with a client before it is cleaned up:
+					client.Finished();
 				}
 				
 				return true;
@@ -434,7 +454,7 @@ namespace Ex {
 					Log.Debug($"Master: Cannot unsub client from its own entity");
 					return;
 				}
-
+				
 
 				var subsA = subscribers[id];
 				var subsB = subscriptions[client]; 
@@ -444,8 +464,11 @@ namespace Ex {
 					subsA.Remove(client);
 					subsB.Remove(id);
 
-					client.Call(DespawnEntity, id);
+					if (!client.closed) { client.Call(DespawnEntity, id); }
+
 				}
+
+
 			}
 		}
 
@@ -495,6 +518,7 @@ namespace Ex {
 #if !UNITY
 		public override void OnDisconnected(Client client) {
 			if (isMaster) {
+				Log.Debug($"EntityService.OnDisconnected: \\oIsMaster: {isMaster} Cleaning up entity for client {client.identity}. ");
 				Entity entity = entities.ContainsKey(client.id) ? entities[client.id] : null;
 
 				TRS trs = GetComponent<TRS>(entity);
@@ -507,36 +531,55 @@ namespace Ex {
 				Credentials creds;
 				if (session.HasValue) {
 					creds = session.Value.credentials;
-					Log.Verbose($"Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
+					Log.Verbose($"EntityService.OnDisconnected: Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
 
 					var info = db.Get<UserEntityInfo>(creds.userId);
-
 					if (info == null) {
-						info = new UserEntityInfo();
-						if (trs != null) {
-							info.position = trs.position;
-							info.rotation = trs.position;
-						}
-						if (onMap != null) {
-							info.map = onMap.mapId;
-						}
+						Log.Error($"EntityService.OnDisconnected: Problem, no EntityInfo was initialized for {creds.userId}");
 					}
-				
+					if (onMap != null) {
+						
+						info.map = onMap.mapId;
+					}
+					
+					Log.Debug($"EntityService.OnDisconnected: Saving entity data for {creds.username} ");
 					db.Save(info);
+					
 
 				} else {
 				
-					Log.Verbose($"No login session for {client.identity}, skipping saving entity data.");
+					Log.Verbose($"EntityService.OnDisconnected: No login session for {client.identity}, skipping saving entity data.");
 				}
 
-				Revoke(client.id);
-				{ ConcurrentSet<Guid> _; subscriptions.TryRemove(client, out _); }
+				
 			} else {
 
-				Log.Info($"Clientside OnDisconnected.");
+				Log.Info($"EntityService.OnDisconnected: Clientside OnDisconnected.");
 			}
 		}
 
+		public override void OnFinishedDisconnected(Client client) {
+			// Only after all other potentially entity handling things have handled the entity should it be revoked.
+			// This method runs after all OnDisconnected() have run for a client.
+			
+			// Get entity for client
+			Entity e = this[client.id];
+
+			if (e != null) {
+
+				OnMap onMap = e.GetComponent<OnMap>();
+				if (onMap != null) {
+					// If they are on a map, delay revocation until map is ready.
+					Log.Debug($"\\eRemoving {client.identity} from {onMap.mapId}:{onMap.mapInstanceIndex}");
+					GetService<MapService>().ExitMap(client, onMap.mapId, onMap.mapInstanceIndex);
+				} else {
+					// Otherwise revoke it here and now.
+					// This happens for example, if they do not log in.
+					Revoke(client.id);
+				}
+
+			}
+		}
 
 		/// <summary> Called when a login occurs. </summary>
 		/// <param name="succ"></param>

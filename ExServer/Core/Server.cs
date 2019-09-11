@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Ex.Utils;
 
 namespace Ex {
 
@@ -41,11 +42,11 @@ namespace Ex {
 		private Thread mainRecrThread;
 
 		/// <summary> Collection of services keyed by type. </summary>
-		public Dictionary<Type, Service> services { get; private set; }
+		public ConcurrentDictionary<Type, Service> services { get; private set; }
 		/// <summary> Collection of services keyed by name.  </summary>
-		public Dictionary<string, Service> servicesByName { get; private set; }
+		public ConcurrentDictionary<string, Service> servicesByName { get; private set; }
 		/// <summary> Connections, keyed by client ID </summary>
-		public Dictionary<Guid, Client> connections { get; private set; }
+		public ConcurrentDictionary<Guid, Client> connections { get; private set; }
 		/// <summary> Cache of message delegates </summary>
 		public Dictionary<string, RPCMessage.Handler> rpcCache { get; private set; }
 
@@ -95,11 +96,11 @@ namespace Ex {
 			recrCheckQueue = new ConcurrentQueue<Client>();
 			incoming = new ConcurrentQueue<RPCMessage>();
 
-			servicesByName = new Dictionary<string, Service>();
-			services = new Dictionary<Type, Service>();
-			rpcCache = new Dictionary<string, RPCMessage.Handler>();
+			servicesByName = new ConcurrentDictionary<string, Service>();
+			services = new ConcurrentDictionary<Type, Service>();
+			connections = new ConcurrentDictionary<Guid, Client>();
 
-			connections = new Dictionary<Guid, Client>();
+			rpcCache = new Dictionary<string, RPCMessage.Handler>();
 			//commander = new Cmdr();
 			this.port = port;
 
@@ -209,24 +210,25 @@ namespace Ex {
 		}
 
 
-		/// <summary> Removes client from being tracked by the server. 
+		/// <summary> Closes client from being tracked by the server. 
 		/// Exposed to allow slave clients to explicitly disconnect from their server. </summary>
 		/// <param name="client"> Slave client to connect. </param>
 		public void Close(Client client) {
-			connections.Remove(client.id);
+			if (!client.closed) {
+				
+				foreach (var service in services.Values) {
+					try {
+						service.OnDisconnected(client);
+					} catch (Exception e) { Log.Error($"Error in OnDisconnected for {service.GetType()}", e); }
+				}
+				foreach (var service in services.Values) {
+					try {
+						service.OnFinishedDisconnected(client);
+					} catch (Exception e) { Log.Error($"Error in OnFinishedDisconnected for {service.GetType()}", e); }
+				}
 
-			foreach (var service in services.Values) {
-				try {
-					service.OnDisconnected(client);
-				} catch (Exception e) { Log.Error($"Error in OnDisconnected for {service.GetType()}", e); }
+				client.Close();
 			}
-			foreach (var service in services.Values) {
-				try {
-					service.OnFinishedDisconnected(client);
-				} catch (Exception e) { Log.Error($"Error in OnFinishedDisconnected for {service.GetType()}", e); }
-			}
-
-			client.Close();
 		}
 
 		/// <summary> Called to send an internal event message for any service to act on </summary>

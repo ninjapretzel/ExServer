@@ -21,13 +21,9 @@ namespace Ex {
 	public class MapService : Service {
 
 		#if !UNITY
-
-		/// <summary> Connected LoginService</summary>
-		public LoginService loginService { get { return GetService<LoginService>(); } }
+		
 		/// <summary> Connected DBService</summary>
 		public DBService dbService { get { return GetService<DBService>(); } }
-		/// <summary> Connected EntityService </summary>
-		public EntityService entityService { get { return GetService<EntityService>(); } }
 
 		/// <summary> Cached MapInfo from database </summary>
 		public ConcurrentDictionary<string, MapInfo> mapInfoByName;
@@ -72,8 +68,7 @@ namespace Ex {
 
 		}
 
-
-		#if !UNITY
+#if !UNITY
 		public void UpdateMap(Map map) {
 			if (map.clients.Count > 0) {
 				map.Update();
@@ -155,7 +150,7 @@ namespace Ex {
 			Log.Info($"\\jClient {client.identity} entering map {mapId} ");
 			var map = GetMap(mapId, mapInstanceIndex);
 
-			Log.Info($"\\jGot map { map.id }");
+			Log.Info($"\\jGot map { map.identity }");
 			map.EnterMap(client);
 
 			if (position != null || rotation != null) {
@@ -164,10 +159,18 @@ namespace Ex {
 
 
 			
+		}
 			
 
+
+		/// <summary> Server command, used when removing a client from any maps </summary>
+		/// <param name="client"> Client connection object to remove to remove </param>
+		public void ExitMap(Client client, string mapId, int mapInstanceIndex) {
+			Map map = GetMap(mapId, mapInstanceIndex);
+			map.ExitMap(client);
 		}
-		#endif
+
+#endif
 
 	}
 

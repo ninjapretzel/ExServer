@@ -162,7 +162,7 @@ namespace Ex {
 
 				if ((now - lastTell).TotalMilliseconds > TELLTIME) {
 					lastTell = now;
-					Log.Debug($"Map {identity} {updateCnt}x update. Avg delta is {deltaTrend.average} ms");
+					// Log.Debug($"Map {identity} {updateCnt}x update. Avg delta is {deltaTrend.average} ms");
 					updateCnt = 0;
 				}
 			}
@@ -317,6 +317,7 @@ namespace Ex {
 				if (onMap != null && onMap.mapId != null) {
 					var oldMap = service.GetMap(onMap.mapId, onMap.mapInstanceIndex);
 					if (oldMap != this) {
+						Log.Debug($"Exiting {c.identity} from map {oldMap.identity}");
 						oldMap.ExitMap(c);
 					} else {
 						Log.Warning($"Double Map entry of {identity} / {c.identity}");
@@ -345,14 +346,15 @@ namespace Ex {
 		/// <param name="c"> client to unsubscribe </param>
 		public void ExitMap(Client c) {
 			if (service.isMaster) {
-
-				//Todo: Optimize this with a batch
+				
 				foreach (var id in entities.Keys) {
-					entityService.Unsubscribe(c, id);
+					if (c.id != id) { 
+						entityService.Unsubscribe(c, id); 
+					}
 				}
 				Log.Debug($"Map {identity} \\jexit of client {c.identity}");
-
-				clients.Remove(c);
+				
+				// Client is finally removed from map during despawn. 
 				toDespawn.Enqueue(c.id);
 			}
 		}
@@ -397,7 +399,7 @@ namespace Ex {
 
 				TRS trs = entityService.GetComponent<TRS>(id);
 				Client client = service.server.GetClient(id);
-				Log.Debug($"Map {identity} \\jdespawn of entity {id}");
+				Log.Debug($"Map.OnDespawn: Map {identity} \\odespawn of entity {id}");
 
 				if (client != null) {
 					foreach (var e in globalEntities) {
@@ -413,6 +415,13 @@ namespace Ex {
 					} else {
 						Log.Warning($"Map.OnDespawn: Tried to remove entity {id} from map {identity} cell {cellPos}, but the cell did not exist!");
 					}
+				} else {
+					Log.Warning($"Map.OnDespawn: Probably expected a TRS on entity {id} on map {identity}...");
+				}
+
+				// Finally, remove entity id for client if the client is gone.
+				if (client != null && client.closed) {
+					entityService.Revoke(id);
 				}
 			}
 

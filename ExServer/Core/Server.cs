@@ -491,7 +491,7 @@ namespace Ex {
 
 			foreach (var method in methods) {
 				
-				if (MatchesSig(method, SIGNATURE_OF_MESSAGEHANDLER)) {
+				if (MatchesSig(method, SIGNATURE_OF_MESSAGEHANDLER) && method.ReturnType.Equals(typeof(void))) {
 					var handler = (RPCMessage.Handler)method.CreateDelegate(typeof(RPCMessage.Handler), service);
 					var rpcName = t.ShortName() + "." + method.Name;
 					rpcCache[rpcName] = handler;

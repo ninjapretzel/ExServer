@@ -4,10 +4,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 // For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
 #if !UNITY
 using MongoDB.Bson.Serialization.Attributes;
@@ -82,6 +79,17 @@ namespace Ex {
 			public string hash { get; set; }
 			/// <summary> last login </summary>
 			public DateTime lastLogin { get; set; }
+		}
+
+		/// <summary> Database object storing user account creation info </summary>
+		[BsonIgnoreExtraElements]
+		public class UserAccountCreation : DBEntry {
+			/// <summary> Account name </summary>
+			public string userName { get; set; }
+			/// <summary> IP Address </summary>
+			public string ipAddress { get; set; }
+			/// <summary> Time of account creation </summary>
+			public DateTime time { get; set; }
 		}
 
 		/// <summary> Results of a login attempt </summary>
@@ -289,25 +297,20 @@ namespace Ex {
 
 					if (userInfo == null) {
 						Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
-
-						Guid userId = Guid.NewGuid();
-						userInfo = new UserLoginInfo();
-						userInfo.userName = user;
-						userInfo.hash = hash;
-						userInfo.guid = userId;
-						userInfo.lastLogin = DateTime.UtcNow;
-						dbService.Save(userInfo);
-
-						try {
-							userInitializer?.Invoke(userId);
 						
-						} catch (Exception e) {
-							Log.Error($"Error initializing user {user} / {userId} ", e);
+						Guid userId = Guid.NewGuid();
+						userInfo = CreateUser(msg);
+
+						if (userInfo != null) {
+							result = LoginResult.Success_Created;
+							creds = new Credentials(user, hash, userInfo.guid);
+						} else {
+							result = LoginResult.Failed_CreationCooldown;
+							reason = "Too many account creations";
 						}
 
-						result = LoginResult.Success_Created;
-						creds = new Credentials(user, hash, userInfo.guid);
-					
+						
+
 					} else {
 						// Check credentials against existing credentials.
 						if (loginsByUserId.ContainsKey(userInfo.guid)) {
@@ -354,7 +357,7 @@ namespace Ex {
 				if (creds == null) {
 					msg.sender.Call(LoginResponse, "fail", reason);
 
-					Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
+					Log.Info($"Client {msg.sender.identity} Failed to login.");
 
 					server.On(new LoginFailure_Server() {
 						ip = msg.sender.remoteIP
@@ -379,8 +382,47 @@ namespace Ex {
 			#endregion
 #endif
 		}
+		
+#if !UNITY
+		//*
+		private UserLoginInfo CreateUser(RPCMessage msg) {
+			string user = msg[0];
+			string hash = msg[1];
 
+			//*
+			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), msg.sender.remoteIP);
+			Log.Info($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
+			if (accountCreations.Count > 5) {
+				return null;
+			}//*/
+			
+			Guid userId = Guid.NewGuid();
+			UserLoginInfo userInfo = new UserLoginInfo();
+			userInfo.userName = user;
+			userInfo.hash = hash;
+			userInfo.guid = userId;
+			userInfo.lastLogin = DateTime.UtcNow;
+			dbService.Save(userInfo);
 
+			try {
+				userInitializer?.Invoke(userId);
+
+				dbService.Save(new UserAccountCreation() {
+					userName = user,
+					guid = userId,
+					ipAddress = msg.sender.remoteIP,
+					time = DateTime.UtcNow
+				});
+
+			} catch (Exception e) {
+				Log.Error($"Error initializing user {user} / {userId} ", e);
+				return null;
+			}
+
+			return userInfo;
+		}
+		//*/
+#endif
 
 
 		/// <summary> Simple quick check for valid usernames. </summary>

@@ -381,7 +381,7 @@ namespace Ex {
 		/// <param name="idField"> Field of ID to match </param>
 		/// <param name="id"> ID to match in field </param>
 		/// <returns> First item matching id, or null. </returns>
-		public T Get<T>(string databaseName, string idField, string id) where T: DBEntry {
+		public T Get<T>(string databaseName, string idField, string id) where T : DBEntry {
 			// Todo: Benchmark and figure out which of these is faster
 			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
 			//var filter = Builders<T>.Filter.Eq(idField, id);
@@ -390,6 +390,45 @@ namespace Ex {
 			return result;
 		}
 
+		/// <summary> Get all items from the default database, where the given ID field matches the given ID. </summary>
+		/// <typeparam name="T"> Generic type of items to get </typeparam>
+		/// <param name="idField"> ID Field to look for ID within </param>
+		/// <param name="id"> ID to look for ID </param>
+		/// <returns> All elements matching the given ID </returns>
+		/// <remarks> For example, if `Item` has a field `owner:string`, this can be used to find all `Item`s owned by a given entity. </remarks>
+		public List<T> GetAll<T>(string idField, Guid id) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(idField, id);
+			List<T> result = Collection<T>().Find(filter).ToList();
+			return result;
+		}
+
+		/// <summary> Get all items from the default database, where the given ID field matches the given ID. </summary>
+		/// <typeparam name="T"> Generic type of items to get </typeparam>
+		/// <param name="idField"> ID Field to look for 'guid' within </param>
+		/// <param name="id"> ID to look for 'guid' </param>
+		/// <returns> All elements matching the given ID </returns>
+		/// <remarks> For example, if `Item` has a field `owner:Guid`, this can be used to find all `Item`s owned by a given entity. </remarks>
+
+		public List<T> GetAll<T>(string idField, string id) where T : DBEntry {
+			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
+			//var filter = Builders<T>.Filter.Eq(idField, id);
+
+			List<T> result = Collection<T>().Find(filter).ToList();
+			return result;
+		}
+
+		/// <summary> Get an Enumerable from the given database, where ID field matches the given ID, or null. </summary>
+		/// <typeparam name="T"> Generic type of items to get </typeparam>
+		/// <param name="databaseName"> Name of database to sample  </param>
+		/// <param name="idField"> Field of ID to match </param>
+		/// <param name="id"> ID to match in field </param>
+		/// <returns> All items with matching id, or an empty list </returns>
+		public List<T> GetAll<T>(string databaseName, string idField, string id) where T: DBEntry {
+			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
+			List<T> result = Collection<T>(databaseName).Find(filter).ToList();
+			return result;
+		}
+		
 		/// <summary> Saves the given item into the default database. Updates the item, or inserts it if one does not exist yet.  </summary>
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
 		/// <param name="item"> Item to insert </param>

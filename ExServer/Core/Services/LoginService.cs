@@ -384,18 +384,16 @@ namespace Ex {
 		}
 		
 #if !UNITY
-		//*
 		private UserLoginInfo CreateUser(RPCMessage msg) {
 			string user = msg[0];
 			string hash = msg[1];
 
-			//*
 			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), msg.sender.remoteIP);
-			Log.Info($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
+			Log.Debug($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
 			if (accountCreations.Count > 5) {
 				return null;
-			}//*/
-			
+			}
+
 			Guid userId = Guid.NewGuid();
 			UserLoginInfo userInfo = new UserLoginInfo();
 			userInfo.userName = user;
@@ -421,7 +419,6 @@ namespace Ex {
 
 			return userInfo;
 		}
-		//*/
 #endif
 
 

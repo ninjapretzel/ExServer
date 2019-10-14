@@ -99,7 +99,7 @@ namespace Ex {
 	[BsonIgnoreExtraElements]
 #endif
 	public class Nameplate : Comp {
-		/// <summary> Animation mapper to use </summary>
+		/// <summary> Name to display  </summary>
 		public InteropString32 name;
 		/// <inheritdoc />
 		public override string ToString() { return $"{entityId} displayname {name}"; }
@@ -123,7 +123,7 @@ namespace Ex {
 
 		/// <summary> Component that holds procedural terrain information. </summary>
 #if !UNITY
-		[BsonIgnoreExtraElements]
+	[BsonIgnoreExtraElements]
 	#endif
 	public class Terrain : Comp {
 		/// <summary> Size of each terrain segment </summary>

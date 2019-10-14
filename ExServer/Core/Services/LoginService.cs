@@ -299,7 +299,7 @@ namespace Ex {
 						Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 						
 						Guid userId = Guid.NewGuid();
-						userInfo = CreateUser(msg);
+						userInfo = CreateNewUser(msg);
 
 						if (userInfo != null) {
 							result = LoginResult.Success_Created;
@@ -384,7 +384,7 @@ namespace Ex {
 		}
 		
 #if !UNITY
-		private UserLoginInfo CreateUser(RPCMessage msg) {
+		private UserLoginInfo CreateNewUser(RPCMessage msg) {
 			string user = msg[0];
 			string hash = msg[1];
 

@@ -32,6 +32,14 @@ namespace Ex {
 		public struct ComponentRemoved { public Guid id; public Type componentType; }
 		#endregion
 
+		/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are server-only </summary>
+		[AttributeUsage(AttributeTargets.Class)]
+		public class ServerOnlyComponentAttribute : Attribute { }
+		/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are hidden from clients that do not 'own' the component. </summary>
+		[AttributeUsage(AttributeTargets.Class)]
+		public class OwnerSyncAttribute : Attribute { }
+
+
 
 #if !UNITY
 		[BsonIgnoreExtraElements]
@@ -331,6 +339,9 @@ namespace Ex {
 			}
 		}
 
+		///
+		private static Dictionary<Type, int> SERVER_ONLY;
+		private static Dictionary<Type, int> OWNER_ONLY;
 		/// @BAD @HACKY @IMPROVEME - Baking generic args for packers/unpackers. 
 		/// There has gotta be a more efficient way to bind generic types to unknown function calls.
 		/// Maybe bake lambdas instead? I know those can leak captures....
@@ -340,17 +351,17 @@ namespace Ex {
 		private static ConcurrentDictionary<Type, MethodInfo> GENERIC_UNPACKERS;
 		public static MethodInfo GET_PACKER(Type t) {
 			if (!t.IsValueType) { return null; }
-			if (PACKER == null) { INITIALIZEPACKERS(); }
+			if (PACKER == null) { INITIALIZE_CACHES(); }
 			if (!GENERIC_PACKERS.ContainsKey(t)) { GENERIC_PACKERS[t] = PACKER.MakeGenericMethod(t); }
 			return GENERIC_PACKERS[t];
 		}
 		public static MethodInfo GET_UNPACKER(Type t) {
 			if (!t.IsValueType) { return null; }
-			if (PACKER == null) { INITIALIZEPACKERS(); }
+			if (PACKER == null) { INITIALIZE_CACHES(); }
 			if (!GENERIC_UNPACKERS.ContainsKey(t)) { GENERIC_UNPACKERS[t] = UNPACKER.MakeGenericMethod(t); }
 			return GENERIC_UNPACKERS[t];
 		}
-		private static void INITIALIZEPACKERS() {
+		private static void INITIALIZE_CACHES() {
 			PACKER = typeof(Pack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
 			UNPACKER = typeof(Unpack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
 			GENERIC_PACKERS = new ConcurrentDictionary<Type, MethodInfo>();

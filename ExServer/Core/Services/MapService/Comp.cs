@@ -33,6 +33,8 @@ namespace Ex {
 			service.SendComponent(this);
 		}
 
+		public override string ToString() { return $"{entityId}'s {GetType().FullName}"; }
+
 		/// <summary> Dynamic lookup of attached entity. </summary>
 		private Entity entity {
 			get {

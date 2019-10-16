@@ -16,6 +16,14 @@ using System.Runtime.CompilerServices;
 using System.Reflection;
 
 namespace Ex {
+
+	/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are server-only </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class ServerOnlyComponentAttribute : Attribute { }
+	/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are hidden from clients that do not 'own' the component. </summary>
+	[AttributeUsage(AttributeTargets.Class)]
+	public class OwnerOnlySyncAttribute : Attribute { }
+
 	/// <summary> Service which manages the creation and tracking of entities. 
 	/// Entities are automatically created for connecting clients and removed for disconnecting ones.  </summary>
 	public class EntityService : Service {
@@ -31,13 +39,6 @@ namespace Ex {
 		/// <summary> Message sent when an entity no longer has a component. </summary>
 		public struct ComponentRemoved { public Guid id; public Type componentType; }
 		#endregion
-
-		/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are server-only </summary>
-		[AttributeUsage(AttributeTargets.Class)]
-		public class ServerOnlyComponentAttribute : Attribute { }
-		/// <summary> Attribute to be applied to <see cref="Comp"/> classes that are hidden from clients that do not 'own' the component. </summary>
-		[AttributeUsage(AttributeTargets.Class)]
-		public class OwnerSyncAttribute : Attribute { }
 
 
 
@@ -338,34 +339,68 @@ namespace Ex {
 				}
 			}
 		}
-
-		///
-		private static Dictionary<Type, int> SERVER_ONLY;
-		private static Dictionary<Type, int> OWNER_ONLY;
-		/// @BAD @HACKY @IMPROVEME - Baking generic args for packers/unpackers. 
+		/// @BAD @HACKY @IMPROVEME - Baking+caching generic args for packers/unpackers. And other stuff.
 		/// There has gotta be a more efficient way to bind generic types to unknown function calls.
 		/// Maybe bake lambdas instead? I know those can leak captures....
 		private static MethodInfo PACKER;
 		private static MethodInfo UNPACKER;
 		private static ConcurrentDictionary<Type, MethodInfo> GENERIC_PACKERS;
 		private static ConcurrentDictionary<Type, MethodInfo> GENERIC_UNPACKERS;
+		private static ConcurrentDictionary<Type, bool> SERVER_ONLY;
+		private static ConcurrentDictionary<Type, bool> OWNER_ONLY;
+		/// <summary> Get (bake if not present) data packer MethodInfo </summary>
 		public static MethodInfo GET_PACKER(Type t) {
 			if (!t.IsValueType) { return null; }
 			if (PACKER == null) { INITIALIZE_CACHES(); }
 			if (!GENERIC_PACKERS.ContainsKey(t)) { GENERIC_PACKERS[t] = PACKER.MakeGenericMethod(t); }
 			return GENERIC_PACKERS[t];
 		}
+		/// <summary> Get (bake if not present) data unpacker MethodInfo </summary>
 		public static MethodInfo GET_UNPACKER(Type t) {
 			if (!t.IsValueType) { return null; }
 			if (PACKER == null) { INITIALIZE_CACHES(); }
 			if (!GENERIC_UNPACKERS.ContainsKey(t)) { GENERIC_UNPACKERS[t] = UNPACKER.MakeGenericMethod(t); }
 			return GENERIC_UNPACKERS[t];
 		}
+		/// <summary> Get wether or not a component should be synced, based on decoration, and it's status as being owned by the client. </summary>
+		/// <param name="component"> Component to query for </param>
+		/// <param name="clientOwns"> True if the client owns this component, false if it belongs to something else </param>
+		/// <returns> True, if the component should be synced, otherwise false. </returns>
+		public static bool IS_SYNCED(Comp component, bool clientOwns) {
+			Type t = component.GetType();
+			bool serverOnly = IS_SERVER_ONLY(t);
+			bool ownerOnly = IS_OWNER_ONLY(t);
+			
+			if (clientOwns) { return !serverOnly; } 
+			return !serverOnly && !ownerOnly;
+		}
+		/// <summary> Get (bake if not present) server-only status for a given component </summary>
+		public static bool IS_SERVER_ONLY(Comp component) { return IS_SERVER_ONLY(component.GetType()); }
+		/// <summary> Get (bake if not present) server-only status for a given component type </summary>
+		public static bool IS_SERVER_ONLY(Type t) {
+			if (SERVER_ONLY == null) { INITIALIZE_CACHES(); }
+			if (!SERVER_ONLY.ContainsKey(t)) {
+				SERVER_ONLY[t] = t.GetCustomAttribute<ServerOnlyComponentAttribute>() != null;
+			}
+			return SERVER_ONLY[t];
+		}
+		/// <summary> Get (bake if not present) owner-only status for a given component</summary>
+		public static bool IS_OWNER_ONLY(Comp component) { return IS_OWNER_ONLY(component.GetType()); }
+		/// <summary> Get (bake if not present) owner-only status for a given component type </summary>
+		public static bool IS_OWNER_ONLY(Type t) {
+			if (OWNER_ONLY== null) { INITIALIZE_CACHES(); }
+			if (!OWNER_ONLY.ContainsKey(t)) {
+				OWNER_ONLY[t] = t.GetCustomAttribute<OwnerOnlySyncAttribute>() != null;
+			}
+			return OWNER_ONLY[t];
+		}
 		private static void INITIALIZE_CACHES() {
 			PACKER = typeof(Pack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
 			UNPACKER = typeof(Unpack).GetMethod("Base64", BindingFlags.Static | BindingFlags.Public);
 			GENERIC_PACKERS = new ConcurrentDictionary<Type, MethodInfo>();
 			GENERIC_UNPACKERS = new ConcurrentDictionary<Type, MethodInfo>();
+			SERVER_ONLY = new ConcurrentDictionary<Type, bool>();
+			OWNER_ONLY = new ConcurrentDictionary<Type, bool>();
 		}
 
 		/// <summary> Server -> Client RPC. Requests the client set information into a component. </summary>
@@ -437,10 +472,21 @@ namespace Ex {
 					Comp[] components = GetComponents(id);
 					List<object> addArgs = new List<object>();
 					addArgs.Add(id);
-					foreach (var component in components) { addArgs.Add(component.GetType().FullName); }
+					// For now, the only components that are considered owned by a client
+					// are ones on the entity that is the client's own id
+					// TODO: If we need, add a component type for owning by proxy
+					//		check for the component on the object, and check if the id matches.
+					bool clientOwns = client.id == id;
+					foreach (var component in components) {
+						// only add entities that should be sync'd
+						if (IS_SYNCED(component, clientOwns)) {
+							addArgs.Add(component.GetType().FullName); 
+						}
+					}
+
 					client.Call(AddComps, addArgs.ToArray());
 					
-					List<object[]> argLists = PackSetComponentArgs(id, components);
+					List<object[]> argLists = PackSetComponentArgs(id, components, clientOwns);
 					foreach (var args in argLists) {
 						client.Call(SetComponentInfo, args);
 					}
@@ -483,11 +529,35 @@ namespace Ex {
 			}
 		}
 
-		private List<object[]> PackSetComponentArgs(Guid id) {
+		/// <summary> Pack all of the args for all components on the given entity for synchronization </summary>
+		/// <param name="id"> ID of entity to sync </param>
+		/// <param name="clientOwns"> true if the client these args are being generated for is an owner of the entity </param>
+		/// <returns> List of arguments to send to the client </returns>
+		private List<object[]> PackSetComponentArgs(Guid id, bool clientOwns) {
 			var components = GetComponents(id);
-			return PackSetComponentArgs(id, components);
+			return PackSetComponentArgs(id, components, clientOwns);
 		}
 
+		/// <summary> Pack all of the args for all given components for synchronization </summary>
+		/// <param name="id"> ID of entity components belong to </param>
+		/// <param name="components"> Components to pack </param>
+		/// <param name="clientOwns"> If the client in question owns this entity </param>
+		/// <returns> List of arguments to send to client to sync all components </returns>
+		private List<object[]> PackSetComponentArgs(Guid id, Comp[] components, bool clientOwns) {
+			List<object[]> argLists = new List<object[]>();
+			
+			foreach (var component in components) {
+				if (IS_SYNCED(component, clientOwns)) {
+					argLists.Add(PackSetComponentArgs(id, component));
+				}
+			}
+
+			return argLists;
+		}
+		/// <summary> Pack the args to set component data on the client </summary>
+		/// <param name="id"> ID of entity component belongs to </param>
+		/// <param name="component"> Component to sync </param>
+		/// <returns> object[] of args to be sent to a client to sync that component's data </returns>
 		private object[] PackSetComponentArgs(Guid id, Comp component) {
 			List<object> args = new List<object>();
 			args.Add(id);
@@ -504,15 +574,7 @@ namespace Ex {
 			return args.ToArray();
 		}
 
-		private List<object[]> PackSetComponentArgs(Guid id, Comp[] components) {
-			List<object[]> argLists = new List<object[]>();
-			foreach (var component in components) {
-				argLists.Add(PackSetComponentArgs(id, component));
-			}
 
-			return argLists;
-		}
-		
 		public override void OnConnected(Client client) {
 			if (isMaster) {
 				Entity entity = CreateEntity(client.id);
@@ -608,11 +670,19 @@ namespace Ex {
 			UserEntityInfo info = db.Get<UserEntityInfo>(userId);
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
+			// Testing: Add some data and see if it is synced/hidden properly
+			var hidden = AddComponent<SomeHiddenData>(clientId);
+			var secret = AddComponent<SomeSecretData>(clientId);
+			hidden.key = 123456789;
+			secret.key = 987654321;
+			hidden.Send();
+			secret.Send();
 
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			nameplate.name = username;
 			nameplate.Send();
 
+			
 			if (info != null) {
 
 				trs.position = info.position;
@@ -663,6 +733,9 @@ namespace Ex {
 		/// <param name="id"> ID of Entity to add Component to </param>
 		/// <returns> Newly created component </returns>
 		public Comp AddComponent(Guid id, Type t) {
+			bool serverOnly = IS_SERVER_ONLY(t);
+			bool ownerOnly = IS_OWNER_ONLY(t);
+
 			Entity entity = this[id];
 			if (!typeof(Comp).IsAssignableFrom(t)) { throw new Exception($"{t} is not a valid ECS Component type."); }
 			var table = GetTable(t);
@@ -677,9 +750,22 @@ namespace Ex {
 			table.Add(entity, component);
 			if (isMaster) {
 				var subs = subscribers[id];
-				string addMsg = Client.FormatCall(AddComps, id, t.FullName);
-				foreach (var client in subs) { client.SendMessageDirectly(addMsg); }
+				if (!serverOnly) {
+					string addMsg = Client.FormatCall(AddComps, id, t.FullName);
 
+					foreach (var client in subs) {
+
+						// For now, the only components that are considered owned by a client
+						// are ones on the entity that is the client's own id
+						// TODO: If we need, add a component type for owning by proxy
+						//		check for the component on the object, and check if the id matches.
+						bool clientOwns = client.id == id;
+						if (!ownerOnly || clientOwns) {
+							client.SendMessageDirectly(addMsg); 
+						}
+					}
+
+				}
 				/// Actually don't need to send data yet, components will be empty right when added.
 				//var args = PackSetComponentArgs(id, component);
 				//string setMsg = Client.FormatCall(SetComponentInfo, args);
@@ -757,6 +843,8 @@ namespace Ex {
 		/// <param name="entity"> Entity to remove component from </param>
 		/// <returns> True if component existed prior  and was removed, false otherwise. </returns>
 		public bool RemoveComponent(Guid id, Type t) {
+			bool serverOnly = IS_SERVER_ONLY(t);
+			bool ownerOnly = IS_OWNER_ONLY(t);
 			Entity entity = this[id];
 			if (entity == null) { return false; }
 			var table = GetTable(t);
@@ -765,7 +853,21 @@ namespace Ex {
 			if (table.TryGetValue(entity, out c)) { c.Invalidate(); }
 			if (isMaster) {
 				var subs = subscribers[id];
-				foreach (var client in subs) { client.Call(RemoveComps, id, t.FullName); }
+				// Only send non-server only components...
+				if (!serverOnly) {
+					foreach (var client in subs) {
+						// For now, the only components that are considered owned by a client
+						// are ones on the entity that is the client's own id
+						// TODO: If we need, add a component type for owning by proxy
+						//		check for the component on the object, and check if the id matches.
+						bool clientOwns = client.id == id;
+						if (!ownerOnly || clientOwns) {
+							client.Call(RemoveComps, id, t.FullName); 
+						}
+					}
+
+				}
+				
 			}
 
 			return table.Remove(entity);
@@ -774,11 +876,25 @@ namespace Ex {
 		/// <summary> Sends the information for a component to all subscribers of that component's entity </summary>
 		/// <param name="comp"> Component to send </param>
 		public void SendComponent(Comp comp) {
+			Type t = comp.GetType();
+			bool serverOnly = IS_SERVER_ONLY(t);
+			if (serverOnly) { return; }
+			bool ownerOnly = IS_OWNER_ONLY(t);
+
 			Guid id = comp.entityId;
 			var subs = subscribers[id];
 			var args = PackSetComponentArgs(id, comp);
+
 			foreach (var sub in subs) {
-				sub.Call(SetComponentInfo, args);
+				// For now, the only components that are considered owned by a client
+				// are ones on the entity that is the client's own id
+				// TODO: If we need, add a component type for owning by proxy
+				//		check for the component on the object, and check if the id matches.
+				bool clientOwns = sub.id == id;
+
+				if (!ownerOnly || clientOwns) {
+					sub.Call(SetComponentInfo, args);
+				}
 			}
 		}
 

@@ -71,7 +71,7 @@ namespace Ex {
 		public override string ToString() { return $"{entityId} Box {bounds} : {isTrigger} : {layer}"; }
 	}
 
-	/// <summary> Component that gives one entity control over another. </summary>
+	/// <summary> Component that gives one entity proxy control over another. </summary>
 	public class Owned : Comp {
 		/// <summary> ID of owner of this entity, who is also allowed to send commands to this entity. </summary>
 		public Guid owner;
@@ -120,8 +120,25 @@ namespace Ex {
 		public override string ToString() { return $"{entityId} anim {mapper} flags { flags.Hex() }"; }
 	}
 
+	/// <summary> Example server-only data component </summary>
+#if !UNITY
+	[BsonIgnoreExtraElements]
+#endif
+	[ServerOnlyComponent]
+	public class SomeHiddenData : Comp {
+		public int key = 31337;
+	}
 
-		/// <summary> Component that holds procedural terrain information. </summary>
+	/// <summary> Example owner-only data component </summary>
+#if !UNITY
+	[BsonIgnoreExtraElements]
+#endif
+	[OwnerOnlySync]
+	public class SomeSecretData : Comp {
+		public int key = 1337;
+	}
+
+	/// <summary> Component that holds procedural terrain information. </summary>
 #if !UNITY
 	[BsonIgnoreExtraElements]
 	#endif

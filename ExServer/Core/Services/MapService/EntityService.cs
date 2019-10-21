@@ -70,11 +70,31 @@ namespace Ex {
 			
 		}
 		
+		public const bool DEBUG_TYPES = true;
+
 		/// <summary> EntityInfo (spawn source) data cached from database by type </summary>
 		public ConcurrentDictionary<string, EntityInfo> entityInfos;
 		public EntityInfo GetEntityInfo(string typeName) {
 			if (entityInfos.ContainsKey(typeName)) { return entityInfos[typeName]; }
-			return (entityInfos[typeName] = GetService<DBService>().Get<EntityInfo>("Content", "type", typeName));
+			var info = (entityInfos[typeName] = GetService<DBService>().Get<EntityInfo>("Content", "type", typeName));
+			
+			if (DEBUG_TYPES) {
+				Log.Debug($"Baking type info into {typeof(Ex.Typed).FullName} for {typeName}");
+				var comps = new ComponentInfo[info.components.Length + 1];
+				for (int i = 0; i < info.components.Length; i++) {
+					comps[i] = info.components[i];
+				}
+				// Bake some type information for seeing what type was loaded to form an entity.
+				// This should be the only extra information after what is already in the entity database.
+				var typed = new ComponentInfo();
+				typed.type = typeof(Ex.Typed).FullName;
+				typed.data = new MongoDB.Bson.BsonDocument();
+				typed.data["type"] = typeName;
+				comps[comps.Length-1] = typed;
+				info.components = comps;
+			}
+
+			return info;
 		}
 #endif
 
@@ -670,13 +690,15 @@ namespace Ex {
 			UserEntityInfo info = db.Get<UserEntityInfo>(userId);
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
-			// Testing: Add some data and see if it is synced/hidden properly
-			var hidden = AddComponent<SomeHiddenData>(clientId);
-			var secret = AddComponent<SomeSecretData>(clientId);
-			hidden.key = 123456789;
-			secret.key = 987654321;
-			hidden.Send();
-			secret.Send();
+
+			{ // Testing: Add some data and see if it is synced/hidden properly
+				var hidden = AddComponent<SomeHiddenData>(clientId);
+				var secret = AddComponent<SomeSecretData>(clientId);
+				hidden.key = 123456789;
+				secret.key = 987654321;
+				hidden.Send(); // Gotta remember to send component data to clients, even if it may be hidden.
+				secret.Send();
+			}
 
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			nameplate.name = username;

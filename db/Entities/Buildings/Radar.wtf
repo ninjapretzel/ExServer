@@ -1,19 +1,15 @@
 {
-	type: "Spider",
+	type: "Radar",
+	global: true,
 	components: [
-		{
-			type: "Ex.Nameplate",
-			data: { name: "Spider" },
-		},
 		{
 			type: "Ex.Display",
 			data: {
-				prefab: "Models/Spider",
+				prefab: "BG/HK/Radar",
 				position: [ 0, 0, 0, ],
 				rotation: [ 0, 0, 0, ],
 			},
-		}
-		
+		},
 	]
 	
 }

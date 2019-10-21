@@ -13,6 +13,16 @@ using Ex.Data;
 using Ex.Utils.Ext;
 
 namespace Ex {
+	
+	/// <summary> Component for debugging, to allow unity to register a hook that names the component GameObject based on entity type. 
+	/// Auto-filled during load from database as long as the type is provided. </summary>
+#if !UNITY
+	[BsonIgnoreExtraElements]
+#endif
+	public class Typed : Comp {
+		/// <summary> Type to display. </summary>
+		public InteropString32 type;
+	}
 
 	/// <summary> Component that places an entity on a map. </summary>
 	public class OnMap : Comp {
@@ -93,6 +103,7 @@ namespace Ex {
 		/// <inheritdoc />
 		public override string ToString() { return $"{entityId} display {{{prefab}}} at pos:{{{position}}} / rot:{{{rotation}}}"; }
 	}
+
 
 	/// <summary> Component that shows a name plate and renames the entity on clients. </summary>
 #if !UNITY

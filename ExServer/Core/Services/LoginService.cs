@@ -245,13 +245,15 @@ namespace Ex {
 		/// <summary> Server -> Client RPC. Response with results of login attempt. </summary>
 		/// <param name="msg"> RPC Info. </param>
 		public void LoginResponse(RPCMessage msg) {
-			Interlocked.Exchange(ref _isAttemptingLogin, 0);
-			Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
-			if (msg[0] == "succ") {
-				localLogin = new Credentials(loginName, msg[1]);
-				server.On(new LoginSuccess_Client() { credentials = localLogin } );
-			} else {
-				server.On(new LoginFailure_Client() { reason = msg[1] });
+			if (!isMaster) {
+				Interlocked.Exchange(ref _isAttemptingLogin, 0);
+				Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
+				if (msg[0] == "succ") {
+					localLogin = new Credentials(loginName, msg[1]);
+					server.On(new LoginSuccess_Client() { credentials = localLogin } );
+				} else {
+					server.On(new LoginFailure_Client() { reason = msg[1] });
+				}
 			}	
 		}
 

@@ -38,6 +38,9 @@ namespace Ex {
 		public struct ComponentChanged { public Guid id; public Type componentType; }
 		/// <summary> Message sent when an entity no longer has a component. </summary>
 		public struct ComponentRemoved { public Guid id; public Type componentType; }
+
+		/// <summary> Message sent when an entity is marked as the local entity. Sent once when the entity is first sync'd to its own client. </summary>
+		public struct SetLocalEntity { public Guid id; }
 		#endregion
 
 
@@ -48,7 +51,7 @@ namespace Ex {
 
 			public string map { get; set; }
 			public Vector3 position { get; set; }
-			public Vector4 rotation { get; set; }
+			public Vector3 rotation { get; set; }
 
 		}
 		
@@ -57,7 +60,7 @@ namespace Ex {
 			Log.Info($"Initializing EntityInfo for {userID}");
 			UserEntityInfo info = new UserEntityInfo();
 			info.position = Vector3.zero;
-			info.rotation = new Vector4(0, 0, 0, 1);
+			info.rotation = Vector3.zero;
 			info.map = "Limbo";
 			info.guid = userID;
 			
@@ -120,10 +123,6 @@ namespace Ex {
 		}
 		/// <summary> Types of components </summary>
 		private ConcurrentDictionary<string, TypeInfo> componentTypes;
-
-		
-		/// <summary> Local entity ID used for the client to ask for movement. </summary>
-		public Guid? localGuid = null;
 
 
 		/// <summary> Gets an entity by ID, or null if none exist. </summary>
@@ -235,11 +234,11 @@ namespace Ex {
 				CreateEntity(id);
 				bool islocalEntity = msg.numArgs > 1 && msg[1] == "local";
 				Log.Debug($"slave.SpawnEntity: Spawned entity {id}. local? {islocalEntity} ");
-				if (islocalEntity) {
-					localGuid = id;
-				}
 
 				server.On(new EntitySpawned(){ id = id });
+				if (islocalEntity) {
+					server.On(new SetLocalEntity() { id = id });
+				}
 			} else {
 				Log.Debug($"slave.SpawnEntity: No properly formed guid to spawn.");
 			}
@@ -691,14 +690,14 @@ namespace Ex {
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
 
-			{ // Testing: Add some data and see if it is synced/hidden properly
-				var hidden = AddComponent<SomeHiddenData>(clientId);
-				var secret = AddComponent<SomeSecretData>(clientId);
-				hidden.key = 123456789;
-				secret.key = 987654321;
-				hidden.Send(); // Gotta remember to send component data to clients, even if it may be hidden.
-				secret.Send();
-			}
+			//{ // Testing: Add some data and see if it is synced/hidden properly
+			//	var hidden = AddComponent<SomeHiddenData>(clientId);
+			//	var secret = AddComponent<SomeSecretData>(clientId);
+			//	hidden.key = 123456789;
+			//	secret.key = 987654321;
+			//	hidden.Send(); // Gotta remember to send component data to clients, even if it may be hidden.
+			//	secret.Send();
+			//}
 
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			nameplate.name = username;

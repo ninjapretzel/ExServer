@@ -255,7 +255,10 @@ namespace Ex {
 						
 					} else {
 						Log.Warning($"Entity {move.id} Tried to move too far!");
-						// Todo: Rubberband.
+						if (client != null) {
+							client.Call(service.Rubberband, Pack.Base64(move.id), Pack.Base64(move.oldPos), Pack.Base64(move.oldRot));
+						}
+						
 					}
 
 				}  else {

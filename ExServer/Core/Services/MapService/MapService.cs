@@ -19,6 +19,24 @@ using System.Runtime.CompilerServices;
 namespace Ex {
 	/// <summary> Service which creates and manages Map instances </summary>
 	public class MapService : Service {
+		
+		/// <summary> Struct for sending a message to rubberband a client entity. </summary>
+		public struct RubberBand_Client {
+			/// <summary> ID of entity to move </summary>
+			public Guid id;
+			/// <summary> Position to move to </summary>
+			public Vector3 pos;
+			/// <summary> Rotation to move to </summary>
+			public Vector3 rot;
+		}
+
+		/// <summary> Struct for sending a message to change the map a client thinks it is on.  </summary>
+		public struct MapChange_Client {
+			/// <summary> Name of map </summary>
+			public string mapName;
+			/// <summary> Instance of map </summary>
+			public int? mapInstanceIndex;
+		}
 
 		#if !UNITY
 		
@@ -37,13 +55,6 @@ namespace Ex {
 		/// <summary> Work pool for map instances. </summary>
 		public WorkPool<Map> mapWorkPool;
 		#endif
-
-		/// <summary> Position of locally controlled entity. </summary>
-		public Vector3 localPosition = Vector3.zero;
-		/// <summary> Rotation of locally controlled entity. </summary>
-		public Vector4 localRotation = Vector4.zero;
-		/// <summary> Local  </summary>
-		public string localMapId = null;
 		
 		public override void OnEnable() {
 			#if !UNITY
@@ -66,6 +77,70 @@ namespace Ex {
 			}
 			#endif
 
+		}
+
+		/// <summary> RPC, Client -> Server. Requests the client's entity get moved </summary>
+		/// <param name="msg"> RPC Message info </param>
+		public void RequestMove(RPCMessage msg) {
+#if !UNITY
+			if (isMaster) {
+				// Id, position, rotation 
+				if (msg.numArgs != 3) { return; }
+				Guid id = Unpack.Base64<Guid>(msg[0]);
+				Vector3 pos = Unpack.Base64<Vector3>(msg[1]);
+				Vector3 rot = Unpack.Base64<Vector3>(msg[2]);
+				Log.Debug($"Getting move request for {id} / {pos} / {rot}");
+
+				// Check that requester owns the entity they are requesting to move
+				// right now, just a direct id check 
+				if (id != msg.sender.id) { return; }
+
+				Entity entity = GetService<EntityService>()[id];
+				if (entity != null) {
+					OnMap onMap = entity.GetComponent<OnMap>();
+					if (onMap != null) {
+						Map map = GetMap(onMap.mapId, onMap.mapInstanceIndex);
+
+						Log.Debug($"Forwarding move request to map {onMap.mapId} for {id} / {pos} / {rot}");
+						map?.Move(id, pos, rot, false);
+
+					}
+				}
+			}
+#endif
+		}
+
+		/// <summary> RPC, Server -> Client. Asks the client to reposition. </summary>
+		/// <param name="msg"> RPC Message info </param>
+		public void Rubberband(RPCMessage msg) {
+			if (isSlave) {
+				if (msg.numArgs != 3) { return; }
+				RubberBand_Client rubberBand;
+				rubberBand.id = Unpack.Base64<Guid>(msg[0]);
+				rubberBand.pos = Unpack.Base64<Vector3>(msg[1]);
+				rubberBand.rot = Unpack.Base64<Vector3>(msg[2]);
+
+				server.On(rubberBand);
+			}
+		}
+
+		/// <summary> Informational RPC, Server -> Client. Gives the user data of what map/instance they are in. </summary>
+		/// <param name="msg"> RPC Message info </param>
+		public void SetMap(RPCMessage msg) {
+			if (isSlave) {
+				if (msg.numArgs < 1) { return; }
+				MapChange_Client mapChange;
+				mapChange.mapName = msg[0];
+				mapChange.mapInstanceIndex = null;
+				if (msg.numArgs >= 2) {
+					int v;
+					if (int.TryParse(msg[1], out v)) {
+						mapChange.mapInstanceIndex = v;
+					}
+				}
+
+				server.On(mapChange);
+			}
 		}
 
 #if !UNITY
@@ -145,7 +220,7 @@ namespace Ex {
 		/// <summary> Server Command, used when transferring a client into a map. </summary>
 		/// <param name="client"> Client connection object </param>
 		/// <param name="mapId"> ID to put client into </param>
-		public void EnterMap(Client client, string mapId, Vector3? position = null, Vector4? rotation = null, int? mapInstanceIndex = null) {
+		public void EnterMap(Client client, string mapId, Vector3 position, Vector3 rotation, int? mapInstanceIndex = null) {
 			
 			Log.Info($"\\jClient {client.identity} entering map {mapId} ");
 			var map = GetMap(mapId, mapInstanceIndex);
@@ -155,9 +230,17 @@ namespace Ex {
 
 			if (position != null || rotation != null) {
 				map.Move(client.id, position, rotation);
+
+				// Call RPCs for initializing clients
+				client.Call(Rubberband, Pack.Base64(position), Pack.Base64(rotation));
+
+				if (mapInstanceIndex != null) {
+					client.Call(SetMap, mapId, mapInstanceIndex.Value);
+				} else {
+					client.Call(SetMap, mapId);
+				}
+				
 			}
-
-
 			
 		}
 			

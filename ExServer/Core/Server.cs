@@ -91,7 +91,7 @@ namespace Ex {
 		public Client localClient { get { return isSlave ? _localClient : null; } }
 		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
-		public Server(int port = 32055, float tick = 100) {
+		public Server(int port = 32055, float tick = 50) {
 			sendCheckQueue = new ConcurrentQueue<Client>();
 			recrCheckQueue = new ConcurrentQueue<Client>();
 			incoming = new ConcurrentQueue<RPCMessage>();

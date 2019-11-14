@@ -69,6 +69,44 @@ namespace Ex {
 		public override string ToString() { return $"{entityId} Sphere {radius} : {isTrigger} : {layer}"; }
 	}
 
+	/// <summary> Component that sends up to 8 colors to the user's computer using an InteropFloat32 </summary>
+	public class DisplayColors : Comp {
+		/// <summary> Raw data </summary>
+		public InteropFloat32 data;
+		/// <summary> First (base) Display Color </summary>
+		public Vector4 color { get { return new Vector4(data[0], data[1], data[2], data[3]); } }
+		
+		/// <summary> Length property, always 8 (32 / 4) </summary>
+		public int Length { get { return 32 / 4; } }
+		/// <summary> Allows indexing with an int to get a Vector4 (color) </summary>
+		/// <param name="index"> Position to index at </param>
+		/// <returns> Vector4 (color) at that index </returns>
+		public Vector4 this[int index] {
+			get { 
+				int start = index * 4;
+				if (start < 0 || start >= 32/4) {
+					throw new InvalidOperationException($"Index into {nameof(DisplayColors)} must be between [0, {32/4}), was {index}");
+				}
+				Vector4 col;
+				col.x = data[start + 0];
+				col.y = data[start + 1];
+				col.z = data[start + 2];
+				col.w = data[start + 3];
+				return col;
+			}
+			set {
+				int start = index * 4;
+				if (start < 0 || start >= 32 / 4) {
+					throw new InvalidOperationException($"Index into {nameof(DisplayColors)} must be between [0, {32 / 4}), was {index}");
+				}
+				data[start + 0] = value.x;
+				data[start + 1] = value.y;
+				data[start + 2] = value.z;
+				data[start + 3] = value.w;
+			}
+		}
+		
+	}
 	/// <summary> Component that gives entity a box-based collision </summary>
 	public class Box : Comp {
 		/// <summary> Axis Aligned Bounding Box </summary>

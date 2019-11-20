@@ -244,8 +244,11 @@ namespace Ex {
 				}
 			}
 
-			MDB db = dbClient.GetDatabase(database);
-			db.GetCollection<BDoc>(collection).InsertMany(docs);
+			if (docs.Count > 0) {
+				MDB db = dbClient.GetDatabase(database);
+				db.GetCollection<BDoc>(collection).InsertMany(docs);
+			}
+
 		}
 
 		/// <summary> Creates a <see cref="BDoc"/> out of <paramref name="data"/>, and inserts a new record in the given <paramref name="database"/> and <paramref name="collection"/>. </summary>

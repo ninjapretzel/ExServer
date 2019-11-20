@@ -11,6 +11,7 @@
 	{ insert: { database: "Content", collection: "SystemInfo", }, },
 	{ insert: { database: "Content", collection: "StatCalc", }, },
 	{ insert: { database: "Content", collection: "ItemGeneration", }, },
+	{ insert: { database: "Content", collection: "Items", files: [ "Items/**", ], }, },
 	{ insert: { database: "Content", collection: "EntityInfo", files: [ "Entities/**", ], }, },
 	{ insert: { database: "Content", collection: "MapInfo", files: [ "Maps/**", ], }, },
 	

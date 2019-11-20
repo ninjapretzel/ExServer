@@ -21,15 +21,14 @@
 		metal, metaloid, 
 		conductor, semiconductor,
 		raw, processed, ore, noble,
-		
 	},
 	
 	
 	Mineral: {
 		type: "rules",
 		applyStats: [
-			{ "AtomicMineral": 120, "CompoundMineral": 310, "IonicMineral": 212 },
-		]
+			{ "AtomicMineral": 120, "CompoundMineral": 310, "IonicMineral": 212, },
+		],
 	},
 	
 	AtomicMineral:{
@@ -40,7 +39,8 @@
 			{ AlkalaiMetal: 3, TransMetal: 20, PostTransMetal: 15, Metaloid: 11, Nonmetals: 20, Noble: 3, },
 		],
 		
-		Counts: { type: "settings",
+		Counts: {
+			type: "settings",
 			applyStats: {
 				Mono: 319, 
 				Di: 289, Duo: 11,
@@ -56,7 +56,7 @@
 		},
 		
 		Name: {
-			type: { "settings" },
+			type: "settings",
 			
 		},
 		
@@ -99,4 +99,4 @@
 	
 	
 	
-]
+}

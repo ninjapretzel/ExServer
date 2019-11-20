@@ -1,0 +1,102 @@
+{
+	MaterialProperties: {
+		strength, magnetism,
+		conductive, reactive, energy,
+	},
+	
+	IdeasAndStuff:[
+		// Name generator should be able to 
+		// (very unlikely to actually) 
+		// generate these kinds of names 
+		"chrome", "aluminum", "iron", "magnesium", "nickel",
+		"tungsten", "silver", "copper", "moissanite", "titanium",
+		"cadmium", "zirconium", "edcanium", 
+		"henium", "halfnium", "netine", "molden",
+		"tisten", "zircon", "barine", "tasinon",
+		"steel",
+	],
+		
+	MaterialTags: {
+		fuel, explosive, 
+		metal, metaloid, 
+		conductor, semiconductor,
+		raw, processed, ore, noble,
+		
+	},
+	
+	
+	Mineral: {
+		type: "rules",
+		applyStats: [
+			{ "AtomicMineral": 120, "CompoundMineral": 310, "IonicMineral": 212 },
+		]
+	},
+	
+	AtomicMineral:{
+		type: "settings",
+		name: "Atomic",
+		applyStats: [ 
+			"AtomicCounts", 
+			{ AlkalaiMetal: 3, TransMetal: 20, PostTransMetal: 15, Metaloid: 11, Nonmetals: 20, Noble: 3, },
+		],
+		
+		Counts: { type: "settings",
+			applyStats: {
+				Mono: 319, 
+				Di: 289, Duo: 11,
+				Tri: 275, Tre: 16,
+				Tetra : 268, Tetro: 13,
+				Penta: 155, 
+				Hexa: 147, Sexta: 7, 
+				Septa: 23,
+				Octa: 17,
+				Nona: 13,
+				Deca: 9, Undeca: 8, Dodeca: 7, Trideca: 6, Tetdeca: 5, Pendeca: 4,  Sexdeca: 3,
+			},
+		},
+		
+		Name: {
+			type: { "settings" },
+			
+		},
+		
+		AlkalaiMetal: {
+			
+		},
+		TransMetal: {
+			
+		},
+		PostTransMetal: {
+			
+		},
+		Metaloid: {
+			
+		},
+		Nonmetals: {
+			
+		},
+		Noble: {
+			
+		},
+		
+		Mono: { prefix: "Mono", mult: { weight: 1, }, },
+		Di: { prefix: "Di", mult: { weight: 2, }, },
+		Duo: { prefix: "Duo", mult: { weight: 2, }, },
+		Tri: { prefix: "Tri", mult: { weight: 3, }, },
+		Tre: { prefix: "Tre", mult: { weight: 3, }, },
+		Tetra: { prefix: "Tetra", mult: { weight: 4, }, },
+		Tetro: { prefix: "Tetro", mult: { weight: 4, }, },
+		Penta: { prefix: "Penta", mult: { weight: 5, }, },
+		Hexa: { prefix: "Hexa", mult: { weight: 6, }, },
+		Sexta: { prefix: "Sexta", mult: { weight: 6, }, },
+		Septa: { prefix: "Septa", mult: { weight: 7, }, },
+		Octa: { prefix: "Octa", mult: { weight: 8, }, },
+		
+		
+	},
+	
+	
+	
+	
+	
+]

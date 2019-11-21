@@ -26,7 +26,7 @@
 	
 	Mineral: {
 		type: "rules",
-		applyStats: [
+		apply: [
 			{ "AtomicMineral": 120, "CompoundMineral": 310, "IonicMineral": 212, },
 		],
 	},
@@ -34,29 +34,104 @@
 	AtomicMineral:{
 		type: "settings",
 		name: "Atomic",
-		applyStats: [ 
+		apply: [ 
+			"Name", 
 			"AtomicCounts", 
-			{ AlkalaiMetal: 3, TransMetal: 20, PostTransMetal: 15, Metaloid: 11, Nonmetals: 20, Noble: 3, },
+			{ AlkalaiMetal: 3, TransMetal: 20, PostTransMetal: 15, Metaloid: 11, Nonmetals: 20, Halogen:15, Noble: 3, },
 		],
 		
 		Counts: {
 			type: "settings",
-			applyStats: {
+			apply: {
 				Mono: 319, 
 				Di: 289, Duo: 11,
 				Tri: 275, Tre: 16,
 				Tetra : 268, Tetro: 13,
 				Penta: 155, 
 				Hexa: 147, Sexta: 7, 
-				Septa: 23,
-				Octa: 17,
-				Nona: 13,
-				Deca: 9, Undeca: 8, Dodeca: 7, Trideca: 6, Tetdeca: 5, Pendeca: 4,  Sexdeca: 3,
+				Septa: 23, Octa: 17, Nona: 13, Deca: 9, 
+				Undeca: 8, Dodeca: 7, Trideca: 6, Tetdeca: 5, Pendeca: 4,  Sexdeca: 3,
 			},
 		},
 		
 		Name: {
 			type: "settings",
+			name: { repeat: 3, apply: "Mid" },
+			prefix: [
+				"hy", "he",
+				"li", "be", "bo", "ca", "car", "ni", "oxy", "flu", "ne",
+				"so", "mag", "alu", "si", "sil", "pho", "su", "sul", "chlo", "ar", "arg",
+				"po", "pot", "ca", "cal", "sca", "scan", "ti", "tit", "titan", 
+					"va", "van", "vana", "chro", "man", "mang", "iro", "co", "ni", "nick",
+					"co", "cu", "cop", "zi", "zin", "ga", "gall", "ge", "germ", "ars", "as",
+					"se", "sel", "bro", "kry",
+				"ru", "stro", "ytt", "zir", "nio", "moly", "te", "tech", "ru", "ruth", 
+					"rho", "pa", "pall", "si", "arg", "arge", "cad", "ind", "ti", "stan",
+					"an", "anti", "stib", "tell", "tellur", "io", "iod", "xe", "xen",
+				"cae", "bar", "lan", "cer", "pra", "prase", "neo", "pro", "sam", "eu", 
+					"euro", "ga", "gado", "te", "ter", "dy", "dys", "ho", "hol", "er", 
+					"erb", "thu", "ytter", "lu", "lute", "ha", "haf", "tan", "ta", "tu",
+					"tu", "tung", "rhe", "os", "ir", "iri", "pla", "plat", "go", "au", 
+					"auru", "me", "mer", "merc", "hy", "hyd", "tha", "le", "plu", "plum",
+					"bi", "bis", "po", "polo", "as", "asta", "ra", "rad",
+				"fra", "fran", "ra", "rad", "act", "ac", "tho", "thor", "pro", "prot",
+					"ur", "ura", "ne", "nep", "nept", "neptu", "am", "ame", "amer", "cu",
+					"cur", "be", "ber", "berk", "ca", "cal", "cali", "ei", "ein", "einst", 
+					"fe", "fer", "ferm", "me", "men", "mend", "no", "nob", "la", "law",
+					"lawe", "ru", "ruth", "du", "dub", "se", "sea", "boh", "ha", "hass",
+					"me", "mei", "meit", "da", "dam", "ro", "roe", "co", "ni", "nih",
+					"niho", "nihon", "fle", "fler",, "flero", "mo", "mos", "mosco", "liv", 
+					"live", "te", "ten", "og", "ogan"
+			],
+			suffix: [
+				//"ese", "gen", "ium", "ine"
+			],		
+			Mid: {
+				suffix: [
+					"dro", "li", 
+					"th", "thi", "ith", "ry", "ery", "ryl", "ryll", "ro", "ar", "bo",
+						"tro", "yg", "or", "ori", "eo",
+					"di", "ne", "nes", "esi", "es", "si", "mi", "min", "ni", "niu",
+						"ili", "lic", "li", "co", "os", "osp", "pho", "oru", "ul", "ulf",
+						"fu", "lo", "ri", "rg", "go", "ta", "ss", "si", "al", "alc", "ci",
+						"ciu", "an", "and", "di", "diu", "ani", "iu", "na", "nad", "di", 
+						"om", "mi", "miu", "ng", "ga", "gan", "ane", "ro", "ob", 
+						"ba", "bal", "al", "ck", "ick", "op", "pp", "pe", "in", "ll",
+						"rm", "ma", "man", "rs", "se", "en", "le", "ni", "mi", "ry",
+						"yp", "ypt", "pto", "to",
+					"bi", "id", "bid", "on", "ont", "nt", "ti", "tt", "tr", "co", "con",
+						"on", "ob", "bi", "ly", "bd", "de", "en", "nu", "ch", "ne", "net",
+						"chn", "the", "odi", "ll", "ad", "adi", "lv", "ve", "ge", "gen", 
+						"dm", "dmi", "miu", "nn", "bi", "biu", "ib", "ibi", "ll", "uri", 
+						"riu", "od", "odi", "di", "en", "eno", "no",
+					"aes", "es", "esi", "siu", "ari", "ar", "riu", "han", "tha", "eri",
+						"ase", "seo", "eo", "se", "od", "ym", "dym", "ody", "met", "eth",
+						"mar", "ari", "rop", "uro", "dol", "oli", "lin", "erb", "biu",
+						"spr", "pro", "siu", "olm", "lm", "mi", "rb", "rbi", "uli",
+						"tt", "ter", "te", "tet", "fn", "fni", "nta", "ant", "tal", 
+						"ung", "ngs", "ng", "gst", "st", "he", "hen", "eni", "sm", "smi",
+						"idi", "diu", "at", "ati", "ti", "tin", "in", "ol", "ur", "ru",
+						"ydr", "dra", "rar", "ar", "ra", "rgy", "gyr", "gy", "yr",
+						"al", "ll", "li", "ea", "is", "ism", "smu", "sm", "mu",
+						"olo", "ol", "lo", "oni", "ni", "sta", "tat", "at", "ad", "do", "ado",
+					"anc", "nc", "ci", "ad", "adi", "ct", "cti", "tin", "ini", 
+						"ori", "ota", "ra", "ani", "an", "niu", "tu", "tun", "uni",
+						"uto", "on", "ton", "mer", "eri", "er", "ici", "eri",
+						"uri", "ur", "ri", "iu", "erk", "kel", "ke", "el", "alf", "lif",
+						"ifo", "orn", "in", "ins", "st", "te", "ein", "ini", "ium",
+						"erm", "rm", "miu", "de", "ele", "evi", "vi", "ev", "de", "del",
+						"nd", "nde", "be", "bel", "eli", "li", "liu", "wre", "ren", 
+						"end", "nd", "the", "her", "erf", "er", "rf", "fo", "for", "ord",
+						"rd", "bn", "bni", "ea", "eab", "abo", "org", "bor", "rg", "bo", "gi",
+						"oh", "ohr", "hr", "ri", "hri", "ss", "ei", "tn", "it", "ner",
+						"eri", "ms", "mst", "sta", "oe", "oen",
+						// Up to atomic#110
+						
+						
+				],
+			},
+			
+			then: "capitalize",
 			
 		},
 		
@@ -91,6 +166,14 @@
 		Sexta: { prefix: "Sexta", mult: { weight: 6, }, },
 		Septa: { prefix: "Septa", mult: { weight: 7, }, },
 		Octa: { prefix: "Octa", mult: { weight: 8, }, },
+		Nona: { prefix: "Nona", mult: { weight: 9, }, },
+		Deca: { prefix: "Deca", mult: { weight: 10, }, },
+		Undeca: { prefix: "Undeca", mult: { weight: 11, }, },
+		Dodeca: { prefix: "Dodeca", mult: { weight: 12, }, },
+		Trideca: { prefix: "Trideca", mult: { weight: 13, }, },
+		Tetdeca: { prefix: "Tetdeca", mult: { weight: 14, }, },
+		Pendeca: { prefix: "Pendeca", mult: { weight: 15, }, },
+		Sexdeca: { prefix: "Sexdeca", mult: { weight: 16, }, },
 		
 		
 	},

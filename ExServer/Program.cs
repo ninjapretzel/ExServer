@@ -20,22 +20,28 @@ public static class Program {
 			return callerPath.Substring(0, callerPath.Replace('\\', '/').LastIndexOf('/'));
 		}
 
+		public static string TopSourceFileDirectory() { return SourceFileDirectory(); }
+
 		public static Server server;
 		public static Client admin;
 		public static MainForm mainForm;
-		
+
 		/// <summary> The main entry point for the application. </summary>
-		[STAThread] static void Main() {
-			
+		[STAThread]
+		static void Main() {
 			try {
 #if DEBUG
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				// Still more visible than doing some weird VS build command hook.
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
+				/*
+				if (Gen.test()) {
+					return;
+				}//*/
 				
 				SelfTest();
 

@@ -715,15 +715,10 @@ namespace Ex {
 				GetService<MapService>().EnterMap(client, info.map, info.position, info.rotation);
 			
 			} else {
-
-
-				
+					
 			}
-
 		}
 #endif
-
-		
 
 		/// <summary> Gets the ConditionalWeakTable for a given entity type. </summary>
 		/// <typeparam name="T"> Generic type of table to get </typeparam>
@@ -992,8 +987,4 @@ namespace Ex {
 
 	}
 	
-
-
-
-
 }

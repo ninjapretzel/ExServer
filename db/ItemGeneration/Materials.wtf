@@ -1,8 +1,4 @@
 {
-	MaterialProperties: {
-		strength, magnetism,
-		conductive, reactive, energy,
-	},
 	
 	IdeasAndStuff:[
 		// Name generator should be able to 
@@ -15,7 +11,16 @@
 		"tisten", "zircon", "barine", "tasinon",
 		"steel",
 	],
+	
+	// Todo: Research and find more quantifiable properties
+	MaterialProperties: {
+		reactivity, density, melting, ionNrg, 
+		malleability, ductility, strength,
+		conductivity, latentEnergy,
+	},
 		
+	// Todo: Decide which of these should be applied by rules, 
+	// or generated materials analysed and tagged afterwords
 	MaterialTags: {
 		fuel, explosive, 
 		metal, metaloid, 
@@ -23,11 +28,16 @@
 		raw, processed, ore, noble,
 	},
 	
-	
+	// This is the actual entry point for the rule...
 	Mineral: {
 		type: "rules",
 		apply: [
-			{ "AtomicMineral": 120, "CompoundMineral": 310, "IonicMineral": 212, },
+			// Weighted choose between rules:
+			{ 
+				AtomicMineral: 120, 
+				// Todo: make these other subrules:
+				//CompoundMineral: 310, IonicMineral: 212, 
+			},
 		],
 	},
 	
@@ -35,20 +45,28 @@
 		type: "settings",
 		name: "Atomic",
 		apply: [ 
+			// Fixed rules are strings (always apply same rule)
 			"Name", 
-			"AtomicCounts", 
-			{ AlkalaiMetal: 3, TransMetal: 20, PostTransMetal: 15, Metaloid: 11, Nonmetals: 20, Halogen:15, Noble: 3, },
+			"Counts", 
+			{ // Weights based on prevelance of each category irl
+				AlkalaiMetal: 6, AlkalaiEarth: 6,
+				TransMetal: 68, PostTransMetal: 12, 
+				Metaloid: 6, Nonmetals: 7, 
+				Halogen: 6, Noble: 7, 
+			},
 		],
 		
 		Counts: {
 			type: "settings",
 			apply: {
-				Mono: 319, 
+				// Not really based on anything, but will select a count appliation.
+				// High duplicity should be fairly rare
+				Mono: 1419, 
 				Di: 289, Duo: 11,
-				Tri: 275, Tre: 16,
-				Tetra : 268, Tetro: 13,
-				Penta: 155, 
-				Hexa: 147, Sexta: 7, 
+				Tri: 222, Tre: 16,
+				Tetra : 155, Tetro: 13,
+				Penta: 45, 
+				Hexa: 37, Sexta: 7, 
 				Septa: 23, Octa: 17, Nona: 13, Deca: 9, 
 				Undeca: 8, Dodeca: 7, Trideca: 6, Tetdeca: 5, Pendeca: 4,  Sexdeca: 3,
 			},
@@ -56,8 +74,10 @@
 		
 		Name: {
 			type: "settings",
-			name: { repeat: 3, apply: "Mid" },
-			prefix: [
+			// Apply 'Mid' rule 2-5 times, 
+			apply: { repeat: { randint:[2,5] }, apply: "Mid" },
+			then: "capitalize",
+			prefixName: [
 				"hy", "he",
 				"li", "be", "bo", "ca", "car", "ni", "oxy", "flu", "ne",
 				"so", "mag", "alu", "si", "sil", "pho", "su", "sul", "chlo", "ar", "arg",
@@ -124,34 +144,49 @@
 						"end", "nd", "the", "her", "erf", "er", "rf", "fo", "for", "ord",
 						"rd", "bn", "bni", "ea", "eab", "abo", "org", "bor", "rg", "bo", "gi",
 						"oh", "ohr", "hr", "ri", "hri", "ss", "ei", "tn", "it", "ner",
-						"eri", "ms", "mst", "sta", "oe", "oen",
-						// Up to atomic#110
-						
-						
+						"eri", "ms", "mst", "sta", "oe", "oen", "tge", "ntg", "nt", "tg",
+						"gen", "ge", "en", "per", "ern", "rni", "nic", "rn", "ic", "ci",
+						"hon", "ho", "on", "oni", "ni", "ler", "le", "er", "ov",
+						"vi", "osc", "os", "sco", "co", "cov", "ovi", "vi", "iv", "ive",
+						"ver", "er", "rm", "rmo", "erm", "mor", "mo", "or", "ori",
+						"nn", "nes", "ne", "es", "ss", "si", "sin", "ga", "gan",
 				],
 			},
 			
-			then: "capitalize",
 			
 		},
 		
 		AlkalaiMetal: {
-			
+			suffix: [ "ium", ],
+			set: {
+				reactivity: { rand: [90, 100], },
+				density: { rand: [30, 100], },
+				melting: { rand: [66, 100], },
+				ionNrg: { rand: [1, 10], },
+				malleability: { rand: [66, 100], },
+				ductility: { rand: [70, 100], },
+				strength: { rand: [40, 100], },
+				conductivity: { rand: [60, 100], }, 
+				latentEnergy: { rand: [10, 100], },
+			},
+		},
+		AlkalaiEarth: {
+			suffix: [ "ium", ],
 		},
 		TransMetal: {
-			
+			suffix: [ "ium", ],
 		},
 		PostTransMetal: {
-			
+			suffix: [ "ium", ],
 		},
 		Metaloid: {
 			
 		},
 		Nonmetals: {
-			
+			suffix: [ "gen", "ium", "on", "ic", "ous", "ur", ],
 		},
 		Noble: {
-			
+			suffix: [ "on", ],
 		},
 		
 		Mono: { prefix: "Mono", mult: { weight: 1, }, },

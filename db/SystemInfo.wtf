@@ -1,11 +1,16 @@
+// Can I ask you something
+// If you could have one dream, what would it be?
 {
-	game: "Eternus",
+	// To fly away on the wings of time
+	// And then I can be in everywhen
+	game: "EternuS",
 	tickrate: 100,
 	is3d: true,
 	
 	test1: { ayy: 1, bee: 2, cee: 3 },
 	test2: [ 1, 2, 3, 4, 5, 6 ],
 	
+
 	kills: 0,
 	contribution: 0,
 	

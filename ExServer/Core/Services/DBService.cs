@@ -21,6 +21,7 @@ using MongoDB.Bson.Serialization;
 using Ex.Utils;
 using System.IO;
 using Ex.Data;
+using MongoDB.Bson.Serialization.Serializers;
 #endif
 
 namespace Ex {
@@ -33,6 +34,7 @@ namespace Ex {
 		/// <summary> Relational guid </summary>
 		public Guid guid { get; set; }
 	}
+	
 #endif 
 
 	/// <summary> Service type for holding database connection. Empty on client. </summary>
@@ -71,9 +73,30 @@ namespace Ex {
 		public override void OnEnable() {
 		}
 
-		private static string ForwardSlashPath(string str) {
-			return str.Replace('\\', '/');
+		private static string Filename(string filepath) {
+			return FromLast("/", ForwardSlashPath(filepath));
 		}
+		private static string Folder(string filepath) {
+			return UpToLast(filepath, "/");
+		}
+
+		private static string UpToLast(string str, string search) {
+			if (str.Contains(search)) {
+				int ind = str.LastIndexOf(search);
+				return str.Substring(0, ind);
+			}
+			return str;
+		}
+		private static string ForwardSlashPath(string path) { return path.Replace('\\', '/'); }
+		private static string FromLast(string str, string search) {
+			if (str.Contains(search) && !str.EndsWith(search)) {
+				int ind = str.LastIndexOf(search);
+
+				return str.Substring(ind + 1);
+			}
+			return "";
+		}
+
 
 		/// <summary> Reseeds the DB service, given it is connected, with instructions in a given directory. </summary>
 		/// <param name="dir"> Directory to reseed from </param>
@@ -182,6 +205,7 @@ namespace Ex {
 					}
 
 					if (data is JsonObject) {
+						data["filename"] = UpToLast(FromLast(ForwardSlashPath(fpath), "/"), ".");
 						InsertData(database, collection, data as JsonObject);
 					} else if (data is JsonArray) {
 						InsertData(database, collection, data as JsonArray);
@@ -209,6 +233,7 @@ namespace Ex {
 				}
 
 				if (data is JsonObject) {
+					data["filename"] = UpToLast(FromLast(ForwardSlashPath(file), "/"), ".");
 					InsertData(database, collection, data as JsonObject);
 				} else if (data is JsonArray) {
 					InsertData(database, collection, data as JsonArray);
@@ -260,7 +285,72 @@ namespace Ex {
 			
 			MDB db = dbClient.GetDatabase(database);
 			db.GetCollection<BDoc>(collection).InsertOne(doc);
+		}
 
+		/// <summary> Gets raw data from the DB as a JsonObject </summary>
+		/// <param name="database"> Database to get out of </param>
+		/// <param name="collection"> Collection to get out of </param>
+		/// <param name="id"> GUID to get </param>
+		/// <returns> Data matching query </returns>
+		public JsonObject GetData(string database, string collection, Guid id) {
+			var filter = Builders<BsonDocument>.Filter.Eq(nameof(DBEntry.guid), id);
+			BDoc result = dbClient.GetDatabase(database).GetCollection<BDoc>(collection).Find(filter).FirstOrDefault();
+
+			return FromBson(result);
+		}
+		/// <summary> Gets raw data from the DB as a JsonObject </summary>
+		/// <param name="database"> Database to get out of </param>
+		/// <param name="collection"> Collection to get out of </param>
+		/// <param name="idField"> ID field to match </param>
+		/// <param name="id"> ID to get from field </param>
+		/// <returns> Data matching query </returns>
+		public JsonObject GetData(string database, string collection, string idField, string id) {
+			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
+			BDoc result = dbClient.GetDatabase(database).GetCollection<BDoc>(collection).Find(filter).FirstOrDefault();
+
+			return FromBson(result);
+		}
+
+
+		/// <summary> Converts a <see cref="BDoc"/> into a <see cref="JsonObject"/></summary>
+		/// <param name="data"> Data object to convert </param>
+		/// <returns> Converted data</returns>
+		private JsonObject FromBson(BDoc data) {
+			if (data == null) { return null; }
+			JsonObject obj = new JsonObject();
+			foreach (var pair in data) {
+				string key = pair.Name;
+				BsonValue value = pair.Value;
+
+				if (value.IsNumeric) { obj[key] = value.AsDouble; }
+				else if (value.IsString) { obj[key] = value.AsString; }
+				else if (value.IsBoolean) { obj[key] = value.AsBoolean; }
+				else if (value.IsBsonDocument) { obj[key] = FromBson(value.AsBsonDocument); }
+				else if (value.IsBsonArray) { obj[key] = FromBson(value.AsBsonArray); }
+				else if (value.IsBsonNull) { obj[key] = JsonNull.instance; }
+			}
+				
+
+			return obj;
+		}
+
+		/// <summary> Converts a <see cref="BsonArray"/> into a <see cref="JsonArray"/></summary>
+		/// <param name="doc"> Data object to convert </param>
+		/// <returns> Converted data</returns>
+		private JsonArray FromBson(BsonArray data) {
+			if (data == null) { return null; }
+			JsonArray arr = new JsonArray();
+
+			foreach (var value in data) {
+				if (value.IsNumeric) { arr.Add(value.AsDouble); }
+				else if (value.IsString) { arr.Add(value.AsString); }
+				else if (value.IsBoolean) { arr.Add(value.AsBoolean); }
+				else if (value.IsBsonDocument) { arr.Add(FromBson(value.AsBsonDocument)); }
+				else if (value.IsBsonArray) { arr.Add(FromBson(value.AsBsonArray)); }
+				else if (value.IsBsonNull) { arr.Add(JsonNull.instance); }
+			}
+
+			return arr;
 		}
 
 		/// <summary> Converts a <see cref="JsonObject"/> into a <see cref="BDoc"/></summary>
@@ -305,6 +395,8 @@ namespace Ex {
 			return arr;
 		}
 
+
+
 		/// <summary> Connects the database to a given mongodb server. </summary>
 		/// <param name="location"> Location to connect to, defaults to default mongodb port on localhost </param>
 		public DBService Connect(string location = "mongodb://localhost:27017") {
@@ -342,6 +434,8 @@ namespace Ex {
 		public IMongoCollection<T> Collection<T>(string databaseName) where T : DBEntry {
 			return dbClient.GetDatabase(databaseName).GetCollection<T>(typeof(T).Name);
 		}
+
+		
 
 		/// <summary> Get a database entry by a general relational guid </summary>
 		/// <typeparam name="T"> Generic type of DBEntry Table to get from </typeparam>
@@ -474,16 +568,20 @@ namespace Ex {
 			}
 		}
 #endif
-	}
 	
 #if !UNITY
-	public static class BsonHelpers {
-		/// <summary> Used to evaluate a query to a BsonDocument object which can be used in most places in MongoDB's API </summary>
-		/// <param name="query"> Object literal query </param>
-		/// <returns> BsonDocument representing query </returns>
-		public static BDoc Query(string query) {
-			return MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BDoc>(query);
+		public static class BsonHelpers {
+			/// <summary> Used to evaluate a query to a BsonDocument object which can be used in most places in MongoDB's API </summary>
+			/// <param name="query"> Object literal query </param>
+			/// <returns> BsonDocument representing query </returns>
+			public static BDoc Query(string query) {
+				return MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BDoc>(query);
+			}
 		}
-	}
+
 #endif
+		
+	}
+
+
 }

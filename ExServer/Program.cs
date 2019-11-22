@@ -38,15 +38,10 @@ public static class Program {
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
-				/*
-				if (Gen.test()) {
-					return;
-				}//*/
-				
-				SelfTest();
-
+				SetupLogger();
 				StaticSetup();
-
+				SelfTest();
+				
 				ActualProgram();
 				
 				// Console.Read();
@@ -60,6 +55,9 @@ public static class Program {
 		static void StaticSetup() {
 
 			JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
+			try {
+				DBService.RegisterSerializers();
+			} catch (Exception e) { Log.Error("Error registering DB Serializers", e); }
 
 		}
 		
@@ -68,13 +66,9 @@ public static class Program {
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 			mainForm = new MainForm();
-			try {
-				DBService.RegisterSerializers();
-			} catch (Exception e) { Log.Error("Error", e); }
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Console.WriteLine(Directory.GetCurrentDirectory());
-			SetupLogger();
 			SetupServer();
 			server.Start();
 
@@ -83,8 +77,8 @@ public static class Program {
 			SetupAdminClient();
 			Console.WriteLine("Server started, showing window.");
 
-
 			Application.Run(mainForm);
+
 
 			Console.WriteLine("Window closed, Terminating server.");
 			admin.server.Stop();
@@ -97,29 +91,37 @@ public static class Program {
 		private static void SetupLogger() {
 			Log.ignorePath = SourceFileDirectory();
 			Log.fromPath = "ExServer";
+			Log.logLevel = LogLevel.Info;
 			
 			Log.logHandler += (tag, msg) => {
-				var msgs = msg.ToString().Rich();
-				msgs.Add(new RichTextBoxMessage("\n"));
-				mainForm.Log(msgs);
+				if (mainForm != null) {
+					var msgs = msg.ToString().Rich();
+					msgs.Add(new RichTextBoxMessage("\n"));
+					mainForm.Log(msgs);
+				}
 			};
 			Log.logHandler += (tag, msg) => {
 				Console.WriteLine($"{tag}: {msg}");
 			};
 			
-			Action logstuff = () => {
+			Action logStuff = () => {
 				Log.Verbose("VERBOSE VERBOSE VERBOSE");
 				Log.Debug("Debug. Debug.");
 				Log.Info("Information.");
 				Log.Warning("!!!!ATCHUNG!!!!");
 				Log.Error("Oh Shi-");
 			};
-			logstuff();
+			// logStuff();
 
-			Log.Info("Color Test." +
-				"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" +
-				"\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" +
-				"\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
+			Action logColors = () => {
+				Log.Info("Color Test." +
+					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" +
+					"\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" +
+					"\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
+			};
+				
+			logColors();
+
 		}
 
 		private static void SetupServer() {
@@ -131,8 +133,8 @@ public static class Program {
 			server.AddService<EntityService>();
 			server.AddService<MapService>();
 
-
 			var sync = server.AddService<SyncService>();
+
 
 			{
 				var debugSync = sync.Context("debug");

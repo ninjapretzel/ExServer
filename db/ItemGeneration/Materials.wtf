@@ -34,14 +34,14 @@
 		apply: [
 			// Weighted choose between rules:
 			{ 
-				AtomicMineral: 120, 
+				Atomic: 120, 
 				// Todo: make these other subrules:
 				//CompoundMineral: 310, IonicMineral: 212, 
 			},
 		],
 	},
 	
-	AtomicMineral:{
+	Atomic:{
 		type: "settings",
 		name: "Atomic",
 		apply: [ 
@@ -75,7 +75,7 @@
 		Name: {
 			type: "settings",
 			// Apply 'Mid' rule 2-5 times, 
-			apply: { repeat: { randint:[2,5] }, apply: "Mid" },
+			apply: { repeat: [2,6], rule: "Mid" },
 			then: "capitalize",
 			prefixName: [
 				"hy", "he",

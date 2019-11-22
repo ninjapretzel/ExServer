@@ -273,6 +273,13 @@ namespace Ex {
 					}
 					
 				}
+				catch (SocketException se) {
+					if (se.ErrorCode == unchecked((int)0x80004005)) {
+						// Blocking operation was explictly stopped via cancel.
+						Log.Info("\\eDetected WSACancelBlockingCall");
+						break;
+					}
+				}
 				catch (Exception e) {
 					Log.Error(e, "Socket Listener had internal failure. Retrying.");
 				}
@@ -396,7 +403,7 @@ namespace Ex {
 
 			try {
 				while (!client.closed && client.outgoing.TryDequeue(out msg)) {
-					Log.Info($"Client {client.identity} sending message {msg}");
+					Log.Verbose($"Client {client.identity} sending message {msg}");
 
 					msg += RPCMessage.EOT;
 					byte[] message = msg.ToBytesUTF8();

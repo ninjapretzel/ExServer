@@ -70,9 +70,11 @@
     <Compile Include="Core\Client.cs" />
     <Compile Include="Core\Data\SimplexNoise.cs" />
     <Compile Include="Core\Data\UberData.cs" />
+    <Compile Include="Core\Generator\Gen.cs" />
     <Compile Include="Core\Logging.cs" />
     <Compile Include="Core\RPCMessage.cs" />
     <Compile Include="Core\Server.cs" />
+    <Compile Include="Core\ServerTests.cs" />
     <Compile Include="Core\Service.cs" />
     <Compile Include="Core\Services\CoreService.cs" />
     <Compile Include="Core\Services\DBService.cs" />

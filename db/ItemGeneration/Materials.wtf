@@ -189,32 +189,32 @@
 			suffix: [ "on", ],
 		},
 		
-		Mono: { prefix: "Mono", mult: { weight: 1, }, },
-		Di: { prefix: "Di", mult: { weight: 2, }, },
-		Duo: { prefix: "Duo", mult: { weight: 2, }, },
-		Tri: { prefix: "Tri", mult: { weight: 3, }, },
-		Tre: { prefix: "Tre", mult: { weight: 3, }, },
-		Tetra: { prefix: "Tetra", mult: { weight: 4, }, },
-		Tetro: { prefix: "Tetro", mult: { weight: 4, }, },
-		Penta: { prefix: "Penta", mult: { weight: 5, }, },
-		Hexa: { prefix: "Hexa", mult: { weight: 6, }, },
-		Sexta: { prefix: "Sexta", mult: { weight: 6, }, },
-		Septa: { prefix: "Septa", mult: { weight: 7, }, },
-		Octa: { prefix: "Octa", mult: { weight: 8, }, },
-		Nona: { prefix: "Nona", mult: { weight: 9, }, },
-		Deca: { prefix: "Deca", mult: { weight: 10, }, },
-		Undeca: { prefix: "Undeca", mult: { weight: 11, }, },
-		Dodeca: { prefix: "Dodeca", mult: { weight: 12, }, },
-		Trideca: { prefix: "Trideca", mult: { weight: 13, }, },
-		Tetdeca: { prefix: "Tetdeca", mult: { weight: 14, }, },
-		Pendeca: { prefix: "Pendeca", mult: { weight: 15, }, },
-		Sexdeca: { prefix: "Sexdeca", mult: { weight: 16, }, },
-		
 		
 	},
 	
 	
 	
+	
+	Mono: { prefix: "Mono", mult: { weight: 1, }, },
+	Di: { prefix: "Di", mult: { weight: 2, }, },
+	Duo: { prefix: "Duo", mult: { weight: 2, }, },
+	Tri: { prefix: "Tri", mult: { weight: 3, }, },
+	Tre: { prefix: "Tre", mult: { weight: 3, }, },
+	Tetra: { prefix: "Tetra", mult: { weight: 4, }, },
+	Tetro: { prefix: "Tetro", mult: { weight: 4, }, },
+	Penta: { prefix: "Penta", mult: { weight: 5, }, },
+	Hexa: { prefix: "Hexa", mult: { weight: 6, }, },
+	Sexta: { prefix: "Sexta", mult: { weight: 6, }, },
+	Septa: { prefix: "Septa", mult: { weight: 7, }, },
+	Octa: { prefix: "Octa", mult: { weight: 8, }, },
+	Nona: { prefix: "Nona", mult: { weight: 9, }, },
+	Deca: { prefix: "Deca", mult: { weight: 10, }, },
+	Undeca: { prefix: "Undeca", mult: { weight: 11, }, },
+	Dodeca: { prefix: "Dodeca", mult: { weight: 12, }, },
+	Trideca: { prefix: "Trideca", mult: { weight: 13, }, },
+	Tetdeca: { prefix: "Tetdeca", mult: { weight: 14, }, },
+	Pendeca: { prefix: "Pendeca", mult: { weight: 15, }, },
+	Sexdeca: { prefix: "Sexdeca", mult: { weight: 16, }, },
 	
 	
 }

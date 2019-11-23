@@ -74,6 +74,7 @@ namespace Ex {
 
 		private class State {
 			public Random random;
+			public List<string> path;
 			public JsonObject result;
 			public JsonObject lastHistory { get { return genHistory.Get<JsonObject>(genHistory.Count-1); } }
 			public JsonArray genHistory { get { return result.Get<JsonArray>("genHistory"); } }
@@ -82,6 +83,7 @@ namespace Ex {
 
 				// Resulting creation + history
 				result = new JsonObject("genHistory", new JsonArray());
+				path = new List<string>();
 				
 				long seed = igSeed.seed;
 				long hi = (seed >> 32) & 0x00000000FFFFFFFF;
@@ -120,8 +122,15 @@ namespace Ex {
 				return "";
 			}
 
-			public void NextHistory(string newPath) {
-				genHistory.Add(new JsonObject("path", newPath, "rolls", new JsonObject()));
+			public void PushHistory(string newPath) {
+				path.Add(newPath);
+				genHistory.Add(new JsonObject("path", string.Join(".", path), "rolls", new JsonObject()));
+			}
+
+			public void PopHistory() {
+				if (path.Count > 0) {
+					path.RemoveAt(path.Count - 1);
+				}
 			}
 		}
 
@@ -138,11 +147,38 @@ namespace Ex {
 
 			// The rule is to add the empty history for the next rule before calling Apply
 			// This allows Apply to figure out exactly where in the chain it is.
-			state.NextHistory(startingRule);
+			state.PushHistory(startingRule);
 			Apply(state, startingRule, ruleset);
+			state.PopHistory();
 
 
 			return state.result;
+		}
+
+		private void ApplyRule(State state, JsonObject rule) {
+
+			Console.WriteLine("Applying rule " + state.lastHistory["path"].stringVal);
+
+			var rolls = state.lastHistory.Get<JsonObject>("rolls");
+			bool firstTime = rolls.Count == 0;
+			// Record a roll so we don't try to recurse when replaying history, even for rules with no rolls.
+			if (firstTime) { rolls["didIt_"] = true; }
+
+			// TBD: actually modify the result in state with what the rule describes...
+
+			if (firstTime) {
+				// We recursing, grab the callstack!
+				if (rule.ContainsKey("apply")) {
+					if (rule["apply"].isString) {
+						state.PushHistory("");
+					}
+					Apply(state, rule["apply"], rule);
+					if (rule["apply"].isString) {
+						state.PopHistory();
+					}
+				}
+			}
+
 		}
 
 		private void Apply(State state, JsonValue thing, JsonObject rule) {
@@ -153,6 +189,7 @@ namespace Ex {
 				Console.WriteLine($"Applying String rule at {path} => {thing.stringVal}");
 				var nextRule = FindRule(rule, thing.stringVal);
 				// Console.WriteLine($"Rule is {nextRule.PrettyPrint()}");
+				
 				if (nextRule is JsonObject) {
 					ApplyRule(state, nextRule as JsonObject);
 				}
@@ -164,9 +201,12 @@ namespace Ex {
 				foreach (var val in (thing as JsonArray)) {
 					if (val.isString) {
 						// If we're at a string, add it then apply it, since the next Apply will invoke a rule.
-						state.NextHistory($"{path}.{val.stringVal}");
+						state.PushHistory(val.stringVal);
 					}
 					Apply(state, val, rule);
+					if (val.isString) {
+						state.PopHistory();
+					}
 				}
 			}
 			// If we're in an object, we need to make a decision of what name to apply,
@@ -192,7 +232,9 @@ namespace Ex {
 						Console.WriteLine($"Doing Repeat rule at {path} => {ruleName} x {reps.ToString()}");
 						int rep = reps.intVal;
 						for (int i = 0; i < rep; i++) {
-							state.NextHistory($"{path}.{ruleName}");
+							state.PushHistory(ruleName);
+							Apply(state, ruleName, rule);
+							state.PopHistory();
 						}
 					}
 
@@ -201,32 +243,13 @@ namespace Ex {
 				} else {
 					string chosen = state.WeightedChoose(thing as JsonObject);
 					Console.WriteLine($"Applying Weighted Choice rule at {path} => {chosen}");
-					state.NextHistory($"{path}.{chosen}");
+					state.PushHistory(chosen);
 					Apply(state, chosen, rule);
+					state.PopHistory();
 				}
 			}
 		}
 
-		private void ApplyRule(State state, JsonObject rule) {
-
-			var rolls = state.lastHistory.Get<JsonObject>("rolls");
-			bool firstTime = rolls.Count == 0;
-			// Record a roll so we don't try to recurse when replaying history, even for rules with no rolls.
-			if (firstTime) { rolls["didIt_"] = true; }
-
-			// TBD: actually modify the result in state with what the rule describes...
-
-			if (firstTime) {
-				// We recursing, grab the callstack!
-				if (rule.ContainsKey("apply")) {
-					if (rule["apply"].isString) {
-						state.NextHistory("");
-					}
-					Apply(state, rule["apply"], rule);
-				}
-			}
-
-		}
 
 		/// <summary> Helper method to locate nested information. </summary>
 		/// <param name="context"> Object to start search for </param>

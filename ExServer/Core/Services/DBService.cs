@@ -226,17 +226,23 @@ namespace Ex {
 					Log.Warning($"Seeder could not find {{{file}}}.", e);
 				}
 
-				JsonValue data = Json.Parse(json);
-				if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-					Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
-					continue;
-				}
+				try {
+					JsonValue data = Json.Parse(json);
+				
+					if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+						Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
+						continue;
+					}
 
-				if (data is JsonObject) {
-					data["filename"] = UpToLast(FromLast(ForwardSlashPath(file), "/"), ".");
-					InsertData(database, collection, data as JsonObject);
-				} else if (data is JsonArray) {
-					InsertData(database, collection, data as JsonArray);
+					if (data is JsonObject) {
+						data["filename"] = UpToLast(FromLast(ForwardSlashPath(file), "/"), ".");
+						InsertData(database, collection, data as JsonObject);
+					} else if (data is JsonArray) {
+						InsertData(database, collection, data as JsonArray);
+					}
+
+				} catch (Exception e) {
+					Log.Warning($"Seeder could not parse {{{file}}}.", e);
 				}
 			}
 		}

@@ -364,10 +364,20 @@ namespace BakaTest {
 
 		private static MethodInfo GetCleanupMethod(this Type type) {
 			var cleanup = type.GetMethod("Clean", ALL_STATIC);
-
 			if (cleanup == null || cleanup.GetParameters().Length != 0) { return null; }
-
 			return cleanup;
+		}
+		
+		private static MethodInfo GetBeforeAll(this Type type) {
+			var before = type.GetMethod("BEFORE", ALL_STATIC);
+			if (before == null || before.GetParameters().Length != 0) { return null; }
+			return before;
+		}
+		
+		private static MethodInfo GetAfterAll(this Type type) {
+			var after = type.GetMethod("AFTER", ALL_STATIC);
+			if (after == null || after.GetParameters().Length != 0) { return null; }
+			return after;
 		}
 
 		private class AssertFailed : Exception {
@@ -405,14 +415,14 @@ namespace BakaTest {
 						UnityEngine.Debug.LogError("Error during cleanup");
 						UnityEngine.Debug.LogError(e);
 						#else
-						Console.WriteLine("Error during cleanup");
-						Console.WriteLine(e);
+						Log($"Error during cleanup for {testType}: ");
+						Log(e);
 						#endif
 
 					}
 				}
 			};
-
+		
 			var empty = new object[0];
 			MemoryStream logStream = new MemoryStream();
 			Encoding encoding = Encoding.ASCII;
@@ -423,6 +433,11 @@ namespace BakaTest {
 			Out = logWriter;
 			Log($"Testing for type {testType}");
 			Log("Testing Log Follows:");
+
+			try { testType.GetBeforeAll()?.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
+				Log($"Failed to invoke BEFORE on {testType}: ");
+				Log(e);
+			}
 
 			foreach (var test in tests) {
 				Log("Running (" + test.Name + ")");
@@ -460,6 +475,11 @@ namespace BakaTest {
 					Log("\n");
 				}
 				
+			}
+
+			try { testType.GetAfterAll()?.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
+				Console.WriteLine($"Failed to invoke AFTER on {testType}: ");
+				Console.WriteLine(e);
 			}
 
 			logWriter.Flush();

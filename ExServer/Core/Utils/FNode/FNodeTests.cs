@@ -229,11 +229,16 @@ public static class FNode_Tests {
 	}
 
 	public static void TestSerialization() {
-		{
-			var root = SetupData1();
-			JsonObject json = FF.Serialize(root);
-			// Debug.Log(json.PrettyPrint());
-			string expected = @"{
+		// Only works if values are printed in the order we expect, so we force Dictionary<> to be used.
+		var prev = JsonObject.DictionaryGenerator;
+		JsonObject.DictionaryGenerator = ()=>{return new Dictionary<JsonString, JsonValue>(); };
+		try {
+
+			{
+				var root = SetupData1();
+				JsonObject json = FF.Serialize(root);
+				// Debug.Log(json.PrettyPrint());
+				string expected = @"{
 	""data"":""hi"",
 	""children"":
 	{
@@ -259,13 +264,15 @@ public static class FNode_Tests {
 		}
 	}
 }";
-			json.PrettyPrint().ShouldBe(expected);
-			FF reconstructed = FF.Deserialize(json);
+				json.PrettyPrint().ShouldBe(expected);
+				FF reconstructed = FF.Deserialize(json);
 
-			reconstructed.RecursiveEquals(root).ShouldBe(true);
+				reconstructed.RecursiveEquals(root).ShouldBe(true);
 
+			}
+		} finally {
+			JsonObject.DictionaryGenerator = prev;
 		}
-
 	}
 
 }

@@ -73,24 +73,31 @@ public static class Server_Tests {
 	}
 
 	public static void Test_Integrated_Generator() {
+
 		var testData = DefaultSetup();
+		// defer CleanUp(testData);
+		try {
 
-		var db = testData.server.GetService<DBService>();
-		var data = db.GetData("Content", "ItemGeneration", "filename", "Materials");
+
+			var db = testData.server.GetService<DBService>();
+			var data = db.GetData("Content", "ItemGeneration", "filename", "Materials");
 		
-		var gen = new Generator(data);
+			var gen = new Generator(data);
 		
-		ItemGenSeed igSeed_1_0 = new ItemGenSeed(Guid.Parse("3f162ba3-d167-4888-a26b-c193615e2af1"));
-		ItemGenSeed igSeed_2_0 = new ItemGenSeed(Guid.Parse("819f5900-9794-4d64-9aa9-e45e0dae9cde"));
-		ItemGenSeed igSeed_2_1 = igSeed_2_0.Next();
+			ItemGenSeed igSeed_1_0 = new ItemGenSeed(Guid.Parse("3f162ba3-d167-4888-a26b-c193615e2af1"));
+			ItemGenSeed igSeed_2_0 = new ItemGenSeed(Guid.Parse("819f5900-9794-4d64-9aa9-e45e0dae9cde"));
+			ItemGenSeed igSeed_2_1 = igSeed_2_0.Next();
 
-		var result = gen.Generate("Mineral", igSeed_1_0);
+			var result = gen.Generate("Mineral", igSeed_1_0);
 
-		Console.WriteLine(result.PrettyPrint());
+			Console.WriteLine(result.PrettyPrint());
 
+		} finally {
+
+			CleanUp(testData);
+		}
 		
 
-		CleanUp(testData);
 	}
 	
 }

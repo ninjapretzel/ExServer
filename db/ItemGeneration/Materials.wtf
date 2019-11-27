@@ -1,4 +1,8 @@
 {
+	type: "Material",
+	initialize: {
+		
+	},
 	
 	IdeasAndStuff:[
 		// Name generator should be able to 
@@ -12,11 +16,38 @@
 		"steel",
 	],
 	
-	// Todo: Research and find more quantifiable properties
+	// Todo: Maybe research and find more quantifiable properties?
+	// Each of these should be described in a [0, 1] range of relative measurements.
 	MaterialProperties: {
-		reactivity, density, melting, ionNrg, 
-		malleability, ductility, strength,
-		conductivity, latentEnergy,
+		density, 		// Relative Density at STP compared to other materials
+		// This determines  mass per volume, and volume per mass, like IRL
+		latentEnergy,	// Relative 'free' energy stored which can be used 
+		// This is used when converting atomic materials into energy as fuel.
+		// like the IRL iron-peak + mass-energy relationship for fusion/fission
+		// Except this is used to completely convert the mass into energy.
+		
+		ionizeEnergy,	// Relative energy requirement to strip electrons from core
+		// This is used during energetic synthesis to energy requirement 
+		// for an element to ionically bond with a partner.
+		// Some crafting recipies may require inputs to fit a range.
+		reactivity,		// Relative propensity to react with other elements.
+		// This is used during intert synthesis to determine if an element can bond with a partner.
+		// SOme crafting recipies may require inputs to fit a range.
+		conductivity,	// Relative ability to conduct electricity
+		// Used to determine if the material is:
+		// 		an insulator (<.33)
+		//		a semiconductor (.33-.66)
+		//		or conductor (>.66)
+		magnetism, 		// Relative propensity for ferromagnetism
+		
+		malleability,	// Relative ability to be compressed/stretched without fracture/rupture
+		hardness,		// Relative material hardness (mohs scale) 
+		// These are used for determining the strength of products constructred
+		// The overall toughness of a material requires both high hardness and malleability
+		// Some products require one over the other, while others benefit from both.
+		// A more malleable material is almost always cheaper to use in production.
+		
+		
 	},
 		
 	// Todo: Decide which of these should be applied by rules, 
@@ -31,6 +62,8 @@
 	// This is the actual entry point for the rule...
 	Mineral: {
 		type: "rules",
+		// initialize all of these to fixed stats of 0
+		fstat: { MaterialProperties: 0 },
 		apply: [
 			// Weighted choose between rules:
 			{ 
@@ -51,10 +84,14 @@
 			{ // Weights based on prevelance of each category irl
 				AlkalaiMetal: 6, AlkalaiEarth: 6,
 				TransMetal: 68, PostTransMetal: 12, 
-				Metaloid: 6, Nonmetals: 7, 
-				Halogen: 6, Noble: 7, 
+				//Metaloid: 6, Nonmetals: 7, 
+				//Halogen: 6, Noble: 7, 
 			},
 		],
+		fstat: {
+			weight: [1, 250],
+		},
+		
 		
 		Counts: {
 			type: "settings",
@@ -74,10 +111,10 @@
 		
 		Name: {
 			type: "settings",
-			// Apply 'Mid' rule 2-5 times, 
-			apply: { repeat: [2,6], rule: "Mid" },
-			then: "capitalize",
-			prefixName: [
+			// Apply 'Mid' a few times
+			apply: { repeat: [0,5], rule: "Mid" },
+			extras: [ "capitalize" ],
+			prefix: [
 				"hy", "he",
 				"li", "be", "bo", "ca", "car", "ni", "oxy", "flu", "ne",
 				"so", "mag", "alu", "si", "sil", "pho", "su", "sul", "chlo", "ar", "arg",
@@ -102,10 +139,7 @@
 					"me", "mei", "meit", "da", "dam", "ro", "roe", "co", "ni", "nih",
 					"niho", "nihon", "fle", "fler",, "flero", "mo", "mos", "mosco", "liv", 
 					"live", "te", "ten", "og", "ogan"
-			],
-			suffix: [
-				//"ese", "gen", "ium", "ine"
-			],		
+			],	
 			Mid: {
 				suffix: [
 					"dro", "li", 
@@ -157,27 +191,73 @@
 		},
 		
 		AlkalaiMetal: {
-			suffix: [ "ium", ],
-			set: {
-				reactivity: { rand: [90, 100], },
-				density: { rand: [30, 100], },
-				melting: { rand: [66, 100], },
-				ionNrg: { rand: [1, 10], },
-				malleability: { rand: [66, 100], },
-				ductility: { rand: [70, 100], },
-				strength: { rand: [40, 100], },
-				conductivity: { rand: [60, 100], }, 
-				latentEnergy: { rand: [10, 100], },
-			},
+			suffix: { thium, ssium, },
+			set: { stpState: "Solid", },
+			frand: {
+				// Each one of these is in an overall [0, 1] range.
+				density:		[0.455, 0.600],
+				latentEnergy:	[0.255, 0.800],
+				magnetism:		[0.123, 0.456],
+				
+				ionizeEnergy:	[0.125, 0.330],
+				reactivity:		[0.950, 0.990],
+				conductivity:	[0.800, 0.990], 
+				
+				malleability:	[0.750, 0.990],
+				hardness:		[0.700, 0.990],
+			}
 		},
 		AlkalaiEarth: {
-			suffix: [ "ium", ],
+			suffix: { llium, rium, },
+			set: { stpState: "Solid", },
+			frand: {
+				density:		[0.550, 0.650],
+				latentEnergy:	[0.250, 0.880],
+				
+				ionizeEnergy:	[0.250, 0.440],
+				reactivity:		[0.850, 0.950],
+				conductivity:	[0.800, 0.990], 
+				magnetism:		[0.234, 0.567],
+				
+				malleability:	[0.770, 0.990],
+				hardness:		[0.700, 0.990],
+			}
 		},
 		TransMetal: {
-			suffix: [ "ium", ],
+			// Transition metals tend to have varied and odd endings.
+			suffix: { ron, kel, alt, er, ery, nc, old, ver, ten, nun,
+				nium: 3, mium: 3, dium: 3, bium: 2, },
+			// One IRL T-metal liquid at STP
+			set: { stpState: { Solid: 67, Liquid: 1 }, },
+			frand: {
+				density:		[0.800, 0.990],
+				latentEnergy:	[0.120, 0.990],
+				
+				ionizeEnergy:	[0.360, 0.770],
+				reactivity:		[0.350, 0.650],
+				conductivity:	[0.770, 0.990], 
+				magnetism:		[0.456, 0.999],
+				
+				malleability:	[0.770, 0.990],
+				hardness:		[0.700, 0.990],
+			}
 		},
 		PostTransMetal: {
-			suffix: [ "ium", ],
+			suffix: { in, n, ad, uth, th, vium, zium, },
+			set: { stpState: { Solid, }, },
+			frand: {
+				density:		[0.850, 0.999],
+				latentEnergy:	[0.120, 0.999],
+				
+				ionizeEnergy:	[0.360, 0.770],
+				reactivity:		[0.350, 0.550],
+				conductivity:	[0.770, 0.990], 
+				magnetism:		[0.345, 0.678],
+				
+				malleability:	[0.770, 0.990],
+				hardness:		[0.700, 0.990],
+				
+			}
 		},
 		Metaloid: {
 			
@@ -195,26 +275,26 @@
 	
 	
 	
-	Mono: { prefix: "Mono", mult: { weight: 1, }, },
-	Di: { prefix: "Di", mult: { weight: 2, }, },
-	Duo: { prefix: "Duo", mult: { weight: 2, }, },
-	Tri: { prefix: "Tri", mult: { weight: 3, }, },
-	Tre: { prefix: "Tre", mult: { weight: 3, }, },
-	Tetra: { prefix: "Tetra", mult: { weight: 4, }, },
-	Tetro: { prefix: "Tetro", mult: { weight: 4, }, },
-	Penta: { prefix: "Penta", mult: { weight: 5, }, },
-	Hexa: { prefix: "Hexa", mult: { weight: 6, }, },
-	Sexta: { prefix: "Sexta", mult: { weight: 6, }, },
-	Septa: { prefix: "Septa", mult: { weight: 7, }, },
-	Octa: { prefix: "Octa", mult: { weight: 8, }, },
-	Nona: { prefix: "Nona", mult: { weight: 9, }, },
-	Deca: { prefix: "Deca", mult: { weight: 10, }, },
-	Undeca: { prefix: "Undeca", mult: { weight: 11, }, },
-	Dodeca: { prefix: "Dodeca", mult: { weight: 12, }, },
-	Trideca: { prefix: "Trideca", mult: { weight: 13, }, },
-	Tetdeca: { prefix: "Tetdeca", mult: { weight: 14, }, },
-	Pendeca: { prefix: "Pendeca", mult: { weight: 15, }, },
-	Sexdeca: { prefix: "Sexdeca", mult: { weight: 16, }, },
+	Mono: { },
+	Di: { prefix: "Di-", mult: { weight: 2, }, },
+	Duo: { prefix: "Duo-", mult: { weight: 2, }, },
+	Tri: { prefix: "Tri-", mult: { weight: 3, }, },
+	Tre: { prefix: "Tre-", mult: { weight: 3, }, },
+	Tetra: { prefix: "Tetra-", mult: { weight: 4, }, },
+	Tetro: { prefix: "Tetro-", mult: { weight: 4, }, },
+	Penta: { prefix: "Penta-", mult: { weight: 5, }, },
+	Hexa: { prefix: "Hexa-", mult: { weight: 6, }, },
+	Sexta: { prefix: "Sexta-", mult: { weight: 6, }, },
+	Septa: { prefix: "Septa-", mult: { weight: 7, }, },
+	Octa: { prefix: "Octa-", mult: { weight: 8, }, },
+	Nona: { prefix: "Nona-", mult: { weight: 9, }, },
+	Deca: { prefix: "Deca-", mult: { weight: 10, }, },
+	Undeca: { prefix: "Undeca-", mult: { weight: 11, }, },
+	Dodeca: { prefix: "Dodeca-", mult: { weight: 12, }, },
+	Trideca: { prefix: "Trideca-", mult: { weight: 13, }, },
+	Tetdeca: { prefix: "Tetdeca-", mult: { weight: 14, }, },
+	Pendeca: { prefix: "Pendeca-", mult: { weight: 15, }, },
+	Sexdeca: { prefix: "Sexdeca-", mult: { weight: 16, }, },
 	
 	
 }

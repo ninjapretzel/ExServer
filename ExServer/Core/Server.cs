@@ -27,8 +27,10 @@ namespace Ex {
 		/// <returns> Created and started thread. </returns>
 		private static Thread StartThread(ThreadStart start, ThreadPriority priority = ThreadPriority.Normal) {
 			Thread t = new Thread(start);
+			t.Name = start.GetMethodInfo().Name + " Thread";
 			t.Priority = priority;
 			t.Start();
+
 			return t;
 		}
 
@@ -118,15 +120,11 @@ namespace Ex {
 			Running = true;
 			if (isMaster) {
 				listenThread = StartThread(Listen);
-				listenThread.Name = "Listen Thread";
 			}
 
 			globalUpdateThread = StartThread(GlobalUpdate);
-			globalUpdateThread.Name = "Global Update Thread";
 			mainSendThread = StartThread(SendLoop);
-			mainSendThread.Name = "Main Send Thread";
 			mainRecrThread = StartThread(RecrLoop);
-			mainRecrThread.Name = "Main Recr Thread";
 		}
 
 		public void Stop() {

@@ -331,6 +331,16 @@ namespace Ex {
 						state.result[key] = state.ReduceToString(val);
 					}
 				}
+				if (rule.Has("mult")) {
+					JsonObject multer = rule.Get<JsonObject>("mult");
+					foreach (var pair in multer) {
+						var key = pair.Key;
+						var val = pair.Value;
+						if (val.isNumber && state.result[key].isNumber) {
+							state.result[key] *= val.doubleVal;
+						}
+					}
+				}
 				
 				// TODO: Think of a better name.
 				if (rule.Has("extras")) {

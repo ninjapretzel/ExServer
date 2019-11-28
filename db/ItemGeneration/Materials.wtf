@@ -88,7 +88,7 @@
 				//Halogen: 6, Noble: 7, 
 			},
 		],
-		fstat: {
+		frand: {
 			weight: [1, 250],
 		},
 		

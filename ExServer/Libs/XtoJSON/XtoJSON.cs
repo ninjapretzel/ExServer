@@ -2570,7 +2570,7 @@ public class JsonDeserializer {
 		return ProcessValue();
 	}
 
-	/// <summary> Process the next JsonValue, and recursivly process any other necessary 
+	/// <summary> Process the next JsonValue, and recursively process any other necessary 
 	/// JsonValues stored within. </summary>
 	JsonValue ProcessValue() {
 		if (cur == '[') { return ProcessArray(); }
@@ -2601,8 +2601,10 @@ public class JsonDeserializer {
 		return jval;
 
 	}
-
+	
+	/// <summary> Logic for parsing content of a string </summary>
 	string ProcessString() {
+		// Don't include starting " in output string
 		int startIndex = index + 1;
 
 		while (true) {
@@ -2624,10 +2626,11 @@ public class JsonDeserializer {
 			if (count % 2 == 0) {
 				break;
 			}
-
 		}
-
-		return json.Substring(startIndex, index - startIndex);
+		
+		// Consume final '"'
+		index++;
+		return json.Substring(startIndex, index - 1 - startIndex);
 	}
 
 	/// <summary> Logic for parsing contents of a JsonArray </summary>
@@ -2662,7 +2665,7 @@ public class JsonDeserializer {
 			string key = ProcessKey();
 			key = key.JsonUnescapeString();
 			SkipWhitespace();
-
+			
 			if (cur == ',' || cur == '}') {
 				obj.Add(key, true);
 			}
@@ -2696,7 +2699,7 @@ public class JsonDeserializer {
 			if (index >= json.Length) { return false; }
 
 		} else {
-			if (json[index] == ']' || json[index] == '}') {
+			if (cur == ']' || cur == '}') {
 				index++;
 				return false;
 			}
@@ -2706,15 +2709,17 @@ public class JsonDeserializer {
 		return true;
 	}
 
+	/// <summary> Helper for testing 'alpha' characters (which can start keys directly) </summary>
 	internal static bool IsAlpha(char c) {
 		return c == '$' || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 	}
+	/// <summary> Helper for testing 'alpha' characters (which are valid direct key characters) </summary>
 	internal static bool IsAlphaNum(char c) {
 		return c == '$' || c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
 	}
-
+	/// <summary> Helper for determining being at a comment marker </summary>
 	private bool AtComment() {
-		return json[index] == '/' && (index < json.Length - 1) && json[index + 1] == '/';
+		return cur == '/' && next == '/';
 	}
 
 	/// <summary> Logic for extracting a string value from the text </summary>
@@ -2722,15 +2727,9 @@ public class JsonDeserializer {
 		int startIndex = -1;
 		int endIndex = -1;
 		if (cur == '"') {
-			startIndex = index + 1;
-			while (json[index] != ':' || endIndex == -1) {
-				index++;
-				if (json[index] == '\"' && json[index - 1] != '\\') {
-					endIndex = index;
-				}
-			}
-
-
+			string key = ProcessString();
+			SkipWhitespace();
+			return key;
 		} else {
 			startIndex = index;
 			if (IsAlpha(cur)) {
@@ -2753,9 +2752,9 @@ public class JsonDeserializer {
 			if (comment) {
 				if (cur == '\n') { comment = false; }
 			}
-			if (!comment && index < json.Length - 1) {
+			if (!comment) {
 
-				if (json[index] == '/' && json[index + 1] == '/') { comment = true; }
+				if (cur == '/' && next == '/') { comment = true; }
 			}
 		}
 	}
@@ -2767,8 +2766,8 @@ public class JsonDeserializer {
 			if (comment) {
 				if (cur == '\n') { comment = false; }
 			}
-			if (!comment && index < json.Length - 1) {
-				if (json[index] == '/' && json[index + 1] == '/') { comment = true; }
+			if (!comment) {
+				if (cur == '/' && next == '/') { comment = true; }
 			}
 		}
 	}

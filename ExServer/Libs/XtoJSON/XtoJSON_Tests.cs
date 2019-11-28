@@ -11,12 +11,10 @@ public static class Json_Tests {
 
 	private static Func<IDictionary<JsonString,  JsonValue>> prev;
 	public static void BEFORE() {
-		Console.WriteLine("Json_Tests.BEFORE");
 		prev = JsonObject.DictionaryGenerator;
 		JsonObject.DictionaryGenerator = () => { return new Dictionary<JsonString, JsonValue>(); };	
 	}
 	public static void AFTER() {
-		Console.WriteLine("Json_Tests.AFTER");
 		JsonObject.DictionaryGenerator = prev;
 		prev = null;
 	}
@@ -360,8 +358,7 @@ public static class Json_Tests {
 				pp.ShouldBe<string>(expectedPrettyPrint);
 				JsonObject strParse = Json.Parse(str) as JsonObject;
 				JsonObject ppParse = Json.Parse(pp) as JsonObject;
-
-				Console.WriteLine(strParse.PrettyPrint());
+				
 				true.ShouldBe(obj.Equals(strParse));
 				true.ShouldBe(obj.Equals(ppParse));
 			}
@@ -395,6 +392,16 @@ public static class Json_Tests {
 
 				true.ShouldBe(obj.Equals(strParse));
 				true.ShouldBe(obj.Equals(ppParse));
+
+			}
+
+			{
+				JsonObject obj = new JsonObject();
+				obj["ayy:lmao"] = 5;
+				string str = obj.ToString();
+
+				JsonObject parsed = Json.Parse<JsonObject>(str);
+				true.ShouldBe(obj.Equals(parsed));
 
 			}
 
@@ -712,6 +719,24 @@ public static class Json_Tests {
 		public static void TestEscapes() {
 			{
 				JsonObject obj = new JsonObject();
+				string key = "keyWithoutEscapes";
+				string val = "\"what\" are you doing \"here\" you \"gentleman\" and \"scholar\"";
+				obj[key] = val;
+
+				1.ShouldBe(obj.Count);
+				true.ShouldBe(obj.ContainsKey(key));
+				true.ShouldBe(obj[key] == val);
+
+				string str = obj.ToString();
+				string pp = obj.PrettyPrint();
+
+				JsonObject strParse = Json.Parse(str) as JsonObject;
+				JsonObject ppParse = Json.Parse(pp) as JsonObject;
+				true.ShouldBe(obj.Equals(strParse));
+				true.ShouldBe(obj.Equals(ppParse));
+			}
+			{
+				JsonObject obj = new JsonObject();
 
 				string key = "scv:\"wark\"";
 				string val = "balls:\"borf\"";
@@ -1025,7 +1050,7 @@ public static class Json_Tests {
 			TestObjects(empties, empty);
 
 			string[] smalls = new string[] {
-					@"{thing:'value'}//yep",
+					@"{thing:""value""}//yep",
 					@"//
 {//
 //
@@ -1033,7 +1058,7 @@ thing//
 //
 ://
 //
-'value'//
+""value""//
 //
 }//
 //",

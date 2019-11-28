@@ -2534,7 +2534,7 @@ public class JsonDeserializer {
 				throw new JsonDeserializeFailedException("JsonDeserializer.index.set: Cannot set index outside input range", this);
 			}
 			for (;__index < value; __index++) {
-				if (next == '\n') { line += 1; col = 0; }
+				if (cur == '\n') { line += 1; col = 0; }
 				else { col++; }
 			}
 		}
@@ -2546,7 +2546,13 @@ public class JsonDeserializer {
 	public int col { get; private set; }
 
 	/// <summary> quick access to the current character </summary>
-	private char next { get { return json[index]; } }
+	private char cur { get { return json[index]; } }
+
+	/// <summary> quick access to the previous character, or a nullchar </summary>
+	private char prev { get { return index > 0 ? json[index-1] : '\0'; } }
+
+	/// <summary> quick access to the next character, or a nullchar </summary>
+	private char next { get { return index < json.Length-1 ? json[index + 1] : '\0'; } }
 
 	/// <summary> Constructor. Starts parsing from the begining of a given string </summary>
 	public JsonDeserializer(string str) {
@@ -2567,9 +2573,9 @@ public class JsonDeserializer {
 	/// <summary> Process the next JsonValue, and recursivly process any other necessary 
 	/// JsonValues stored within. </summary>
 	JsonValue ProcessValue() {
-		if (next == '[') { return ProcessArray(); }
-		if (next == '{') { return ProcessObject(); }
-		if (next == '"') {
+		if (cur == '[') { return ProcessArray(); }
+		if (cur == '{') { return ProcessObject(); }
+		if (cur == '"') {
 			string val = ProcessString();
 			val = val.JsonUnescapeString();
 			//TBD: Additional processing if needed
@@ -2577,7 +2583,7 @@ public class JsonDeserializer {
 			return val;
 		}
 		int startIndex = index;
-		while (index < json.Length && next != ',' && next != '}' && next != ']' && !char.IsWhiteSpace(next)) {
+		while (index < json.Length && cur != ',' && cur != '}' && cur != ']' && !char.IsWhiteSpace(cur)) {
 			index++;
 			if (AtComment()) {
 				break;
@@ -2602,7 +2608,7 @@ public class JsonDeserializer {
 		while (true) {
 			index++;
 
-			while (next != '\"') { index++; }
+			while (cur != '\"') { index++; }
 
 			int j = index - 1;
 			int count = 0;
@@ -2630,7 +2636,7 @@ public class JsonDeserializer {
 		JsonArray array = new JsonArray();
 
 		SkipWhitespace();
-		if (next == ']') {
+		if (cur == ']') {
 			index++;
 			return array;
 		}
@@ -2648,7 +2654,7 @@ public class JsonDeserializer {
 		index++;
 		JsonObject obj = new JsonObject();
 		SkipWhitespace();
-		if (next == '}') {
+		if (cur == '}') {
 			index++;
 			return obj;
 		}
@@ -2657,10 +2663,10 @@ public class JsonDeserializer {
 			key = key.JsonUnescapeString();
 			SkipWhitespace();
 
-			if (next == ',' || next == '}') {
+			if (cur == ',' || cur == '}') {
 				obj.Add(key, true);
 			}
-			if (next == ':') {
+			if (cur == ':') {
 				index++;
 				SkipWhitespace();
 				JsonValue val = ProcessValue();
@@ -2674,12 +2680,12 @@ public class JsonDeserializer {
 
 	/// <summary> Logic for moving over characters until the next control character </summary>
 	bool MoveNext() {
-		while (index < json.Length && next != ',' && next != ']' && next != '}') { index++; }
+		while (index < json.Length && cur != ',' && cur != ']' && cur != '}') { index++; }
 
-		if (next == ',') {
+		if (cur == ',') {
 			index++;
 			SkipWhitespaceEnd();
-			if (next == ']' || next == '}') {
+			if (cur == ']' || cur == '}') {
 #if XtoJSON_StrictCommaRules
 				throw new Exception("Commas before end characters not allowed.");
 #else
@@ -2715,7 +2721,7 @@ public class JsonDeserializer {
 	string ProcessKey() {
 		int startIndex = -1;
 		int endIndex = -1;
-		if (next == '"') {
+		if (cur == '"') {
 			startIndex = index + 1;
 			while (json[index] != ':' || endIndex == -1) {
 				index++;
@@ -2727,18 +2733,12 @@ public class JsonDeserializer {
 
 		} else {
 			startIndex = index;
-			int i = index;
-			char c = json[i];
-			if (IsAlpha(c)) {
-				i++;
-				while (true) {
-					c = json[i++];
-					if (!IsAlphaNum(c)) { break; }
+			if (IsAlpha(cur)) {
+				while (IsAlphaNum(cur)) {
+					index++;
 				}
 			}
-
-			endIndex = i - 1;
-			index = endIndex;
+			endIndex = index;
 		}
 
 		return json.Substring(startIndex, endIndex - startIndex).TrimEnd();
@@ -2748,10 +2748,10 @@ public class JsonDeserializer {
 	void SkipWhitespaceEnd() {
 		bool comment = AtComment();
 
-		while (comment || index < json.Length && char.IsWhiteSpace(next)) {
+		while (comment || index < json.Length && char.IsWhiteSpace(cur)) {
 			index++;
 			if (comment) {
-				if (next == '\n') { comment = false; }
+				if (cur == '\n') { comment = false; }
 			}
 			if (!comment && index < json.Length - 1) {
 
@@ -2762,10 +2762,10 @@ public class JsonDeserializer {
 	/// <summary> Logic to skip to the next non-whitepace character </summary>
 	void SkipWhitespace() {
 		bool comment = AtComment();
-		while (comment || char.IsWhiteSpace(next)) {
+		while (comment || char.IsWhiteSpace(cur)) {
 			index++;
 			if (comment) {
-				if (next == '\n') { comment = false; }
+				if (cur == '\n') { comment = false; }
 			}
 			if (!comment && index < json.Length - 1) {
 				if (json[index] == '/' && json[index + 1] == '/') { comment = true; }

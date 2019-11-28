@@ -2502,22 +2502,58 @@ public static class JsonReflector {
 //////////////////////////////////////////////////////////////////////////////////////////////
 //JsonDeserializer
 
+/// <summary> Exception thrown by <see cref="JsonDeserializer"/> when it is given bad input </summary>
+public class JsonDeserializeFailedException : Exception {
+	/// <summary> Current parser state </summary>
+	public JsonDeserializer state { get; private set; }
+	/// <summary> Current line number </summary>
+	public int line { get { return state.line; } }
+	/// <summary> Current number of characters read on line </summary>
+	public int col { get { return state.col; } }
+	public JsonDeserializeFailedException(string msg, JsonDeserializer state) : base(msg + $" @{state.line}:{state.col}") {
+		this.state = state;
+	}
+}
+
 /// <summary> Class holding logic for parsing Json text into JsonValues 
 /// A new instance of this class is created automatically by Json.Parse() </summary>
 public class JsonDeserializer {
 
 	/// <summary> Json text that is being parsed </summary>
 	private string json;
-	/// <summary> Current position </summary>
-	private int index;
+	/// <summary> Internal index. Do not modify outside of <see cref="index"/>.set </summary>
+	private int __index;
+	/// <summary> Current position. </summary>
+	private int index {
+		get { return __index; }
+		set {
+			if (value < __index) {
+				throw new JsonDeserializeFailedException("JsonDeserializer.index.set: Cannot set index below current value", this);
+			}
+			if (value > json.Length) {
+				throw new JsonDeserializeFailedException("JsonDeserializer.index.set: Cannot set index outside input range", this);
+			}
+			for (;__index < value; __index++) {
+				if (next == '\n') { line += 1; col = 0; }
+				else { col++; }
+			}
+		}
+	}
+
+	/// <summary> Current line number </summary>
+	public int line { get; private set; }
+	/// <summary> Current number of characters read on line </summary>
+	public int col { get; private set; }
 
 	/// <summary> quick access to the current character </summary>
 	private char next { get { return json[index]; } }
 
 	/// <summary> Constructor. Starts parsing from the begining of a given string </summary>
 	public JsonDeserializer(string str) {
-		index = 0;
 		json = str;
+		line = 0;
+		col = 0;
+		index = 0;
 	}
 
 	/// <summary> Deserialize the Json text, and get back the resulting JsonValue </summary>

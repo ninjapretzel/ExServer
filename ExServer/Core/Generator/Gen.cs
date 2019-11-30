@@ -341,6 +341,34 @@ namespace Ex {
 						}
 					}
 				}
+
+
+				// Todo: Maybe choose a better name for this too?
+				// Conditionally applied rules
+				if (rule.Has("check")) {
+					JsonObject checker = rule.Get<JsonObject>("check");
+					foreach (var pair in checker) {
+						var key = pair.Key;
+						var val = pair.Value as JsonObject;
+						if (val == null) { continue; }
+						var read = state.result[key];
+
+						if (read.isString) {
+							if (val.Has(read.stringVal)) {
+								var nested = val[read];
+								if (nested.isObject) {
+									// Directly apply nested rule
+									// Adds '.'s around such that the rule traversal can still locate the applied rule object.
+									state.PushHistory($"check.{key.stringVal}.{read.stringVal}");
+									ApplyRule(state, nested as JsonObject, state.lastHistory);
+									state.PopHistory();
+								}
+							}
+						} else if (read.isNumber) {
+							// Todo: Number range matching
+						}
+					}
+				}
 				
 				// TODO: Think of a better name.
 				if (rule.Has("extras")) {

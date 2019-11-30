@@ -88,9 +88,7 @@
 				//Halogen: 6, Noble: 7, 
 			},
 		],
-		frand: {
-			weight: [1, 250],
-		},
+		// frand: { weight: [1, 100], },
 		
 		
 		Counts: {
@@ -194,12 +192,16 @@
 			suffix: { thium, ssium, },
 			set: { stpState: "Solid", },
 			frand: {
+				// These are pretty light earlier on
+				weight:			[6, 230],
+				// This is an identifier of positioning on the table:
+				num:			[1.000, 2.000],
 				// Each one of these is in an overall [0, 1] range.
 				density:		[0.455, 0.600],
 				latentEnergy:	[0.255, 0.800],
 				magnetism:		[0.123, 0.456],
 				
-				ionizeEnergy:	[0.125, 0.330],
+				ionizeEnergy:	[0.025, 0.234],
 				reactivity:		[0.950, 0.990],
 				conductivity:	[0.800, 0.990], 
 				
@@ -211,17 +213,20 @@
 			suffix: { llium, rium, },
 			set: { stpState: "Solid", },
 			frand: {
+				weight:			[9, 240],
+				num:			[2.000, 3.000],
+				
 				density:		[0.550, 0.650],
 				latentEnergy:	[0.250, 0.880],
 				
-				ionizeEnergy:	[0.250, 0.440],
+				ionizeEnergy:	[0.075, 0.345],
 				reactivity:		[0.850, 0.950],
 				conductivity:	[0.800, 0.990], 
 				magnetism:		[0.234, 0.567],
 				
 				malleability:	[0.770, 0.990],
 				hardness:		[0.700, 0.990],
-			}
+			},
 		},
 		TransMetal: {
 			// Transition metals tend to have varied and odd endings.
@@ -230,43 +235,123 @@
 			// One IRL T-metal liquid at STP
 			set: { stpState: { Solid: 67, Liquid: 1 }, },
 			frand: {
+				// bias their weights higher 
+				weight:			[45, 300],
+				num:			[3.000, 13.000],
 				density:		[0.800, 0.990],
-				latentEnergy:	[0.120, 0.990],
+				latentEnergy:	[0.120, 0.555],
 				
-				ionizeEnergy:	[0.360, 0.770],
+				ionizeEnergy:	[0.155, 0.444],
 				reactivity:		[0.350, 0.650],
 				conductivity:	[0.770, 0.990], 
 				magnetism:		[0.456, 0.999],
 				
 				malleability:	[0.770, 0.990],
 				hardness:		[0.700, 0.990],
-			}
+			},
 		},
 		PostTransMetal: {
-			suffix: { in, n, ad, uth, th, vium, zium, },
+			suffix: { in, ad, uth, th, vium, zium, },
 			set: { stpState: { Solid, }, },
 			frand: {
+				// Post transition metals tend to be heavy
+				weight:			[110, 300],
+				num:			[13.000, 17.000],
 				density:		[0.850, 0.999],
-				latentEnergy:	[0.120, 0.999],
+				latentEnergy:	[0.066, 0.444],
 				
-				ionizeEnergy:	[0.360, 0.770],
+				ionizeEnergy:	[0.333, 0.666],
 				reactivity:		[0.350, 0.550],
 				conductivity:	[0.770, 0.990], 
 				magnetism:		[0.345, 0.678],
 				
 				malleability:	[0.770, 0.990],
 				hardness:		[0.700, 0.990],
-				
-			}
+			},
 		},
 		Metaloid: {
-			
+			suffix: { ium, ic, ony, },
+			set: { stpState: { Gas: 3, Solid: 4, }, },
+			frand: {
+				// Middle of table, not heavy but not light either
+				weight:			[28, 127],
+				num:			[13.000, 17.000],
+				density:		[0.444, 0.666],
+				latentEnergy:	[0.320, 0.590],
+				
+				ionizeEnergy:	[0.444, 0.777],
+				reactivity:		[0.300, 0.500],
+				conductivity:	[0.222, 0.666], 
+				magnetism:		[0.444, 0.666],
+				
+				malleability:	[0.005, 0.200],
+				hardness:		[0.300, 0.600],
+			},
 		},
-		Nonmetals: {
-			suffix: [ "gen", "ium", "on", "ic", "ous", "ur", ],
+		Nonmetal: {
+			
+			suffix: { gen, ous, ur, },
+			set: { stpState: { Gas: 3, Solid: 4, }, },
+			frand: {
+				// Plain non-metals tend to be very light
+				weight:			[1, 35],
+				num:			[13.000, 17.000],
+				density:		[0.333, 0.555],
+				latentEnergy:	[0.520, 0.999],
+				
+				ionizeEnergy:	[0.444, 0.666],
+				reactivity:		[0.400, 0.876],
+				conductivity:	[0.005, 0.200], 
+				magnetism:		[0.005, 0.012],
+				
+				malleability:	[0.005, 0.200],
+				hardness:		[0.300, 0.600],
+			},
+		},
+		Halogen: {
+			suffix: { ine, },
+			set: { stpState: { Gas: 2, Liquid:1, Solid: 3, }, },
+			check: {
+				stpState: { 
+					Gas: { set: { weight: 10, }, },
+					Liquid: { set: { weight: 88, }, },
+					Solid: { set: { weight: 125, }, },
+				},
+			},
+					
+			frand: {
+				// Halogens tend to be heavier with their STP state, see above
+				// add [0, 55) to weight
+				weight:			[0, 55],
+				num:			[17.000, 18.000],
+				density:		[0.111, 0.666],
+				latentEnergy:	[0.120, 0.290],
+				
+				ionizeEnergy:	[0.666, 0.888],
+				reactivity:		[0.777, 0.999],
+				conductivity:	[0.700, 0.900], 
+				magnetism:		[0.100, 0.120],
+				
+				malleability:	[0.100, 0.500],
+				hardness:		[0.200, 0.500],
+			},
 		},
 		Noble: {
-			suffix: [ "on", ],
+			suffix: { on, },
+			set: { stpState: { Gas, }, },
+			frand: {
+				num:			[18.000, 20.000],
+				density:		[0.005, 0.155],
+				latentEnergy:	[0.020, 0.190],
+				
+				ionizeEnergy:	[0.912, 0.970],
+				reactivity:		[0.010, 0.100],
+				conductivity:	[0.700, 0.900], 
+				magnetism:		[0.001, 0.012],
+				
+				malleability:	[0.200, 0.400],
+				hardness:		[0.200, 0.500],
+			},
 		},
 		
 		

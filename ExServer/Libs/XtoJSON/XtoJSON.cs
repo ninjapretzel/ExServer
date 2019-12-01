@@ -58,6 +58,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Linq;
 using System.Text; // Needed when paired alongside ZSharp, since StringBuilder is wrapped (outside of namespace)
+using System.Runtime.CompilerServices;
 
 #region Abstract/Primary stuff
 
@@ -2525,7 +2526,9 @@ public class JsonDeserializer {
 	private int __index;
 	/// <summary> Current position. </summary>
 	private int index {
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		get { return __index; }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		set {
 			if (value < __index) {
 				throw new JsonDeserializeFailedException("JsonDeserializer.index.set: Cannot set index below current value", this);

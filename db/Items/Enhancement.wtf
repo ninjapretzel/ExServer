@@ -1,6 +1,49 @@
 [
 	{
-		"name": "Nuthin",
+		name: "Tough Carapace",
+		desc: "Tough carapaces left behind by bugs. Still surging with hume energies. May be utilized to bend the laws of physics.",
+		stackable: true,
+	},
+	{
+		name: "Sharp Bug Weapon",
+		desc: "Sharp nails, teeth, claws, stingers and the like, left behind by bugs. Still surging with destructive hume energies, may be utilized to bend the laws of physics.",
+		stackable: true,
+	},
+	{
+		name: "Terror Energy",
+		desc: "Remnants of the energy of the furthest ones. ",
+		stackable: true,
+	},
+	{
+		name: "Horror Energy",
+		desc: "Remnants of the energy of the oldest ones.",
+		stackable: true,
+	},
+	{
+		name: "Boolean Cube",
+		desc: "A 1cm^3 cube which can hold a bit of information. Combine 8 to make a Byte Cube",
+		stackable: true,
+		refinable: true, // Refinable flag
+		refinement: "Byte Cube" // With a string, it is implicitly the name (or id if names suck) of the result
+	},
+	{ // Idea for a 'refinable' item type, as a type of item that innately can be combined
+		name: "Byte Cube",
+		stackable: true, 
+		refinable: true, // Refinable flag
+		refinement: [ // With an array, it is implicitly a list of information about the item's refine levels,
+					// fields in these objects override properties of the item at that refine level.
+			{ name: "Byte Cube", desc: "A 1cm^3 cube which can hold a byte of information", },
+			{ name: "KByte Cube", desc: "A 1cm^3 cube which can hold a kilabyte of information", },
+			{ name: "MByte Cube", desc: "A 1cm^3 cube which can hold an megabyte of information", },
+			{ name: "GByte Cube", desc: "A 1cm^3 cube which can hold a gigabyte of information", },
+			{ name: "TByte Cube", desc: "A 1cm^3 cube which can hold a terabyte of information", },
+			{ name: "PByte Cube", desc: "A 1cm^3 cube which can hold a petabyte of information", },
+			{ name: "EByte Cube", desc: "A 1cm^3 cube which can hold an exabyte of information", },
+			{ name: "ZByte Cube", desc: "A 1cm^3 cube which can hold a zettabyte of information", },
+			{ name: "YByte Cube", desc: "A 1cm^3 cube which can hold a yottabyte of information", },
+			
+		],
+		refineBase: 1024, // Refine 1024 of one level into next tier
 	}
-	// Empty, but enough that it won't crash.
+	
 ]

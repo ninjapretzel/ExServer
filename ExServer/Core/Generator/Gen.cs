@@ -341,6 +341,34 @@ namespace Ex {
 						}
 					}
 				}
+
+
+				// Todo: Maybe choose a better name for this too?
+				// Conditionally applied rules
+				if (rule.Has("check")) {
+					JsonObject checker = rule.Get<JsonObject>("check");
+					foreach (var pair in checker) {
+						var key = pair.Key;
+						var val = pair.Value as JsonObject;
+						if (val == null) { continue; }
+						var read = state.result[key];
+
+						if (read.isString) {
+							if (val.Has(read.stringVal)) {
+								var nested = val[read];
+								if (nested.isObject) {
+									// Directly apply nested rule
+									// Adds '.'s around such that the rule traversal can still locate the applied rule object.
+									state.PushHistory($"check.{key.stringVal}.{read.stringVal}");
+									ApplyRule(state, nested as JsonObject, state.lastHistory);
+									state.PopHistory();
+								}
+							}
+						} else if (read.isNumber) {
+							// Todo: Number range matching
+						}
+					}
+				}
 				
 				// TODO: Think of a better name.
 				if (rule.Has("extras")) {
@@ -357,15 +385,14 @@ namespace Ex {
 				}
 			}
 			
-			// Todo: Maybe bake these into a table, and just check for presense of each group name?
-			ApplyStats(state, rule, "stat",		()=>1.0,			(v)=>(v*state.scale),			rolls);
-			ApplyStats(state, rule, "fstat",	()=>1.0,			(v)=>v,							rolls);
-			ApplyStats(state, rule, "rand",		state.NextRand,		(v)=>(v*state.scale),			rolls);
-			ApplyStats(state, rule, "frand",	state.NextRand,		(v)=>v,							rolls);
-			ApplyStats(state, rule, "norm",		state.NextNorm,		(v)=>(v*state.scale),			rolls);
-			ApplyStats(state, rule, "fnorm",	state.NextNorm,		(v)=>v,							rolls);
-			// ApplyStats(state, rule, "pow",		state.NextRand,		(v)=>Math.Pow(v, state.scale),	rolls);
-
+			// Loop through all key/value pairs present.
+			// 
+			foreach (var pair in rule) {
+				var key = pair.Key.stringVal;
+				if (statGroupTable.ContainsKey(key)) {
+					ApplyStatGroup(state, rule, key, rolls);
+				}
+			}
 
 			// Only recursively apply rules the first time
 			// If we are replaying history, the list of previously 
@@ -384,39 +411,40 @@ namespace Ex {
 			}
 		}
 
+
 		/// <summary> Apply a stat group to the result </summary>
 		/// <param name="state"> Current generator state </param>
 		/// <param name="rule"> Rule object </param>
 		/// <param name="group"> Name of stat group to apply </param>
-		/// <param name="randomizer"> Function used to ccreate a random value </param>
-		/// <param name="scaler"> Function used to scale applied values </param>
 		/// <param name="rolls"> History of rolls to use, or record to. </param>
-		private void ApplyStats(State state, JsonObject rule, string group, Func<double> randomizer, Func<double, double> scaler, JsonObject rolls) {
+		private void ApplyStatGroup(State state, JsonObject rule, string group, JsonObject rolls) {
+			StatTableEntry entry = statGroupTable[group];
 			JsonObject stats = rule.Get<JsonObject>(group);
 
 			if (stats != null) {
 
 				if (!rolls.Has(group)) { rolls[group] = new JsonObject(); }
 				var rollGroup = rolls.Get<JsonObject>(group);
-				
+
 				foreach (var pair in stats) {
 					string key = pair.Key;
 					var val = pair.Value;
-					
+
 					var setCheck = FindRule(key);
 					if (setCheck != null && setCheck.isObject) {
 						foreach (var pair2 in setCheck) {
 							var stat = pair2.Key;
-							ApplyStat(state, stat, val, randomizer, scaler, rollGroup);
+							ApplyStat(state, stat, val, entry, rollGroup);
 						}
 
 					} else {
-						ApplyStat(state, key, val, randomizer, scaler, rollGroup);
+						ApplyStat(state, key, val, entry, rollGroup);
 					}
-					
+
 
 				}
 			}
+
 		}
 
 		/// <summary> Applies a single stat to the result. </summary>
@@ -426,27 +454,27 @@ namespace Ex {
 		/// <param name="randomizer"> Function to use to generate random values </param>
 		/// <param name="scaler"> Function to use to scale appleied values </param>
 		/// <param name="rollGroup"> History of rolls to use, or record to. </param>
-		private void ApplyStat(State state, string stat, JsonValue statValue, Func<double> randomizer, Func<double, double> scaler, JsonObject rollGroup) {
+		private void ApplyStat(State state, string stat, JsonValue statValue, StatTableEntry entry, JsonObject rollGroup) {
 			if (rollGroup.Has(stat)) {
 				// Roll already exists? Replay calculation only.
 				
 				if (statValue.isNumber) {
-					state.result[stat] = state.result.Get<double>(stat) + scaler(statValue * rollGroup.Get<double>(stat));
+					state.result[stat] = entry.applier(state.result.Get<double>(stat), entry.scaler(state, statValue * rollGroup.Get<double>(stat)));
 				} else if (statValue.isArray) {
 					var a = statValue[0].doubleVal;
 					var b = statValue[1].doubleVal;
-					state.result[stat] = state.result.Get<double>(stat) + scaler(a + (b-a) * rollGroup.Get<double>(stat));
+					state.result[stat] = entry.applier(state.result.Get<double>(stat), entry.scaler(state, a + (b-a) * rollGroup.Get<double>(stat)));
 				}
 
 			} else {
 				// Roll does not exist? Roll and calculate.
-				var roll = randomizer();
+				var roll = entry.randomizer(state);
 				if (statValue.isNumber) {
-					state.result[stat] = state.result.Get<double>(stat) + scaler(statValue * roll);
+					state.result[stat] = entry.applier(state.result.Get<double>(stat), entry.scaler(state, statValue * roll));
 				} else if (statValue.isArray) {
 					var a = statValue[0].doubleVal;
 					var b = statValue[1].doubleVal;
-					state.result[stat] = state.result.Get<double>(stat) + scaler(a + (b-a) * roll);
+					state.result[stat] = entry.applier(state.result.Get<double>(stat), entry.scaler(state, a + (b-a) * roll));
 				}
 
 				rollGroup[stat] = roll;
@@ -595,6 +623,105 @@ namespace Ex {
 		}
 
 
+
+		/// <summary> Pre-baked stat group table with all variations of stat applier names </summary>
+		private static readonly Dictionary<string, StatTableEntry> statGroupTable = BuildStatTable();
+		/// <summary> Function that bakes stat group table </summary>
+		/// <returns> Baked stat group table </returns>
+		private static Dictionary<string, StatTableEntry> BuildStatTable() {
+			Dictionary<string, StatTableEntry> table = new Dictionary<string, StatTableEntry>();
+
+			// Randomizers 
+			// stat (1.0 always)
+			double stat(State state) { return 1.0; }
+			// rand [0, 1)
+			double rand(State state) { return state.NextRand(); }
+			// normal (approximate) in [0, 1), with .5 avg
+			double norm(State state) { return state.NextNorm(); }
+
+			// Scalers
+			// normal scaling (v*scale)
+			double mscale(State state, double v) { return v * state.scale; }
+			// divisor scaling (v/scale)
+			double dscale(State state, double v) { return v / state.scale; }
+			// power scaling (v^scale)
+			double pscale(State state, double v) { return Math.Pow(v, state.scale); }
+			// fixed scaling (v)
+			double f(State state, double v) { return v; }
+			// fixed sqrt scaling (sqrt(v))
+			double sqrt(State state, double v) { return Math.Sqrt(v); }
+
+			// Add
+			double add(double x, double y) { return (x + y); }
+			// Subtract
+			double sub(double x, double y) { return (x - y); }
+			// Multiply
+			double mult(double x, double y) { return (x * y); }
+			// Divide
+			double div(double x, double y) { return (x / y); }
+			// power
+			double pow(double x, double y) { return Math.Pow(x, y); }
+			// combine Ratios (eg, (.5,.5) => .75, (.6, .5) => .8
+			double ratio(double x, double y) { return OM(OM(x) * OM(y)); }
+			double Clamp01(double v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+			double OM(double v) { return 1.0 - Clamp01(v); } // One Minus 
+
+			StatTableEntry baseEntry = new StatTableEntry(stat, mscale, add);
+			table[nameof(stat)] = new StatTableEntry(baseEntry);
+			table[nameof(rand)] = new StatTableEntry(baseEntry); table[nameof(rand)].randomizer = rand;
+			table[nameof(norm)] = new StatTableEntry(baseEntry); table[nameof(norm)].randomizer = norm;
+
+			Func<State, double, double>[] scalers = new Func<State, double, double>[] { mscale, dscale, pscale, f, sqrt };
+			string[] scalerNs = new string[] { nameof(mscale), nameof(dscale), nameof(pscale), nameof(f), nameof(sqrt), };
+
+			Func<double, double, double>[] appliers = new Func<double, double, double>[] { add, sub, mult, div, ratio };
+			string[] applierNs = new string[] { nameof(add), nameof(sub), nameof(mult), nameof(div), nameof(ratio) };
+
+			var keys = new List<string>();
+			keys.Clear(); keys.AddRange(table.Keys);
+			foreach (var key in keys) {
+				var entry = table[key];
+				for (int i = 0; i < scalers.Length; i++) {
+					string dkey = scalerNs[i] + key;
+					var copy = new StatTableEntry(entry);
+					copy.scaler = scalers[i];
+					table[dkey] = copy;
+				}
+			}
+
+			keys.Clear(); keys.AddRange(table.Keys);
+			foreach (var key in keys) {
+				var entry = table[key];
+				for (int i = 0; i < appliers.Length; i++) {
+					string dkey = applierNs[i] + key;
+					var copy = new StatTableEntry(entry);
+					copy.applier = appliers[i];
+					table[dkey] = copy;
+				}
+			}
+
+			return table;
+		}
+
+		/// <summary> Class holding information about how to calculate and apply stat groups </summary>
+		private class StatTableEntry {
+			/// <summary> Function to roll a dice to vary stats on generated things </summary>
+			public Func<State, double> randomizer;
+			/// <summary> Function to use to apply scaling to output </summary>
+			public Func<State, double, double> scaler;
+			/// <summary> Function to use accumulate new value with existing value </summary>
+			public Func<double, double, double> applier;
+			public StatTableEntry(Func<State, double> randomizer, Func<State, double, double> scaler, Func<double, double, double> applier) {
+				this.randomizer = randomizer;
+				this.scaler = scaler;
+				this.applier = applier;
+			}
+			public StatTableEntry(StatTableEntry other) {
+				this.randomizer = other.randomizer;
+				this.scaler = other.scaler;
+				this.applier = other.applier;
+			}
+		}
 	}
 	
 }

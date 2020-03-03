@@ -147,7 +147,6 @@ public static class RTBExtensions {
 		codes['2'] = hex(0xEC7600); // String Orange
 		codes['3'] = hex(0x93C763); // Keyword Green
 		codes['4'] = hex(0x678CB1); // Blue 
-		codes['4'] = hex(0x678CB1); // Blue 
 
 		// bright orangE
 		codes['e'] = color(.95f, .45f, 0);

@@ -40,17 +40,22 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Testing Method to start a small response chain </summary>
+		/// <param name="msg"> RPCMessage info </param>
 		public void Syn(RPCMessage msg) {
 			Log.Verbose($"Syn from {msg.sender.identity}: {msg[0]}");
 			msg.sender.Call(SynAck, msg[0]);
 		}
 
+		/// <summary> Testing Method in the middle of a small response chain </summary>
+		/// <param name="msg"> RPCMessage info </param>
 		public void SynAck(RPCMessage msg) {
 			Log.Verbose($"SynAck from {msg.sender.identity}: {msg[0]}");
 			msg.sender.Call(Ack, msg[0]);
 		}
 
-
+		/// <summary> Testing Method at the end of a small response chain </summary>
+		/// <param name="msg"> RPCMessage info </param>
 		public void Ack(RPCMessage msg) {
 			Log.Verbose($"Ack from {msg.sender.identity}: {msg[0]}");
 

@@ -111,6 +111,8 @@
 			type: "settings",
 			// Apply 'Mid' a few times
 			apply: { repeat: [0,5], rule: "Mid" },
+			// Extras happen after all other things in this rule, before any recursion.
+			// This effectively capitalizes the prefix.
 			extras: [ "capitalize" ],
 			prefix: [
 				"hy", "he",

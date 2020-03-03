@@ -1,3 +1,11 @@
+
+#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+#define UNITY
+using UnityEngine;
+#else
+
+// For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
+#if !UNITY
 using Ex;
 using System;
 using System.Collections.Generic;
@@ -6,6 +14,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+
 
 public static class Server_Tests {
 
@@ -101,3 +110,5 @@ public static class Server_Tests {
 	}
 	
 }
+#endif
+#endif

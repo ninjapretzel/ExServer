@@ -74,6 +74,7 @@ namespace Ex {
 			this.commandEntry.Name = "commandEntry";
 			this.commandEntry.Size = new System.Drawing.Size(678, 20);
 			this.commandEntry.TabIndex = 3;
+			this.commandEntry.KeyDown += new System.Windows.Forms.KeyEventHandler(this.commandEntry_KeyDown);
 			// 
 			// button1
 			// 

@@ -11,11 +11,12 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Concurrent;
 using Ex.Utils;
+using System.Diagnostics;
 
 namespace Ex {
+	
+	public static class Program {
 
-public static class Program {
-		
 		public static string SourceFileDirectory([CallerFilePath] string callerPath = "[NO PATH]") {
 			return callerPath.Substring(0, callerPath.Replace('\\', '/').LastIndexOf('/'));
 		}
@@ -25,7 +26,6 @@ public static class Program {
 		public static Server server;
 		public static Client admin;
 		public static MainForm mainForm;
-
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread]
 		static void Main() {
@@ -38,12 +38,15 @@ public static class Program {
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 #endif
+				
 				SetupLogger();
 				StaticSetup();
 				SelfTest();
-				
 				ActualProgram();
 				
+				
+				
+
 				// Console.Read();
 				
 			} catch (Exception e) {
@@ -97,7 +100,7 @@ public static class Program {
 				if (mainForm != null) {
 					var msgs = msg.ToString().Rich();
 					msgs.Add(new RichTextBoxMessage("\n"));
-					mainForm.Log(msgs);
+					mainForm.AddToLog(msgs);
 				}
 			};
 			Log.logHandler += (tag, msg) => {
@@ -115,9 +118,11 @@ public static class Program {
 
 			Action logColors = () => {
 				Log.Info("Color Test." +
-					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" +
-					"\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" +
-					"\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm");
+					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" 
+					+ "\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" 
+					+ "\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm" 
+					+ "\n\\1\\2\\3\\4\\5\\6\\7\\8\\9\\0");
+					
 			};
 				
 			logColors();
@@ -130,6 +135,7 @@ public static class Program {
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
 			
+
 			server.AddService<EntityService>();
 			server.AddService<MapService>();
 

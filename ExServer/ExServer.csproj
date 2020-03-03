@@ -91,6 +91,7 @@
     <Compile Include="Core\Services\MapService\Sys.cs" />
     <Compile Include="Core\Services\SyncService.cs" />
     <Compile Include="Core\Utils\Bitflags.cs" />
+    <Compile Include="Core\Utils\Cmdr.cs" />
     <Compile Include="Core\Utils\ConcurrentSet.cs" />
     <Compile Include="Core\Utils\DataUtils.cs" />
     <Compile Include="Core\Utils\HexExtensions.cs" />

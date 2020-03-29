@@ -22,6 +22,8 @@ using Ex.Utils;
 using System.IO;
 using Ex.Data;
 using MongoDB.Bson.Serialization.Serializers;
+using System.Runtime.CompilerServices;
+using MongoDB.Bson.IO;
 #endif
 
 namespace Ex {
@@ -31,7 +33,7 @@ namespace Ex {
 	public class DBEntry {
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
 		[BsonId] public ObjectId id { get; set; }
-		/// <summary> Relational guid </summary>
+		/// <summary> Guid to relate entry to some specific entity or user. </summary>
 		public Guid guid { get; set; }
 	}
 	
@@ -61,6 +63,10 @@ namespace Ex {
 
 			BsonSerializer.RegisterSerializer<UberData>(new UberDataSerializer());
 			BsonSerializer.RegisterSerializer<SimplexNoise>(new SimplexNoiseSerializer());
+
+			BsonSerializer.RegisterSerializer<JsonObject>(new JsonObjectSerializer());
+			BsonSerializer.RegisterSerializer<JsonArray>(new JsonArraySerializer());
+
 		}
 		
 		/// <summary> MongoDB Connection </summary>
@@ -576,6 +582,7 @@ namespace Ex {
 #endif
 	
 #if !UNITY
+		/// <summary> Helpers for dealing with MongoDB's weirdnesses. </summary>
 		public static class BsonHelpers {
 			/// <summary> Used to evaluate a query to a BsonDocument object which can be used in most places in MongoDB's API </summary>
 			/// <param name="query"> Object literal query </param>
@@ -584,10 +591,175 @@ namespace Ex {
 				return MongoDB.Bson.Serialization.BsonSerializer.Deserialize<BDoc>(query);
 			}
 		}
-
-#endif
 		
+		/// <summary> Icky class to read/write JsonObject fields from/to BSON streams </summary>
+		public class JsonObjectSerializer : SerializerBase<JsonObject> {
+			public override JsonObject Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+				return context.ReadJsonObject();
+			}
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, JsonObject value) {
+				context.WriteJsonObject(value);
+			}
+		}
+
+		/// <summary> Icky class to read/write JsonArray fields from/to BSON streams </summary>
+		public class JsonArraySerializer : SerializerBase<JsonArray> {
+			public override JsonArray Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+				return context.ReadJsonArray();
+			}
+			public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, JsonArray value) {
+				context.WriteJsonArray(value);
+				
+			}
+		}
 	}
+
+	/// <summary> Class to hold some helpers for serializing and deserializing 
+	/// directly to and from <see cref="JsonObject"/> / <see cref="JsonArray"/>. </summary>
+	public static class BsonDeSerHelpers {
+
+		/// <summary> Directly Serialize a <see cref="JsonObject"/></summary>
+		/// <param name="ctx"> context </param>
+		/// <param name="value"> Object to serialize </param>
+		public static void WriteJsonObject(this BsonSerializationContext ctx, JsonObject value) {
+			//Log.Info($"Beginning Object");
+			ctx.StartObject();
+			foreach (var pair in value) {
+				//Log.Info($"Writing {pair.Key}: ({pair.Value.JsonType})");
+				ctx.Writer.WriteName(pair.Key);
+				if (pair.Value == null) { ctx.Writer.WriteNull(); }
+				else if (pair.Value.JsonType == JsonType.String) { ctx.Writer.WriteString(pair.Value.stringVal); }
+				else if (pair.Value.JsonType == JsonType.Number) { ctx.Writer.WriteDouble(pair.Value.doubleVal); }
+				else if (pair.Value.JsonType == JsonType.Object) { ctx.WriteJsonObject(pair.Value as JsonObject); }
+				else if (pair.Value.JsonType == JsonType.Array) { ctx.WriteJsonArray(pair.Value as JsonArray); }
+				else if (pair.Value.JsonType == JsonType.Boolean) { ctx.Writer.WriteBoolean(pair.Value.boolVal); }
+				else if (pair.Value.JsonType == JsonType.Null) { ctx.Writer.WriteNull(); }
+				
+			}
+			//Log.Info($"Finishing Object");
+			ctx.EndObject();
+		}
+
+		/// <summary> Directly Serialize a <see cref="JsonArray"/></summary>
+		/// <param name="ctx"> context </param>
+		/// <param name="value"> Array to serialize </param>
+		public static void WriteJsonArray(this BsonSerializationContext ctx, JsonArray value) {
+			//Log.Info($"Beginning Array");
+			ctx.StartArray();
+			foreach (var item in value) {
+				//Log.Info($"Writing {item.JsonType})");
+				if (item == null) { ctx.Writer.WriteNull(); }
+				else if (item.JsonType == JsonType.String) { ctx.Writer.WriteString(item.stringVal); }
+				else if (item.JsonType == JsonType.Number) { ctx.Writer.WriteDouble(item.doubleVal); }
+				else if (item.JsonType == JsonType.Object) { ctx.WriteJsonObject(item as JsonObject); }
+				else if (item.JsonType == JsonType.Array) { ctx.WriteJsonArray(item as JsonArray); }
+				else if (item.JsonType == JsonType.Boolean) { ctx.Writer.WriteBoolean(item.boolVal); }
+				else if (item.JsonType == JsonType.Null) { ctx.Writer.WriteNull(); }
+				
+			}
+			//Log.Info($"Finishing Object");
+			ctx.EndArray();
+		}
+		
+		/// <summary> Directly Deserialize a <see cref="JsonObject"/></summary>
+		/// <param name="ctx"> context </param>
+		public static JsonObject ReadJsonObject(this BsonDeserializationContext ctx) {
+			JsonObject value = new JsonObject();
+			//Log.Info($"Starting Reading JsonObject");
+			ctx.StartObject();
+			
+			//Log.Info($"Before loop, state is {ctx.Reader.State}");
+			while (true) {
+				// Why is the type before the name?
+				// Log.Info($"Top of loop, state is {ctx.Reader.State}");
+				var nextType = ctx.Reader.ReadBsonType();
+
+				// This is retarded, it should know after reading the start
+				// that the next thing is going to be the end, and shouldn't even need to enter the loop.
+				if (nextType == BsonType.EndOfDocument) { break; }
+				// Log.Info($"Read type is [{nextType}], state is {ctx.Reader.State}");
+				var name = ctx.ReadName();
+				// Log.Info($"Read name is \"{name}\", state is {ctx.Reader.State}");
+
+				if (nextType == BsonType.String) { value[name] = ctx.Reader.ReadString(); }
+				else if (nextType == BsonType.Int32) { value[name] = ctx.Reader.ReadInt32(); }
+				else if (nextType == BsonType.Int64) { value[name] = ctx.Reader.ReadInt64(); }
+				else if (nextType == BsonType.Double) { value[name] = ctx.Reader.ReadDouble(); }
+				else if (nextType == BsonType.Document) { value[name] = ReadJsonObject(ctx); }
+				else if (nextType == BsonType.Array) { value[name] = ReadJsonArray(ctx); }
+				else if (nextType == BsonType.Boolean) { value[name] = ctx.Reader.ReadBoolean(); }
+				else if (nextType == BsonType.Null) { value[name] = JsonNull.instance; ctx.Reader.ReadNull(); }
+				else { ctx.Reader.SkipValue(); }
+
+			}
+
+			// Log.Info($"Finishing Reading JsonObject");
+			ctx.EndObject();
+			return value;
+		}
+
+		/// <summary> Directly Deserialize a <see cref="JsonArray"/></summary>
+		/// <param name="ctx"> context </param>
+		public static JsonArray ReadJsonArray(this BsonDeserializationContext ctx) {
+			JsonArray value = new JsonArray();
+			// Log.Info($"Starting Reading JsonArray");
+			ctx.StartArray();
+			while (true) {
+				// Log.Info($"Top of loop, state is {ctx.Reader.State}");
+				var nextType = ctx.Reader.ReadBsonType();
+				// This is retarded, again it should know immediately upon consuming
+				// the start of the array that the array immediately ends
+				// and shouldn't need to enter the loop. 
+				if (nextType == BsonType.EndOfDocument) { break; }
+
+				// Log.Info($"Read type is [{nextType}], state is {ctx.Reader.State}");
+				if (nextType == BsonType.String) { value.Add(ctx.Reader.ReadString()); }
+				else if (nextType == BsonType.Int32) { value.Add(ctx.Reader.ReadInt32()); }
+				else if (nextType == BsonType.Int64) { value.Add(ctx.Reader.ReadInt64()); }
+				else if (nextType == BsonType.Double) { value.Add(ctx.Reader.ReadDouble()); }
+				else if (nextType == BsonType.Document) { value.Add(ctx.ReadJsonObject()); }
+				else if (nextType == BsonType.Array) { value.Add(ctx.ReadJsonArray()); }
+				else if (nextType == BsonType.Boolean) { value.Add(ctx.Reader.ReadBoolean()); }
+				else if (nextType == BsonType.Null) { value.Add(JsonNull.instance); ctx.Reader.ReadNull(); }
+				else { ctx.Reader.SkipValue(); }
+
+			}
+
+			// Log.Info($"Finishing Reading JsonArray");
+			ctx.EndArray();
+			return value;
+		}
+
+		/// <summary> Helper to read a name, since for some reason 
+		/// the zero-parameter version is not a part of the <see cref="IBsonReader"/> interface,
+		/// but is a part of the <see cref="BsonReader"/> class, 
+		/// but all IBsonReaders are just BsonReaders anyway...
+		/// Seems like a very inconvinent little oversight tbh. </summary>
+		/// <param name="ctx"> Context </param>
+		/// <returns> Name read from Bson stream </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string ReadName(this BsonDeserializationContext ctx) {
+			if (ctx.Reader is BsonReader) {
+				return ((BsonReader)ctx.Reader).ReadName();
+			}
+			return ctx.Reader.ReadName(null);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void StartObject(this BsonDeserializationContext ctx) { ctx.Reader.ReadStartDocument(); }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void EndObject(this BsonDeserializationContext ctx) { ctx.Reader.ReadEndDocument(); }
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void StartObject(this BsonSerializationContext ctx) { ctx.Writer.WriteStartDocument(); }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void EndObject(this BsonSerializationContext ctx) { ctx.Writer.WriteEndDocument(); }
+	}
+#else
+	}
+#endif
+
+
 
 
 }

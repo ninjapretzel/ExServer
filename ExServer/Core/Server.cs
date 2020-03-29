@@ -488,23 +488,28 @@ namespace Ex {
 			
 		}
 
+		/// <summary> Parameter Signature of a <see cref="RPCMessage"/> handler method. </summary>
 		private static Type[] SIGNATURE_OF_MESSAGEHANDLER = new Type[] { typeof(RPCMessage) };
 
+		/// <summary> Cache all of the <see cref="RPCMessage"/> handlers in the given <see cref="Service"/> </summary>
+		/// <param name="service"> Service to cache </param>
 		private void LoadCache(Service service) {
 			Type t = service.GetType();
 			var methods = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 
 			foreach (var method in methods) {
-				
 				if (MatchesSig(method, SIGNATURE_OF_MESSAGEHANDLER) && method.ReturnType.Equals(typeof(void))) {
 					var handler = (RPCMessage.Handler)method.CreateDelegate(typeof(RPCMessage.Handler), service);
 					var rpcName = t.ShortName() + "." + method.Name;
 					rpcCache[rpcName] = handler;
 					// Log.Verbose($"Loaded RPC {rpcName}");
 				}
-
 			}
 		}
+		/// <summary> Check if the given <see cref="MethodInfo"/> has the given parameter <paramref name="signature"/> </summary>
+		/// <param name="method"> Method to check </param>
+		/// <param name="signature"> Signature to check for </param>
+		/// <returns> true if the <paramref name="method"/>'s parameter's match <paramref name="signature"/></returns>
 		private static bool MatchesSig(MethodInfo method, Type[] signature) {
 			var param = method.GetParameters();
 			if (param.Length != signature.Length) { return false; }
@@ -514,6 +519,10 @@ namespace Ex {
 			return true;
 		}
 
+		/// <summary> Gets the <see cref="RPCMessage.Handler"/> from the cache for the given <see cref="RPCMessage"/>.
+		/// If it does not yet exist, creates a handler for that method. </summary>
+		/// <param name="msg"> Message to get the handler for </param>
+		/// <returns> <see cref="RPCMessage.Handler"/> that should be used to handle the given <paramref name="msg"/>. </returns>
 		private RPCMessage.Handler GetHandler(RPCMessage msg) {
 			string rpcName = msg.rpcName;
 			if (rpcCache.ContainsKey(rpcName)) {
@@ -541,7 +550,7 @@ namespace Ex {
 
 		#region SERVICES
 
-		/// <summary> MethodInfo pointing to setter on the <see cref="Service.server"/> propert </summary>
+		/// <summary> MethodInfo pointing to setter on the <see cref="Service.server"/> property </summary>
 		private static MethodInfo SET_OWNER_METHODINFO = typeof(Service).GetProperty("server", typeof(Server)).GetSetMethod(true);
 		/// <summary> Cached object array for MethodInfo invocation without extra garbage collection. </summary>
 		private object[] SET_OWNER_ARGS;
@@ -588,6 +597,9 @@ namespace Ex {
 			return false;
 		}
 
+		/// <summary> Removes service of the given type. </summary>
+		/// <param name="t"> Type of service to remove </param>
+		/// <returns> True if removed, false otherwise. </returns>
 		public bool RemoveService(Type t) {
 			if (t != null 
 				&& typeof(Service).IsAssignableFrom(t)
@@ -615,8 +627,12 @@ namespace Ex {
 
 
 	}
+	/// <summary> Helpers for the server class. </summary>
 	public static class ServerUtils {
 
+		/// <summary> Gets the short name of a given type. </summary>
+		/// <param name="t"> Type to get the name </param>
+		/// <returns> Final, short name of the given type. </returns>
 		public static string ShortName(this Type t) {
 			string name = t.Name;
 			if (name.Contains('.')) {

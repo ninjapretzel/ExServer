@@ -1,5 +1,279 @@
-[
-	{ name: "attributes", value: [ "slash", "pierce", "crush", "fast", "heavy", "long", "fire", "water", "light", "dark", "earth", "wind" ] }, 
-	{ name: "baseStats", value: [ "str", "vit", "end", "dex", "agi", "lck", "int", "wis", "wil" ] }
+{
+	// Attributes may be applied to damage.
+	// - Any damage dealt potentially consists of multiple attributes.
+	// - Damage is also be split into physical/magical.
+	// - fast/heavy/long are prefixes, slash/pierce/impact are suffixes.
+	//		- any two may be joined together. eg fast_slash or heavy_pierce.
+	// 		- fastslash and fast_slash are treated the same.
+	// 		- resistances only apply to these names.
+	//			- you may have 'fast$' resistances, 
+	//			- but not 'fast_slash' resistance.
+	// - The elements are just elements, and are not joined.
+	attributes: {
+		fast, heavy, long,
+		slash, pierce, impact,
+		light, fire, earth,
+		dark, water, wind,
+	},
+	// BaseStats are the primary descriptor of a units abilities.
+	// Players may directly invest in these stats.
+	// These are used to calculate derived stats.
+	BaseStats: {
+		str, vit, end,
+		dex, apt, agi,
+		mag, rsv, spi,
+		lck,
+	},
+	// IntermediateStats are stats that cannot be directly invested in,
+	// but may be gained from gear, skills or buffs.
+	// They are also used to calculate derived stats.
+	IntermediateStats: {
+		armor, shell,
+		rflex, intut,
+		sight, tough,
+	},
+	// CombatStats can be joined additively and multiplicatively.
+	CombatStats: { 
+		// Note: these are considered during the combat stat step.
+		// 		 as well as separately as resource descriptors.
+		max$, rec$, rep$, 
+		patka, patkb, pacc, pdef,
+		matka, matkb, macc, mdef,
+		aspd, cspd, mspd,
+	},
+	// CombatRatios are only able to be joined as ratios. 
+	// join(a,b) = ( 1 - (1-a)*(1-b) )
+	// eg:
+	// join(.1, .2) = .28
+	// join(.3, .5) = .65
+	// join(.5, .5) = .75
+	// join(.8, .8) = .96
+	// This prevents them from ever becoming 100%
+	CombatRatios: { 
+		pres, peva,
+		mres, meva,
+		crit, resi,
+	},
+	
+	// Resistances are how resistances for damage types are described.
+	// Eg, res_slash will match "slash", 
+	//		and provide resistances to slash damage.
+	Resistances: { res_$ },
+	// Affinities boost damage of a given type.
+	// Eg aff_fire will match "fire", 
+	//		and provide some % boost to fire damage before defenses.
+	Affinities: { aff_$ },
+	
+	
+	// Collection of resources that are fairly common.
+	// Resources implicitly consist of potentially multiple pieces.
+	// the 'Armor' below is different, as it consists of:
+	//			maxArmor (resource cap)
+	//			curArmor (current resource) (in the unit's resources collection, not in the combat stats)
+	//		as well as (potentially)
+	//			recArmor (resource constant recovery rate per second)
+	//			repArmor (resource prime recovery rate (aka applied as a t^2 rate with the next as t))
+	//			useArmor (time since resource was last depleted)
+	// Different resources may be present on each unit.
+	//		NanoDrones only have [ "Hull", "Shield" ]
+	//		Most bugs only have [ "Health" ]
+	//		Some bugs have 		[ "Health", "Armor" ]
+	//		MiliDrones and KiloDrones have more:
+	//			[ "Hull", "Armor", "Shield", "Fuel" ]
+	//		SLAMs may have almost all of them: 
+	//			[ "Hull", "Armor", "Shield", "Mana", "Spirit", "Stamina", "Fuel" ]
+	Resources: {
+		Health, Hull, Armor, Shield,
+		Mana, Spirit, Stamina,
+		Overdrive,
+		Fuel,
+	},
+	// Collectors for resource parts as described above
+	ResourceCap:		{ max$ },
+	ResourceCurrent:	{ cur$ },
+	ResourceRecovery:	{ rec$ },
+	ResourceRecovery2:	{ rep$ },
+	ResourceLastUse:	{ use$ },
+	
+	
+	// Collection of 'vital' things that can be damaged.
+	// These must also be considered resources. 
+	// the armor here is not the same as the IntermediateStats.armor.
+	// As the resource armor implicitly consists of multiple pieces,
+	//		maxArmor, curArmor, etc.
+	// The order of these vital resources is important.
+	// The first resource that is present is prioritized as the most vital.
+	// 		if I have [ hull, shield ] on a unit, when its hull is depleted, it is dead.
+	// The last resource that is present is hit first when damage is applied.
+	//		if I have [ hull, armor, shield ] on a unit, when it is hit,
+	//			damage is first applied to the shield (if any remains)
+	//			remaining damage then is applied to the armor (if any remains)
+	//			remaining damage then is applied to the hull.
+	// This is more of a listing for convinience to see what may be present on a unit.
+	Vitals: [
+		"Health", "Hull", "Armor", "Shield",
+	],
+	
+	// Special rule used at various points of the stat calc
+	// to prevent partial stats from falling through.
+	floorRule: { // match some stats, and apply a floor operation.
+		rule: "floor",
+		source: { 
+			// Exact matches
+			patka, patkb, pdef,
+			matka, matkb, mdef,
+			
+			// The "@thing" matches everything 
+			// in the group named "thing" in the top level object 
+			"@BaseStats",
+			"@IntermediateStats",
+			"@ResourceCap",
+		},
+	}
+	
+	// These are modifiers that apply after other calculation steps.
+	// This is the base set of rules for all units.
+	// skills and buffs may add additional rules 
+	// but they will only apply after all of these have been applied.
+	rules:[
+		{
+			type: "asymp",		rule: "ratio",
+			source: "armor",	result: "pres",
+			rate: 1600, 		cap: .95,
+		},
+		{
+			type: "asymp",		rule: "ratio",
+			source: "shell",	result: "mres",
+			rate: 1600, 		cap: .95,
+		},
+		{
+			type: "log",		rule: "ratio",
+			source: "rflex",	result: "peva",
+			rate: .01,			cap: .95,
+		},
+		{
+			type: "log",		rule: "ratio",
+			source: "intut",	result: "meva",
+			rate: .01,			cap: .95,
+		},
+		{
+			type: "asymp",		rule: "ratio",
+			source: "sight",	result: "crit",
+			rate: 3600,			cap: .50,
+		},
+		{
+			type: "asymp",		rule: "ratio",
+			source: "tough",	result: "resi",
+			rate: 3600,			cap: .50,
+		},
+		// Other rules also could be possible,
+		// Like this would add 1 patka for every 10 armor:
+//		{
+//			type: "line",		rule: "add",
+//			source: "armor",	result: "patka",
+//			rate: .1			// no cap.
+//		}
+	],
+	
+	// This is the base data that any unit
+	// that does not have a custom "BaseCombatStats"
+	// stats are added to.
+	BaseCombatStats: {
+		vitals: [ "Health", ],
+		resources: [ "Health", ],
+		maxHealth:	100.000,
+		// The following are omitted from most units to disable resource recovery.
+		//recHealth:	000.000,
+		//repHealth:	000.000,
+		//useHealth:	000.000,
+		patka:		005.000,	patkb:		010.000,
+		pacc:		000.500,	pdef:		000.000, 
+		pres:		000.000,	peva:		000.000,
+		
+		matka:		010.000,	matkb:		010.000,
+		macc:		000.500,	mdef:		000.000,
+		mres:		000.000,	meva:		000.000,
+		
+		crit:		000.000,	resi:		000.000,
+		
+		aspd:		001.000,	cspd:		001.000,
+		mspd:		001.000,
+		
+		armor:		000.000,	shell:		000.000,
+		rflex:		000.000,	intut:		000.000,
+		sight:		000.000,	tough:		000.000,		
+	},
+	
+	// Used to calculate the base exp value of a unit from its stats.
+	ExpStatRates: {
+		maxHealth:	000.100,	recHealth:	001.000,	repHealth:	002.000,
+		
+		patka:		000.200,	patkb:		000.200,
+		pacc:		010.000,	pdef:		000.400,
+		
+		matka:		000.200,	matkb:		000.200,
+		macc:		010.000,	mdef:		000.400,
+		
+		// these still don't potentially contribute much exp even when near 100% 
+		pres:		010.000,	peva:		010.000,
+		mres:		000.000,	meva:		000.000,
+		crit:		000.000,	resi:		000.000,
+		
+		aspd:		003.000,	cspd:		003.000,
+		mspd:		003.000,
+		
+		// These may contribute too much. Need to test.
+		"@IntermediateStats": 	002.000,
+		"@BaseStats":			001.000,
+	},
 
-]
+	// used to actually derive combat/intermediate stats from base stats 
+	// For the resource stats, only the ones pertinent to the resources on the unit are calculated.
+	CombatStatCalc: {
+		type: "matrix",
+		
+		maxHealth:	{ level: 30.000, vit: 05.400, str: 01.100, end: 01.800, apt: 00.100, },
+		maxMana:	{ level: 05.000, rsv: 02.400, mag: 00.200, spi: 00.800, apt: 00.050, },
+		maxStamina:	{ level: 05.000, end: 06.400, vit: 01.200, rsv: 00.500, apt: 00.150, },
+		maxSpirit:	{ level: 01.000, "@BaseStats": 00.125, spi: 00.875, }, // spi matches twice.
+		maxShield:	{ level: 10.000, },
+		
+		recHealth:	{ level: 00.050, vit: 00.007, str: 00.003, end: 00.015, apt: 00.003, },
+		recMana:	{ level: 00.020, rsv: 00.002, mag: 00.001, spi: 00.005, apt: 00.001, },
+		recStamin:	{ level: 00.100, end: 00.002, vit: 00.001, rsv: 00.001, apt: 00.001, },
+		recSpirit:	{ level: 00.010, "@BaseStats": 00.001, spi: 00.009, }, // spi matches twice.
+		recShield:	{ level: 00.010, },
+		
+		repHealth:	{ level: 00.001, vit: 00.001, str: 00.001, end: 00.003, apt: 00.000, },
+		repMana:	{ level: 00.010, rsv: 00.002, mag: 00.002, spi: 00.015, apt: 00.000, },
+		repStamin:	{ level: 00.050, end: 00.010, vit: 00.002, rsv: 00.005, apt: 00.002, },
+		repSpirit:	{ level: 00.000, "@BaseStats": 00.000, spi: 00.001, }, // spi matches twice.
+		repShield:	{ level: 00.010, },
+		
+		patka:		{ level: 01.000, str: 05.000, dex: 01.000, apt: 00.300, },
+		patkb:		{ level: 10.000, str: 01.000, dex: 03.000, apt: 00.300, },
+		pacc:		{ level: 00.002, dex: 00.002, str: 00.001, apt: 00.001, },
+		pdef:		{ level: 01.000, vit: 00.500, end: 00.250, apt: 00.100, },
+		pres:		{ level: 00.000, vit: 00.000, end: 00.000, apt: 00.000, }, // Applied via armor.
+		peva:		{ level: 00.000, agi: 00.000, apt: 00.000, apt: 00.000, }, // applied via rflex.
+		
+		matka:		{ level: 03.500, mag: 02.150, rsv: 01.050, apt: 00.300, },
+		matkb:		{ level: 03.500, mag: 04.150, rsv: 01.050, apt: 00.300, },
+		macc:		{ level: 00.002, mag: 00.001, rsv: 00.002, apt: 00.001, },
+		mdef:		{ level: 01.000, vit: 00.500, rsv: 00.250, apt: 00.100, },
+		mres:		{ level: 00.000, vit: 00.000, rsv: 00.000, apt: 00.000, }, // Applied via shell.
+		meva:		{ level: 00.000, rsv: 00.000, apt: 00.000, apt: 00.000, }, // Applied via intut.
+		
+		aspd:		{ level: 00.010, agi: 00.007, dex: 00.004, apt: 00.001, },
+		cspd:		{ level: 00.010, dex: 00.007, agi: 00.004, apt: 00.001, },
+		mspd:		{ level: 00.010, agi: 00.001, dex: 00.001, apt: 00.001, end: 00.001, rsv: 00.001, },
+		
+		armor:		{ level: 00.000, vit: 04.000, agi: 02.000, apt: 00.100, rsv: 00.100, },
+		shell:		{ level: 00.000, vit: 04.000, rsv: 02.000, apt: 00.100, agi: 00.100, },
+		rflex:		{ level: 00.000, agi: 04.000, dex: 02.000, apt: 00.100, rsv: 00.100, },
+		intut:		{ level: 00.000, agi: 04.000, dex: 02.000, apt: 00.100, rsv: 00.100, },
+		sight:		{ level: 00.000, dex: 04.000, agi: 02.000, apt: 00.100, mag: 00.100, },
+		tough:		{ level: 00.000, vit: 04.000, str: 02.000, apt: 00.100, end: 00.100, },
+	},
+	
+}

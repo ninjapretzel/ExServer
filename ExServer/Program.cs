@@ -34,11 +34,18 @@ namespace Ex {
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				// Still more visible than doing some weird VS build command hook.
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-#endif
 				
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+
+#endif
+
 				SetupLogger();
 				StaticSetup();
 				SelfTest();
@@ -161,7 +168,7 @@ namespace Ex {
 				.Reseed("../../../db")
 				;
 				
-
+			server.AddService<Eternus.EternusGame>();
 
 
 		}

@@ -1,4 +1,4 @@
-{
+{data:{
 	// Attributes may be applied to damage.
 	// - Any damage dealt potentially consists of multiple attributes.
 	// - Damage is also be split into physical/magical.
@@ -277,4 +277,4 @@
 		tough:		{ level: 00.000, vit: 04.000, str: 02.000, apt: 00.100, end: 00.100, },
 	},
 	
-}
+}}

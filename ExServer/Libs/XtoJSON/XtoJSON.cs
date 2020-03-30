@@ -1108,7 +1108,10 @@ public class JsonObject : JsonValue, IEnumerable<KeyValuePair<JsonString, JsonVa
 	/// <summary> Does this object have a property defined as <paramref name="key"/>?</summary>
 	/// <param name="key"> Name of property to check. </param>
 	/// <returns> True if property exists, false otherwise. </returns>
-	public bool Has(string key) { return data.ContainsKey(key); }
+	public bool Has(string key) { return data.ContainsKey(key); }/// <summary> Does this object have a property defined as <paramref name="key"/>?</summary>
+	/// <param name="key"> Name of property to check. </param>
+	/// <returns> True if property exists, false otherwise. </returns>
+	public bool Has(JsonString key) { return data.ContainsKey(key); }
 
 	/// <summary> Does this object have a property defined as <paramref name="key"/> that matches <typeparamref name="T"/>? </summary>
 	/// <typeparam name="T"> JsonValue based type to match </typeparam>
@@ -1117,6 +1120,14 @@ public class JsonObject : JsonValue, IEnumerable<KeyValuePair<JsonString, JsonVa
 	public bool Has<T>(string key) where T : JsonValue {
 		return Has(key) && this[key].GetType() == typeof(T);
 	}
+	/// <summary> Does this object have a property defined as <paramref name="key"/> that matches <typeparamref name="T"/>? </summary>
+	/// <typeparam name="T"> JsonValue based type to match </typeparam>
+	/// <param name="key"> Key to check </param>
+	/// <returns> true if <paramref name="key"/> exists, and matches the given type, otherwise false </returns>
+	public bool Has<T>(JsonString key) where T : JsonValue {
+		return Has(key) && this[key].GetType() == typeof(T);
+	}
+
 	/// <summary> Does this object contain all of the given keys? </summary>
 	/// <param name="keys"> Array of keys to check </param>
 	/// <returns> True if this object has all of the keys, false otherwise </returns>

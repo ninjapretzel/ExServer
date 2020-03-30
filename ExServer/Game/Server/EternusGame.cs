@@ -24,12 +24,22 @@ namespace Eternus {
 			var syncData = sync.Context("data");
 			
 			statCalc = db.Get<StatCalc>("Content", "filename", "StatCalc");
+			JsonObject test = new JsonObject(
+				"str", 5, "dex", 12, 
+				"maxHealth", 200,
+				"recHealth", 1.5,
 
-			if (statCalc != null) {
-				Log.Info("I have a stat calc.");
-			} else {
-				Log.Info("there is no stat calc");
-			}
+
+				"what", 123123
+			);
+
+			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
+			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
+			Log.Info(result1);
+			Log.Info(result2);
+
+			
+				
 			
 		}
 

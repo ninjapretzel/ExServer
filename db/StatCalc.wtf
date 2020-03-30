@@ -9,7 +9,7 @@
 	//			- you may have 'fast$' resistances, 
 	//			- but not 'fast_slash' resistance.
 	// - The elements are just elements, and are not joined.
-	attributes: {
+	Attributes: {
 		fast, heavy, long,
 		slash, pierce, impact,
 		light, fire, earth,
@@ -114,28 +114,12 @@
 		"Health", "Hull", "Armor", "Shield",
 	],
 	
-	// Special rule used at various points of the stat calc
-	// to prevent partial stats from falling through.
-	floorRule: { // match some stats, and apply a floor operation.
-		rule: "floor",
-		source: { 
-			// Exact matches
-			patka, patkb, pdef,
-			matka, matkb, mdef,
-			
-			// The "@thing" matches everything 
-			// in the group named "thing" in the top level object 
-			"@BaseStats",
-			"@IntermediateStats",
-			"@ResourceCap",
-		},
-	}
 	
 	// These are modifiers that apply after other calculation steps.
 	// This is the base set of rules for all units.
 	// skills and buffs may add additional rules 
 	// but they will only apply after all of these have been applied.
-	rules:[
+	Rules:[
 		{
 			type: "asymp",		rule: "ratio",
 			source: "armor",	result: "pres",
@@ -174,6 +158,23 @@
 //			rate: .1			// no cap.
 //		}
 	],
+	
+	// Special rule used at various points of the stat calc
+	// to prevent partial stats from falling through.
+	FloorRule: { // match some stats, and apply a floor operation.
+		rule: "floor",
+		source: { 
+			// Exact matches
+			patka, patkb, pdef,
+			matka, matkb, mdef,
+			
+			// The "@thing" matches everything 
+			// in the group named "thing" in the top level object 
+			"@BaseStats",
+			"@IntermediateStats",
+			"@ResourceCap",
+		},
+	},
 	
 	// This is the base data that any unit
 	// that does not have a custom "BaseCombatStats"

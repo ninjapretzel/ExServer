@@ -13,7 +13,7 @@ namespace Eternus {
 		LoginService logins;
 		SyncService sync;
 
-		
+		StatCalc statCalc;
 
 		/// <summary> Callback when the Service is added to a Servcer </summary>
 		public override void OnEnable() {
@@ -22,8 +22,14 @@ namespace Eternus {
 			sync = GetService<SyncService>();
 
 			var syncData = sync.Context("data");
+			
+			statCalc = db.Get<StatCalc>("Content", "filename", "StatCalc");
 
-
+			if (statCalc != null) {
+				Log.Info("I have a stat calc.");
+			} else {
+				Log.Info("there is no stat calc");
+			}
 			
 		}
 
@@ -39,11 +45,11 @@ namespace Eternus {
 
 			}
 
-			Log.Info("Hey yall I got me a game state: " + Json.Reflect(gameState).PrettyPrint() );
+			//Log.Info("Hey yall I got me a game state: " + Json.Reflect(gameState).PrettyPrint() );
 			db.Save(gameState);
 
-			GameState state2 = db.Get<GameState>(clientId);
-			Log.Info("Hey yall I got me another game state: " + Json.Reflect(state2).PrettyPrint() );
+			// GameState state2 = db.Get<GameState>(clientId);
+			//Log.Info("Hey yall I got me another game state: " + Json.Reflect(state2).PrettyPrint() );
 		}
 
 		public void Initialize(GameState state) {

@@ -106,6 +106,7 @@
     <Compile Include="Core\VersionInfo.cs" />
     <Compile Include="Game\Server\EternusGame.cs" />
     <Compile Include="Game\Server\GameState.cs" />
+    <Compile Include="Game\Server\StatCalculation.cs" />
     <Compile Include="Libs\BakaTest.cs" />
     <Compile Include="Core\Utils\FNode\FNodeTests.cs" />
     <Compile Include="Core\Utils\SimpleCrypto.cs" />

@@ -942,7 +942,7 @@ public class JsonString : JsonValue {
 	public static implicit operator string(JsonString val) { return val._value; }
 
 	/// <summary> Constructor </summary>
-	public JsonString(string value) : base() { _value = value; }
+	public JsonString(string value) : base() { _value = value.Length <= 32 ? string.Intern(value) : value; }
 
 	/// <summary> Get the hash code of this object. Wraps through to the string inside of it. </summary>
 	public override int GetHashCode() { return _value.GetHashCode(); }

@@ -10,13 +10,21 @@ namespace Eternus {
 	
 	/// <summary> Database object for the primary user save data. </summary>
 	[BsonIgnoreExtraElements]
-	public class GameState : DBEntry {
+	public class GameState : DBData { 
+		public JsonObject flags { get { return data.Get<JsonObject>(MemberName()); } }	
+	}
 
-		public JsonObject wallet;
+	/// <summary> Database object to store changing resources. 
+	/// These would be kept and modifed primarily in memory, 
+	/// but have changes journaled every few seconds. </summary>
+	[BsonIgnoreExtraElements]
+	public class UserResources : DBData { }
 
-		public JsonArray units;
+	/// <summary> Database object to store player stats. </summary>
+	[BsonIgnoreExtraElements]
+	public class UserStats : DBData { }
+	
 		
 
-	}
 	
 }

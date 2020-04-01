@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Ex;
+using MongoDB.Driver;
 
 namespace Eternus {
 	
@@ -49,27 +50,25 @@ namespace Eternus {
 
 			GameState gameState = db.Get<GameState>(clientId);
 			if (gameState == null) {
-				gameState = new GameState();
-				Initialize(gameState);
-				gameState.guid = clientId;
-
+				Initialize(clientId);
 			}
 
-			//Log.Info("Hey yall I got me a game state: " + Json.Reflect(gameState).PrettyPrint() );
-			db.Save(gameState);
-
-			// GameState state2 = db.Get<GameState>(clientId);
-			//Log.Info("Hey yall I got me another game state: " + Json.Reflect(state2).PrettyPrint() );
 		}
 
-		public void Initialize(GameState state) {
-			state.wallet = new JsonObject();
-			state.wallet["gp"] = 50;
+		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
+		/// <param name="guid"> Guid of player to initialize game state of. </param>
+		public void Initialize(Guid guid) {
+			//db.Remove<GameState>(guid);
+			//db.Remove<UserResources>(guid);
+			//db.Remove<UserStats>(guid);
+			
+			GameState gameState = new GameState();
+			gameState.guid = guid;
+			
+			db.Save(gameState);
 
-			JsonObject drone = new JsonObject();
-			state.units = new JsonArray(drone);
-			
-			
+			GameState gs2 = db.Get<GameState>(guid);
+
 		}
 
 		/// <summary> Callback when the Service is removed from the server </summary>

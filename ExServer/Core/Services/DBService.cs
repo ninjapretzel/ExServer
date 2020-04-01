@@ -29,12 +29,30 @@ using MongoDB.Bson.IO;
 namespace Ex {
 
 #if !UNITY
-	/// <summary> Base class for any types being stored in the database. Standardizes access to the MongoDB "_id" property. </summary>
+	/// <summary> Base class for any types being stored in the database. 
+	/// Standardizes access to the MongoDB "_id" property, a single relational Guid,</summary>
 	public class DBEntry {
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
 		[BsonId] public ObjectId id { get; set; }
 		/// <summary> Guid to relate entry to some specific entity or user. </summary>
 		public Guid guid { get; set; }
+	}
+	/// <summary> Provides the same as the <see cref="DBEntry"/> class, 
+	/// and also a generic 'data' object for arbitrary data. </summary>
+	public class DBData : DBEntry {
+		/// <summary> Used to defer storage of arbitrary data. </summary>
+		public JsonObject data;
+		/// <summary> Helpful macro that grabs the calling member name of anything that calls it. 
+		/// <para>Makes it easier to make properties utilizing the <see cref="data"/> field, eg </para> <para><code>
+		/// public <see cref="JsonObject"/> Attributes { get { return data.Get&lt;<see cref="JsonObject"/>&gt;(MemberName()); } }
+		/// </code></para></summary>
+		/// <param name="caller"> Autofilled by compiler </param>
+		/// <returns> Name of member calling this method. </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string MemberName([CallerMemberName] string caller = null) { return caller; }
+		public DBData() {
+			this.data = new JsonObject();
+		}
 	}
 	
 #endif 
@@ -559,7 +577,7 @@ namespace Ex {
 			}
 		}
 
-		/// <summary> Saves the given item into the default database. Updates the item, or inserts it if one does not exist yet.  </summary>
+		/// <summary> Saves the given item into the given database. Updates the item, or inserts it if one does not exist yet.  </summary>
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
 		/// <param name="databaseName"> Name of database to sample </param>
 		/// <param name="item"> Item to insert </param>
@@ -579,8 +597,61 @@ namespace Ex {
 				Log.Error("Failed to save database entry", e);
 			}
 		}
+
+		/// <summary> Removes the given item from the default database. </summary>
+		/// <typeparam name="T"> Generic type of item to delete </typeparam>
+		/// <param name="item"> Item to delete </param>
+		public void Remove<T>(T item) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var coll = Collection<T>();
+			try {
+				coll.DeleteOne(filter);
+			} catch (Exception e) {
+				Log.Error($"Failed to delete database entry for {typeof(T)}::{item.id}", e);
+			}
+		}
+		/// <summary> Removes all of the data for the given guid from the default database. </summary>
+		/// <typeparam name="T"> Generic type of item to delete </typeparam>
+		/// <param name="guid"> Guid of data to delete </param>
+		public void Remove<T>(Guid guid) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), guid);
+			var coll = Collection<T>();
+			try {
+				coll.DeleteMany(filter);
+			} catch (Exception e) {
+				Log.Error($"Failed to delete database entries for {typeof(T)}::{guid}", e);
+			}
+		}
+
+		/// <summary> Removes the given item from the given database. </summary>
+		/// <typeparam name="T"> Generic type of item to delete </typeparam>
+		/// <param name="databaseName"> Database name to delete </param>
+		/// <param name="item"> Item to delete </param>
+		public void Remove<T>(string databaseName, T item) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var coll = Collection<T>(databaseName);
+			try {
+				coll.DeleteOne(filter);
+			} catch (Exception e) {
+				Log.Error($"Failed to delete database entry for {typeof(T)}::{item.id}", e);
+			}
+		}
+
+		/// <summary> Removes all of the data for the given guid from the given database. </summary>
+		/// <typeparam name="T"> Generic type of item to delete </typeparam>
+		/// <param name="databaseName"> Database name to delete from </param>
+		/// <param name="guid"> Guid of data to delete </param>
+		public void Remove<T>(string databaseName, Guid guid) where T : DBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), guid);
+			var coll = Collection<T>(databaseName);
+			try {
+				coll.DeleteMany(filter);
+			} catch (Exception e) {
+				Log.Error($"Failed to delete database entries for {typeof(T)}::{guid}", e);
+			}
+		}
 #endif
-	
+
 #if !UNITY
 		/// <summary> Helpers for dealing with MongoDB's weirdnesses. </summary>
 		public static class BsonHelpers {
@@ -622,6 +693,10 @@ namespace Ex {
 		/// <param name="ctx"> context </param>
 		/// <param name="value"> Object to serialize </param>
 		public static void WriteJsonObject(this BsonSerializationContext ctx, JsonObject value) {
+			if (value == null) { 
+				ctx.Writer.WriteNull(); 
+				return;
+			}
 			//Log.Info($"Beginning Object");
 			ctx.StartObject();
 			foreach (var pair in value) {
@@ -644,6 +719,10 @@ namespace Ex {
 		/// <param name="ctx"> context </param>
 		/// <param name="value"> Array to serialize </param>
 		public static void WriteJsonArray(this BsonSerializationContext ctx, JsonArray value) {
+			if (value == null) {
+				ctx.Writer.WriteNull();
+				return;
+			}
 			//Log.Info($"Beginning Array");
 			ctx.StartArray();
 			foreach (var item in value) {
@@ -664,6 +743,11 @@ namespace Ex {
 		/// <summary> Directly Deserialize a <see cref="JsonObject"/></summary>
 		/// <param name="ctx"> context </param>
 		public static JsonObject ReadJsonObject(this BsonDeserializationContext ctx) {
+			var firstType = ctx.Reader.CurrentBsonType;
+			if (firstType == BsonType.Null) {
+				ctx.Reader.ReadNull();
+				return null;
+			}
 			JsonObject value = new JsonObject();
 			//Log.Info($"Starting Reading JsonObject");
 			ctx.StartObject();
@@ -701,6 +785,11 @@ namespace Ex {
 		/// <summary> Directly Deserialize a <see cref="JsonArray"/></summary>
 		/// <param name="ctx"> context </param>
 		public static JsonArray ReadJsonArray(this BsonDeserializationContext ctx) {
+			var firstType = ctx.Reader.CurrentBsonType;
+			if (firstType == BsonType.Null) {
+				ctx.Reader.ReadNull(); 
+				return null;
+			}
 			JsonArray value = new JsonArray();
 			// Log.Info($"Starting Reading JsonArray");
 			ctx.StartArray();

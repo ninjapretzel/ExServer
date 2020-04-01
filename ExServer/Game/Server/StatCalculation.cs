@@ -9,14 +9,7 @@ using System.Threading.Tasks;
 
 namespace Eternus {
 	[BsonIgnoreExtraElements]
-	public class StatCalc : DBEntry {
-		public JsonObject data;
-
-		/// <summary> Useful macro that grabs the calling member name of anything that calls it. </summary>
-		/// <param name="caller"> Autofilled by compiler </param>
-		/// <returns> Name of member calling this method. </returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private static string MemberName([CallerMemberName] string caller = null) { return caller; }
+	public class StatCalc : DBData {
 		// Basically a bunch of auto members.
 		public JsonObject Attributes { get { return data.Get<JsonObject>(MemberName()); } }
 		public JsonObject BaseStats { get { return data.Get<JsonObject>(MemberName()); } }

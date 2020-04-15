@@ -64,7 +64,14 @@
 	//		and provide some % boost to fire damage before defenses.
 	Affinities: { aff_$ },
 	
-	
+	Groups: {
+		BaseStats: "add",
+		CombatStats: "add",
+		IntermediateStats: "add",
+		Affinities: "add",
+		CombatRatios: "ratio",
+		Resistances: "ratio",
+	},
 	// Collection of resources that are fairly common.
 	// Resources implicitly consist of potentially multiple pieces.
 	// the 'Armor' below is different, as it consists of:
@@ -161,19 +168,16 @@
 	
 	// Special rule used at various points of the stat calc
 	// to prevent partial stats from falling through.
-	FloorRule: { // match some stats, and apply a floor operation.
-		rule: "floor",
-		source: { 
-			// Exact matches
-			patka, patkb, pdef,
-			matka, matkb, mdef,
-			
-			// The "@thing" matches everything 
-			// in the group named "thing" in the top level object 
-			"@BaseStats",
-			"@IntermediateStats",
-			"@ResourceCap",
-		},
+	FloorRule: {  // match some stats, and apply a floor operation.
+		// Exact matches
+		patka, patkb, pdef,
+		matka, matkb, mdef,
+		
+		// The "@thing" matches everything 
+		// in the group named "thing" in the top level object 
+		"@BaseStats",
+		"@IntermediateStats",
+		"@ResourceCap",
 	},
 	
 	// This is the base data that any unit

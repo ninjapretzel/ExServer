@@ -11,6 +11,7 @@ namespace Eternus {
 	/// <summary> Database object for the primary user save data. </summary>
 	[BsonIgnoreExtraElements]
 	public class GameState : DBData { 
+		public GameState() : base() { data["flags"] = new JsonObject(); }
 		public JsonObject flags { get { return data.Get<JsonObject>(MemberName()); } }	
 	}
 
@@ -22,7 +23,14 @@ namespace Eternus {
 
 	/// <summary> Database object to store player stats. </summary>
 	[BsonIgnoreExtraElements]
-	public class UserStats : DBData { }
+	public class UnitStats : DBData { 
+		public UnitStats() : base() { 
+			data["baseStats"] = new JsonObject();
+			data["combatStats"] = new JsonObject();
+		}
+		public JsonObject baseStats { get { return data.Get<JsonObject>(MemberName()); } }
+		public JsonObject combatStats { get { return data.Get<JsonObject>(MemberName()); } }
+	}
 	
 		
 

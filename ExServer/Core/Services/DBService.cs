@@ -37,6 +37,7 @@ namespace Ex {
 		/// <summary> Guid to relate entry to some specific entity or user. </summary>
 		public Guid guid { get; set; }
 	}
+
 	/// <summary> Provides the same as the <see cref="DBEntry"/> class, 
 	/// and also a generic 'data' object for arbitrary data. </summary>
 	public class DBData : DBEntry {
@@ -50,9 +51,7 @@ namespace Ex {
 		/// <returns> Name of member calling this method. </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string MemberName([CallerMemberName] string caller = null) { return caller; }
-		public DBData() {
-			this.data = new JsonObject();
-		}
+		public DBData() : base() { data = new JsonObject(); }
 	}
 	
 #endif 

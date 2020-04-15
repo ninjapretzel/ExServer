@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ex{
+namespace Ex {
 
 	/// <summary> Service providing network debugging messages when common events occur. </summary>
 	public class DebugService : Service {
@@ -16,8 +16,16 @@ namespace Ex{
 			Log.Verbose("Debug Service Disabled");
 		}
 
+		public float timeout;
 		public override void OnTick(float delta) {
-			Log.Verbose("Debug Service Tick " + delta);
+			// Log.Verbose("Debug service tick");
+			if (!isMaster) {
+				timeout += delta;
+				if (timeout > 1.0f) {
+					server.localClient.Hurl(this.Ping);
+					timeout -= 1.0f;
+				}
+			}
 		}
 
 
@@ -30,7 +38,7 @@ namespace Ex{
 		}
 
 		public void Ping(RPCMessage msg) {
-			Log.Verbose($"Ping'd by {msg.sender.identity}");
+			Log.Info($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
 			msg.sender.Call(Pong);
@@ -41,10 +49,11 @@ namespace Ex{
 		}
 		public void Pong(RPCMessage msg) {
 
-			Log.Verbose($"Pong'd by {msg.sender.identity}");
+			Log.Info($"Pong'd by {msg.sender.identity}");
 
 		}
 
+		
 	}
 	
 }

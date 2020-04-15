@@ -48,7 +48,7 @@ namespace Ex {
 
 				SetupLogger();
 				StaticSetup();
-				SelfTest();
+				// SelfTest();
 				ActualProgram();
 				
 				

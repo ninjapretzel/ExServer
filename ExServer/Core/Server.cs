@@ -87,6 +87,9 @@ namespace Ex {
 		/// <summary> TCP listener </summary>
 		private TcpListener listener;
 
+		/// <summary> UTC Timestamp of last tick </summary>
+		private DateTime lastTick;
+
 		/// <summary> Hidden reference to local client for slave server </summary>
 		private Client _localClient;
 		/// <summary> Returns local client object, if this is a slave server. </summary>
@@ -94,6 +97,9 @@ namespace Ex {
 		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
 		public Server(int port = 32055, float tick = 50) {
+			if (port == ushort.MaxValue-2 || (port >= 0 && port < 1024)) {
+				throw new ArgumentException($"Cannot use a port of {port}. Please avoid system ports or ports with neighbors that are in use, or near the max port number.");
+			}
 			sendCheckQueue = new ConcurrentQueue<Client>();
 			recrCheckQueue = new ConcurrentQueue<Client>();
 			incoming = new ConcurrentQueue<RPCMessage>();
@@ -113,6 +119,7 @@ namespace Ex {
 			Running = false;
 
 			AddService<CoreService>();
+			lastTick = DateTime.UtcNow;
 		}
 
 		public void Start() {
@@ -197,7 +204,7 @@ namespace Ex {
 			recrCheckQueue.Enqueue(client);
 		}
 
-		/// <summary>  Globally calls a method, as if the given client had sent it. </summary>
+		/// <summary>  Globally calls an <see cref="RPCMessage"/>, as if the given client had sent it. </summary>
 		/// <param name="client"> Client to simulate call of method for </param>
 		/// <param name="callback"> Callback to call </param>
 		/// <param name="stuff"> Parameters for call </param>
@@ -206,7 +213,6 @@ namespace Ex {
 			RPCMessage msg = new RPCMessage(client, str);
 			incoming.Enqueue(msg);
 		}
-
 
 		/// <summary> Closes client from being tracked by the server. 
 		/// Exposed to allow slave clients to explicitly disconnect from their server. </summary>
@@ -301,10 +307,25 @@ namespace Ex {
 
 					HandleInternalEvents();
 
+				} catch (Exception e) {
+					Log.Error("Failure in Server.GlobalUpdate during Handlers: ", e);
 				}
-				catch (Exception e) {
-					Log.Error("Failure in Server.Update", e);
+
+				try {
+					DateTime now = DateTime.UtcNow;
+					TimeSpan diff = now - lastTick;
+					if (diff.TotalMilliseconds > tickRate) {
+						lastTick = now;
+						float d = (float) diff.TotalSeconds;
+						foreach (var pair in services) {
+							pair.Value.OnTick(d);
+						}
+					}
+				} catch (Exception e) {
+					Log.Error("Failure in Server.GlobalUpdate during Ticks: ", e);
 				}
+
+
 				Thread.Sleep(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
@@ -399,15 +420,34 @@ namespace Ex {
 			// DateTime now = DateTime.UtcNow;
 			string msg = null;
 
+			if (client.udp != null) {
+				try {
+					while (!client.closed && client.udpOutgoing.TryDequeue(out msg)) {
+
+						msg += RPCMessage.EOT;
+						byte[] message = msg.ToBytesUTF8();
+						message = client.enc(message);
+						int ret = client.udp.SendTo(message, client.remoteUdpHost);
+						Log.Verbose($"Client {client.identity} yeeted message {msg} : {ret}");
+
+					}
+					if (!client.closed) {
+					
+					}
+				} catch (Exception e) {
+					Log.Warning($"Server.SendData(Client): Error during UDP send: {e.GetType()}. Will defer to TCP closure to disconnect.", e);
+				}
+			}
+
 			try {
-				while (!client.closed && client.outgoing.TryDequeue(out msg)) {
+				while (!client.closed && client.tcpOutgoing.TryDequeue(out msg)) {
 					Log.Verbose($"Client {client.identity} sending message {msg}");
 
 					msg += RPCMessage.EOT;
 					byte[] message = msg.ToBytesUTF8();
 					message = client.enc(message);
 					
-					client.stream.Write(message, 0, message.Length);
+					client.tcpStream.Write(message, 0, message.Length);
 				}
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.SendData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
@@ -431,34 +471,52 @@ namespace Ex {
 		/// <summary> Attempts to read data from a client once </summary>
 		/// <param name="client"> Client information to read data for </param>
 		public void RecieveData(Client client) {
+			// Helper method to handle reading 
+			Client.ReadState read(Client.ReadState state) {
+				if (state.bytesRead > 0) {
+					state.message = state.buffer.Chop(state.bytesRead);
+					state.message = client.dec(state.message);
+					string str = state.message.GetStringUTF8();
 
-			try {
-				
-				client.bytesRead = !client.closed && client.stream.CanRead && client.stream.DataAvailable
-					? client.stream.Read(client.buffer, 0, client.buffer.Length)
-					: -1;
-
-				if (client.bytesRead > 0) {
-					client.message = client.buffer.Chop(client.bytesRead);
-					client.message = client.dec(client.message);
-					string str = client.message.GetStringUTF8();
-
-					client.held += str;
-					int index = client.held.IndexOf(RPCMessage.EOT);
+					state.held += str;
+					int index = state.held.IndexOf(RPCMessage.EOT);
 					while (index >= 0) {
-						string pulled = client.held.Substring(0, index);
-						client.held = client.held.Remove(0, index+1);
-						index = client.held.IndexOf(RPCMessage.EOT);
+						string pulled = state.held.Substring(0, index);
+						state.held = state.held.Remove(0, index + 1);
+						index = state.held.IndexOf(RPCMessage.EOT);
 
 						if (pulled.Length > 0) {
 							RPCMessage msg = new RPCMessage(client, pulled);
 							incoming.Enqueue(msg);
 						}
 					}
+				}
+				return state;
+			}
 
+			if (client.udp != null) {
+				try {
 
+					bool canReadUDP = !client.closed && client.udp.Available > 0;
+					EndPoint ep = client.remoteUdpHost;
+					client.udpReadState.bytesRead = canReadUDP
+						? client.udp.ReceiveFrom(client.udpReadState.buffer, ref ep)
+						: -1;
+					client.udpReadState = read(client.udpReadState);
+				
+				} catch (Exception e) {
+					Log.Warning($"Server.RecieveData(Client): {client.identity} Error during UDP read. {e.GetType()}. Will defer to TCP closure to disconnect.", e);
 				}
 
+			}
+					
+
+			try {
+				
+				client.tcpReadState.bytesRead = !client.closed && client.tcpStream.CanRead && client.tcpStream.DataAvailable
+					? client.tcpStream.Read(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length)
+					: -1;
+				client.tcpReadState = read(client.tcpReadState);
 
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);

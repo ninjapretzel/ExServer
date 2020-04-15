@@ -31,11 +31,6 @@ namespace Ex {
 		public TcpClient tcp { get; private set; }
 		/// <summary> UDP connection for recieving unreliable but faster data transmission </summary>
 		public Socket udp { get; private set; }
-		// public UdpClient udpRec { get; private set; }
-		/// <summary> UDP connection for sending unreliable but faster data transmission </summary>
-		// public UdpClient udpSend { get; private set; }
-		// public Socket udpSend { get; private set; }
-		//public Socket udp { get; private set; }
 		/// <summary> Underlying stream used to communicate with connected client </summary>
 		public NetworkStream tcpStream { get { return tcp?.GetStream(); } }
 
@@ -61,10 +56,10 @@ namespace Ex {
 		/// <summary> Remote port, if applicable. -1 if not. </summary>
 		public int localPort { get; private set; }
 
-		/// <summary> Outgoing messages. Preprocessed strings that are sent over the stream. </summary>
+		/// <summary> Outgoing messages. Preprocessed strings that are sent over the tcp connection's stream. </summary>
 		public ConcurrentQueue<string> tcpOutgoing;
 
-		/// <summary> Outgoing messages. Preprocessed strings that are sent over the stream. </summary>
+		/// <summary> Outgoing messages. Preprocessed strings that are sent over the udp connection. </summary>
 		public ConcurrentQueue<string> udpOutgoing;
 		
 		/// <summary> Can this client expected to be open? </summary>
@@ -120,7 +115,7 @@ namespace Ex {
 				IPEndPoint remoteIpep = remoteEndPoint as IPEndPoint;
 				IPEndPoint localIpep = localEndpoint as IPEndPoint;
 				remoteIP = remoteIpep.Address.ToString();
-				this.remotePort = remoteIpep.Port;
+				remotePort = remoteIpep.Port;
 				localIP = localIpep.Address.ToString();
 				localPort = localIpep.Port;
 				
@@ -128,22 +123,19 @@ namespace Ex {
 				int remoteUdpPort = remotePort + 1;
 				localUdpHost = new IPEndPoint(remoteIpep.Address, localUdpPort);
 				remoteUdpHost = new IPEndPoint(remoteIpep.Address, remoteUdpPort);
-				udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+			
 				try {
+					udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 					// Note: May need this if there are disconnections due to ICMP errors.
 					// const int SIO_UDP_CONNRESET = -1744830452;
 					// udp.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 },  null);
 					udp.Bind(localUdpHost);
+					Log.Info($"{identity} UDP Connected to {localUdpHost} ==> {remoteUdpHost}");
 				} catch (Exception e) {
 					Log.Warning($"{identity} Failed to bind UDP. Disabling UDP.", e);
 					udp = null;
 				}
-
-
-
-				Log.Info($"{identity} UDP Connected to {localUdpHost} ==> {remoteUdpHost}");
 				
-
 			} else {
 				remoteIP = "????";
 				remotePort = -1;
@@ -277,7 +269,6 @@ namespace Ex {
 					Log.Error("Failed to close connection", e);
 				}
 			}
-
 		}
 
 		/// <summary> Called when the client is no longer needed to remove it from the list of entities.  </summary>

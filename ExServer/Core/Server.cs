@@ -210,7 +210,7 @@ namespace Ex {
 		/// <param name="stuff"> Parameters for call </param>
 		public void Call(Client client, RPCMessage.Handler callback, params System.Object[] stuff) {
 			string str = Client.FormatCall(callback, stuff);
-			RPCMessage msg = new RPCMessage(client, str);
+			RPCMessage msg = RPCMessage.TCP(client, str);
 			incoming.Enqueue(msg);
 		}
 
@@ -352,9 +352,9 @@ namespace Ex {
 			// We are implicitly capturing function params, but,
 			// since this should not be used very often, should not cause memory leak. 
 			return () => {
-				DateTime last = DateTime.Now;
+				DateTime last = DateTime.UtcNow;
 				while (Running) {
-					DateTime now = DateTime.Now;
+					DateTime now = DateTime.UtcNow;
 
 					try {
 
@@ -468,11 +468,13 @@ namespace Ex {
 
 		}
 
+		const int UDP = 1;
+		const int TCP = 0;
 		/// <summary> Attempts to read data from a client once </summary>
 		/// <param name="client"> Client information to read data for </param>
 		public void RecieveData(Client client) {
 			// Helper method to handle reading 
-			Client.ReadState read(Client.ReadState state) {
+			Client.ReadState read(Client.ReadState state, int kind) {
 				if (state.bytesRead > 0) {
 					state.message = state.buffer.Chop(state.bytesRead);
 					state.message = client.dec(state.message);
@@ -486,7 +488,7 @@ namespace Ex {
 						index = state.held.IndexOf(RPCMessage.EOT);
 
 						if (pulled.Length > 0) {
-							RPCMessage msg = new RPCMessage(client, pulled);
+							RPCMessage msg = kind == UDP ? RPCMessage.UDP(client, pulled) : RPCMessage.TCP(client, pulled);
 							incoming.Enqueue(msg);
 						}
 					}
@@ -502,7 +504,11 @@ namespace Ex {
 					client.udpReadState.bytesRead = canReadUDP
 						? client.udp.ReceiveFrom(client.udpReadState.buffer, ref ep)
 						: -1;
-					client.udpReadState = read(client.udpReadState);
+					client.udpReadState = read(client.udpReadState, UDP);
+					if (canReadUDP && client.udpReadState.bytesRead > 0 && ep is IPEndPoint) {
+						client.remoteUdpHost = (IPEndPoint)ep;
+						Log.Info($"{client.identity} recieved from {client.remoteUdpHost}");
+					}
 				
 				} catch (Exception e) {
 					Log.Warning($"Server.RecieveData(Client): {client.identity} Error during UDP read. {e.GetType()}. Will defer to TCP closure to disconnect.", e);
@@ -516,7 +522,7 @@ namespace Ex {
 				client.tcpReadState.bytesRead = !client.closed && client.tcpStream.CanRead && client.tcpStream.DataAvailable
 					? client.tcpStream.Read(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length)
 					: -1;
-				client.tcpReadState = read(client.tcpReadState);
+				client.tcpReadState = read(client.tcpReadState, TCP);
 
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);

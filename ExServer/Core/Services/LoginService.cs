@@ -34,7 +34,7 @@ namespace Ex {
 			this.token = token;
 			if (!Guid.TryParse(token, out guid)) { guid = Guid.Empty; }
 			userId = guid;
-			created = DateTime.Now;
+			created = DateTime.UtcNow;
 		}
 		/// <summary> Used to create a credentials object on the server, after authenticating the user. </summary>
 		/// <param name="user"> Username </param>

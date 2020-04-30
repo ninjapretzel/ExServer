@@ -45,7 +45,7 @@ namespace BakaTest {
 namespace BakaTest {
 	public static class BakaTestHook {
 		public static void RunTests() {
-			DateTime start = DateTime.Now;
+			DateTime start = DateTime.UtcNow;
 
 			var testAssembly = Assembly.GetAssembly(typeof(BakaTests));
 			var testTypes = testAssembly.DefinedTypes
@@ -62,7 +62,7 @@ namespace BakaTest {
 				}
 			}
 
-			DateTime ended = DateTime.Now;
+			DateTime ended = DateTime.UtcNow;
 			TimeSpan elapsed = ended - start;
 
 			Console.WriteLine($"Finished Testing.\n\tRan {testTypes.Count() } test types in {elapsed.TotalMilliseconds}ms");
@@ -404,7 +404,7 @@ namespace BakaTest {
 		}
 
 		public static string RunTests(Type testType) {
-			DateTime start = DateTime.Now;
+			DateTime start = DateTime.UtcNow;
 			var tests = testType.GetTestMethods();
 			var cleanup = testType.GetCleanupMethod();
 
@@ -485,7 +485,7 @@ namespace BakaTest {
 			logWriter.Flush();
 			Out = null;
 
-			DateTime finished = DateTime.Now;
+			DateTime finished = DateTime.UtcNow;
 			TimeSpan elapsed = finished - start;
 			StringBuilder strb = new StringBuilder();
 			string summary = $"\nSummary: Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms. {success} success, {failure} failure. \n";

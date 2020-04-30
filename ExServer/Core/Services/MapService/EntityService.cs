@@ -777,7 +777,7 @@ namespace Ex {
 						//		check for the component on the object, and check if the id matches.
 						bool clientOwns = client.id == id;
 						if (!ownerOnly || clientOwns) {
-							client.SendMessageDirectly(addMsg); 
+							client.SendTCPMessageDirectly(addMsg); 
 						}
 					}
 

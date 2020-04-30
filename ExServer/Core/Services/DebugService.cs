@@ -41,7 +41,11 @@ namespace Ex {
 			Log.Info($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
-			msg.sender.Call(Pong);
+			if (msg.wasUDP) {
+				msg.sender.Hurl(Pong);
+			} else {
+				msg.sender.Call(Pong);
+			}
 
 			// If accessing another service's methods, this will help keep references during refactoring:
 			// sender.Call(Members<DebugService>.i.Pong);

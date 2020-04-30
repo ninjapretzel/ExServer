@@ -388,7 +388,7 @@ namespace Ex {
 		public void UnsubscribeTo(params string[] sets) {
 			if (!isMaster) {
 				object[] joined = new[] { name }.Concat(sets).ToArray();
-				service.server.localClient.Send(joined);
+				service.server.localClient.Call(service.Unsubscribe, joined);
 				foreach (string s in sets) {
 					if (locJson.ContainsKey(s)) { locJson.Remove(s); }
 				}

@@ -129,7 +129,9 @@ namespace Ex {
 					// Note: May need this if there are disconnections due to ICMP errors.
 					// const int SIO_UDP_CONNRESET = -1744830452;
 					// udp.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 },  null);
-					udp.Bind(localUdpHost);
+					if (isMaster) {
+						udp.Bind(localUdpHost);
+					}
 					Log.Info($"{identity} UDP Connected to {localUdpHost} ==> {remoteUdpHost}");
 				} catch (Exception e) {
 					Log.Warning($"{identity} Failed to bind UDP. Disabling UDP.", e);
@@ -186,18 +188,6 @@ namespace Ex {
 			tcpOutgoing.Enqueue(msg);
 		}
 
-		/// <summary> Sends an RPCMessage to the connected client </summary>
-		/// <param name="stuff"> Everything to send. Method name first, parameters after. </param>
-		/// <remarks> 
-		///		ToString's all of the <paramref name="stuff"/>, and then joins it together with <see cref="SEP"/>.
-		///		Enqueues the resulting string into <see cref="tcpOutgoing"/>. 
-		///	</remarks>
-		public void Send(params System.Object[] stuff) {
-			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
-			string msg = FormatMessage(stuff);
-			tcpOutgoing.Enqueue(msg);
-		}
-
 		/// <summary> Sends a message to remotely call a function handler on the client, through unreliable transmission. </summary>
 		/// <param name="callback"> Handler to call </param>
 		/// <param name="stuff"> parameters to send into call </param>
@@ -208,23 +198,11 @@ namespace Ex {
 			udpOutgoing.Enqueue(msg);
 		}
 
-		/// <summary> Sends an RPCMessage to the connected client, through unreliable transmission. </summary>
-		/// <param name="stuff"> Everything to send. Method name first, parameters after. </param>
-		/// <remarks> 
-		///		ToString's all of the <paramref name="stuff"/>, and then joins it together with <see cref="SEP"/>.
-		///		Enqueues the resulting string into <see cref="tcpOutgoing"/>. 
-		///	</remarks>
-		public void Yeet(params System.Object[] stuff) {
-			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
-			if (udp == null) { return; }
-			string msg = FormatMessage(stuff);
-			udpOutgoing.Enqueue(msg);
-		}
-
 		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
 		/// <param name="stuff"> Array of parameters to format. </param>
 		/// <returns> String of all objects in <paramref name="stuff"/> formatted to be sent over the network. </returns>
 		public static string FormatCall(RPCMessage.Handler callback, params System.Object[] stuff) {
+			string time = Pack.Base64(DateTime.UtcNow);
 			string methodName = callback.Method.Name;
 			string typeName = callback.Method.DeclaringType.ShortName();
 			string msg;
@@ -232,28 +210,29 @@ namespace Ex {
 				string[] strs = new string[stuff.Length];
 				for (int i = 0; i < strs.Length; i++) { strs[i] = stuff[i].ToString(); }
 				string rest = String.Join("" + RPCMessage.SEPARATOR, strs);
-				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName, rest);
+				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName, time, rest);
 			} else {
-				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName);
+				msg = String.Join("" + RPCMessage.SEPARATOR, typeName, methodName, time);
 			}
 			return msg;
 		}
 
-		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
-		/// <param name="stuff"> Array of parameters to format. </param>
-		/// <returns> String of all objects in <paramref name="stuff"/> formatted to be sent over the network. </returns>
-		public static string FormatMessage(params System.Object[] stuff) {
-			string[] strs = new string[stuff.Length];
-			for (int i = 0; i < strs.Length; i++) { strs[i] = stuff[i].ToString(); }
-			// strs[strs.Length-1] += EOT;
-			string msg = String.Join("" + RPCMessage.SEPARATOR, strs);
-			return msg;
+		/// <summary> Enqueues a (hopefully, properly formatted) message directly into the TCP outgoing queue.
+		/// <para>Used for batch-sending messages to multiple clients. </para>
+		/// <para> Use <see cref="FormatCall(Handler, object[])"/> to prepare the <paramref name="message"/>. </para> </summary>
+		/// <param name="message"> Message to enqueue. </param>
+		public void SendTCPMessageDirectly(string message) {
+			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
+			tcpOutgoing.Enqueue(message);
 		}
 
-		/// <summary> Enqueues a (hopefully, properly formatted) message directly into the outgoing queue. </summary>
+		/// <summary> Enqueues a (hopefully, properly formatted) message directly into the TCP outgoing queue.
+		/// <para>Used for batch-sending messages to multiple clients. </para>
+		/// <para> Use <see cref="FormatCall(Handler, object[])"/> to prepare the <paramref name="message"/>. </para> </summary>
 		/// <param name="message"> Message to enqueue. </param>
-		public void SendMessageDirectly(string message) {
+		public void SendUDPMessageDirectly(string message) {
 			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
+			if (udp == null) { return; }
 			tcpOutgoing.Enqueue(message);
 		}
 

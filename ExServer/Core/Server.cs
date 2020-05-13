@@ -14,7 +14,36 @@ using Ex.Utils;
 
 namespace Ex {
 
+	/// <summary> Delegate type for encryption/decryption. </summary>
+	/// <param name="source"> Bytes to be encrypted/decrypted </param>
+	/// <returns> Encrypted/decrypted version of source </returns>
 	public delegate byte[] Crypt(byte[] source);
+
+	public static class ThreadUtil {
+		/// <summary> Pause for the given <paramref name="ms"/> or yield. </summary>
+		/// <param name="ms"> Ms to pause for, or if &lt;= 0, yield.</param>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void Hold(int ms) { 
+			if (ms <= 0) { Thread.Yield(); } 
+			else { Thread.Sleep(ms); } 
+		}
+		/// <summary> Kill a thread if and only if it is not the active thread. </summary>
+		/// <param name="t"> Thread to try to kill </param>
+		/// <returns> Returns true if an abort was attempted, false if it was the current thread or null. </returns>
+		public static bool TerminateIfNotActive(this Thread t) {
+			if (t != null && t != Thread.CurrentThread) {
+				try { t.Abort(); } catch { }
+				return true;
+			}
+			return false;
+		}
+		/// <summary> Try to abort all passed threads. </summary>
+		/// <param name="threads"> Threads to terminate </param>
+		public static void TerminateAll(params Thread[] threads) {
+			foreach (var thread in threads) { TerminateIfNotActive(thread); }
+			if (threads.Contains(Thread.CurrentThread)) { Thread.CurrentThread.Abort(); }
+		}
+	}
 
 	/// <summary> Primary class for ExServer </summary>
 	public class Server {
@@ -59,11 +88,9 @@ namespace Ex {
 
 		/// <summary> Incoming messages. </summary>
 		private ConcurrentQueue<RPCMessage> incoming;
-
 		/// <summary> Actions to do later </summary>
 		private ConcurrentQueue<Action> doLater = new ConcurrentQueue<Action>();
-
-
+		
 		/// <summary> Command runner </summary>
 		// public Cmdr commander { get; private set; }
 
@@ -311,9 +338,9 @@ namespace Ex {
 					Log.Error("Failure in Server.GlobalUpdate during Handlers: ", e);
 				}
 
+				DateTime now = DateTime.UtcNow;
+				TimeSpan diff = now - lastTick;
 				try {
-					DateTime now = DateTime.UtcNow;
-					TimeSpan diff = now - lastTick;
 					if (diff.TotalMilliseconds > tickRate) {
 						lastTick = now;
 						float d = (float) diff.TotalSeconds;
@@ -325,8 +352,8 @@ namespace Ex {
 					Log.Error("Failure in Server.GlobalUpdate during Ticks: ", e);
 				}
 
-
-				Thread.Sleep(1);
+				
+				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"Updates stopping for {id} and cleaning up.");
@@ -339,7 +366,7 @@ namespace Ex {
 		/// <param name="priority"> Priority to give to the created thread </param>
 		/// /// <param name="stopOnError"> If an error occurs internal to the function, should it terminate the thread? </param>
 		/// <returns> Thread object looping the given code body. </returns>
-		public Thread CreateUpdateThread(Func<bool> body, int rate = 100, bool stopOnError = false, ThreadPriority priority = ThreadPriority.Normal) {
+		public Thread CreateUpdateThread(Func<bool> body, int? rate = null, bool stopOnError = false, ThreadPriority priority = ThreadPriority.Normal) {
 			return StartThread(Loop(body, rate, stopOnError), priority);
 		}
 
@@ -348,26 +375,22 @@ namespace Ex {
 		/// <param name="rate"> Milliseconds to wait between loops </param>
 		/// <param name="stopOnError"> If an error occurs internal to the function, should it terminate the thread? </param>
 		/// <returns> ThreadStart delegate wrapping body/rate parameters. </returns>
-		public ThreadStart Loop(Func<bool> body, int rate = 100, bool stopOnError = false) {
+		public ThreadStart Loop(Func<bool> body, int? rate = null, bool stopOnError = false) {
 			// We are implicitly capturing function params, but,
 			// since this should not be used very often, should not cause memory leak. 
 			return () => {
 				DateTime last = DateTime.UtcNow;
 				while (Running) {
 					DateTime now = DateTime.UtcNow;
-
 					try {
-
 						bool keepGoing = body();
 						if (!keepGoing) { break; }
-
 					} catch (Exception e) {
-
 						Log.Error("Failure in Server.Loop", e);
 						if (stopOnError) { break; }
 
 					}
-					Thread.Sleep(rate);
+					ThreadUtil.Hold(rate ?? 1);
 				}
 
 			};
@@ -388,7 +411,7 @@ namespace Ex {
 				} catch (Exception e) {
 					Log.Error("Failure in Server.SendLoop", e);
 				}
-				Thread.Sleep(1);
+				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"SendLoop Ending for {id}");
@@ -407,7 +430,7 @@ namespace Ex {
 				} catch (Exception e) {
 					Log.Error("Failure in Server.RecrLoop", e);
 				}
-				Thread.Sleep(1);
+				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"RecrLoop Ending for {id}");

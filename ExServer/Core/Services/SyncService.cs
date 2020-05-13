@@ -38,7 +38,7 @@ namespace Ex {
 			contexts = new ConcurrentDictionary<string, SyncData>();
 			
 			if (server.isMaster) {
-				updater = server.CreateUpdateThread(CheckDirty);
+				updater = server.CreateUpdateThread(CheckDirty, 100);
 			}
 		}
 		public override void OnConnected(Client client) {

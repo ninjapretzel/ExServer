@@ -115,7 +115,6 @@
     <Compile Include="Libs\Extensions\DataExt.cs" />
     <Compile Include="Libs\Extensions\ExceptionExt.cs" />
     <Compile Include="Core\Utils\FNode\FNode.cs" />
-    <Compile Include="Libs\Extensions\ThreadExt.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON_Tests.cs" />
     <Compile Include="Macros\CopySourceMacro.cs" />

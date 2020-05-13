@@ -48,14 +48,11 @@ namespace Ex {
 
 				SetupLogger();
 				StaticSetup();
-				// SelfTest();
+				SelfTest();
 				ActualProgram();
 				
-				
-				
-
 				// Console.Read();
-				
+
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
 				Console.Read();
@@ -169,8 +166,7 @@ namespace Ex {
 				;
 				
 			server.AddService<Eternus.EternusGame>();
-
-
+			
 		}
 
 		private static void SetupAdminClient() {
@@ -193,10 +189,7 @@ namespace Ex {
 		}
 
 		static void SelfTest() {
-
 			BakaTest.BakaTestHook.RunTests();
-			
-			
 		}
 
 		private static void TestColors(string testStr) {

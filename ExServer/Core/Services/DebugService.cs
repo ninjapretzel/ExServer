@@ -17,9 +17,10 @@ namespace Ex {
 		}
 
 		public float timeout;
+		public bool enableDebugPings = false;
 		public override void OnTick(float delta) {
 			// Log.Verbose("Debug service tick");
-			if (!isMaster) {
+			if (!isMaster && enableDebugPings) {
 				timeout += delta;
 				if (timeout > 1.0f) {
 					server.localClient.Hurl(this.Ping);

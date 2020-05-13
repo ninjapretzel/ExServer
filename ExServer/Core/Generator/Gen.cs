@@ -674,8 +674,8 @@ namespace Ex {
 			Func<State, double, double>[] scalers = new Func<State, double, double>[] { mscale, dscale, pscale, f, sqrt };
 			string[] scalerNs = new string[] { nameof(mscale), nameof(dscale), nameof(pscale), nameof(f), nameof(sqrt), };
 
-			Func<double, double, double>[] appliers = new Func<double, double, double>[] { add, sub, mult, div, ratio };
-			string[] applierNs = new string[] { nameof(add), nameof(sub), nameof(mult), nameof(div), nameof(ratio) };
+			Func<double, double, double>[] appliers = new Func<double, double, double>[] { add, sub, mult, div, ratio, pow };
+			string[] applierNs = new string[] { nameof(add), nameof(sub), nameof(mult), nameof(div), nameof(ratio), nameof(pow) };
 
 			var keys = new List<string>();
 			keys.Clear(); keys.AddRange(table.Keys);

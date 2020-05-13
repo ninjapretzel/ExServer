@@ -75,7 +75,7 @@ public static class Server_Tests {
 
 	private static void CleanUp(TestData data) {
 		Log.Info("Waiting...");
-		Thread.Sleep(1250);
+		Thread.Sleep(500);
 		Log.Info("Cleaning Up NOW.");
 		data.admin.server.Stop();
 		data.server.Stop();

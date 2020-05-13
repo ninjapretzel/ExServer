@@ -59,7 +59,9 @@ namespace Eternus {
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
 		public void Initialize(Guid guid) {
 			var gameState = Reinit<GameState>(guid, it => { 
-				it.flags["yeetTest"] = true;
+				it.flags["test"] = true;
+				it.levels["primary"] = 1;
+				it.exp["primary"] = 0;
 			});
 			var resources = Reinit<UserResources>(guid, it => {
 

@@ -3,15 +3,16 @@
 	// before they are transferred to any other maps.
 	name: "Limbo",
 	procedural: false,
-	cellSize: 200,
+	cellSize: 3,
 	cellDist: 2,
 	showOthers: false,
 	is3d: false,
 	axes: "xz",
 	bounds: [
-		0,40,0,
-		1000,40,1000,
+		0,0,0,
+		20000,1000,20000,
 	},
+	boundsShape: "Cylinder",
 	sparse: false,
 	solo: true,
 	

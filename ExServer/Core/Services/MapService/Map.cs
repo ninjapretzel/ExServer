@@ -25,9 +25,34 @@ namespace Ex {
 	/// <summary> A single instance of a map. </summary>
 	public class Map {
 
+		/// <summary> Field to check against for infinite map bounds. </summary>
+		static readonly Bounds EMPTY_BOUNDS = new Bounds();
+		/// <summary> Check if a point is inside of a bounds, with the given shape applied. </summary>
+		/// <param name="bounds"> Bounds parameters to use </param>
+		/// <param name="shape"> Shape to use </param>
+		/// <param name="point"> Point to check </param>
+		/// <returns> True if the point is contained within bounds, false otherwise. </returns>
+		public static bool Contains(Bounds bounds, BoundsShape shape, Vector3 point) {
+			if (bounds.Equals(EMPTY_BOUNDS)) { return true; }
+			Vector3 center = bounds.center;
+			float sqRadius = bounds.extents.x * bounds.extents.x;
+			Vector3 diff = center-point;
+			
+			switch (shape) {
+				case BoundsShape.Sphere:
+					return diff.sqrMagnitude < sqRadius; 
+				case BoundsShape.Cylinder:
+					float y = diff.y; diff.y = 0;
+					return diff.sqrMagnitude < sqRadius && Mathf.Abs(y) < bounds.extents.y;
+				case BoundsShape.Box:
+				default:
+					return bounds.Contains(point);
+			}
+		}
+
 		/// <summary> Service the map is bound to. Used to facilitate interactions with the <see cref="EntityService"/> and other functionality </summary>
 		public MapService service { get; private set; }
-		/// <summary> Information about this map. </summary>
+		/// <summary> Shared information about this map. </summary>
 		public MapInfo info { get; private set; }
 		/// <summary> ID assigned to map </summary>
 		public Guid id { get; private set; }
@@ -55,7 +80,7 @@ namespace Ex {
 		public float cellSize { get { return info.cellSize; } }
 		public int cellDist { get { return info.cellDist; } }
 
-		public float speedCap = 2.0f;
+		public float speedCap = 3332.0f;
 
 		/// <summary> Get a string uniquely identifying this map. </summary>
 		public string identity { get { return $"{name}#{instanceIndex}:{id}"; } } 
@@ -101,6 +126,7 @@ namespace Ex {
 		}
 
 		public void Initialize() {
+			Log.Info($"Map is a {info.boundsShape} shape");
 			foreach (EntityInstanceInfo spawnInfo in info.entities) {
 
 				EntityInfo entityInfo = entityService.GetEntityInfo(spawnInfo.type);
@@ -223,7 +249,7 @@ namespace Ex {
 					var e = entities[move.id];
 					if (e == null) {
 						Log.Warning($"No entity {move.id} exists!");
-						return;
+						continue;
 					}
 					
 					var trs = e.RequireComponent<TRS>();
@@ -232,10 +258,12 @@ namespace Ex {
 					// move.oldPos is populated with the TRS position at the time of creating the move request.
 					// move.newPos is the desired destination
 					// Delta only matters if the client is sending the move.
-					var delta = move.oldPos - move.newPos;
 
-					if (move.serverMove || delta.magnitude < speedCap) {
-						Log.Debug($"Moving {move.id}\n\tposition {move.oldPos} => {move.newPos}\n\trotation {move.oldRot} => {move.newRot}");
+					var delta = move.oldPos - move.newPos;
+					bool posInMap = Contains(info.bounds, info.boundsShape, move.newPos);
+
+					if (posInMap && (move.serverMove || delta.magnitude < speedCap)) {
+						// Log.Debug($"Moving {move.id}\n\tposition {move.oldPos} => {move.newPos}\n\trotation {move.oldRot} => {move.newRot}");
 						
 						trs.position = move.newPos;
 						trs.rotation = move.newRot;
@@ -254,7 +282,14 @@ namespace Ex {
 						}
 						
 					} else {
-						Log.Warning($"Entity {move.id} Tried to move too far!");
+						if (posInMap) {
+							Log.Warning($"Entity {move.id} Tried to move too far! {delta.magnitude} vs {speedCap}");
+						} else {
+							
+							Log.Warning($"Entity {move.id} Tried to move outside the map! {move.newPos} vs {info.bounds} / {info.boundsShape}");
+
+						}
+						
 						if (client != null) {
 							client.Call(service.Rubberband, Pack.Base64(move.id), Pack.Base64(move.oldPos), Pack.Base64(move.oldRot));
 						}
@@ -402,7 +437,7 @@ namespace Ex {
 
 				TRS trs = entityService.GetComponent<TRS>(id);
 				Client client = service.server.GetClient(id);
-				Log.Debug($"Map.OnDespawn: Map {identity} \\odespawn of entity {id}");
+				Log.Warning($"Map.OnDespawn: Map {identity} \\odespawn of entity {id}");
 
 				if (client != null) {
 					foreach (var e in globalEntities) {

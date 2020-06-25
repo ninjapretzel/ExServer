@@ -151,123 +151,123 @@ namespace Ex {
 		}
 
 		/// <summary> Reseeds a database using the given descriptor. </summary>
-		/// <param name="descriptor"> JsonObject containing description of how to reseed the database. </param>
-		public void Reseed(JsonObject descriptor, string dir = null) {
-			if (descriptor.Has<JsonArray>("drop")) { Reseed_Drop(descriptor.Get<JsonArray>("drop")); }
-			if (descriptor.Has<JsonObject>("index")) { Reseed_Index(descriptor.Get<JsonObject>("index")); }
-			if (descriptor.Has<JsonObject>("insert")) { Reseed_Insert(descriptor.Get<JsonObject>("insert"), dir); }
+		/// <param name="reseedInfo"> JsonObject containing description of how to reseed the database. </param>
+		public void Reseed(JsonObject reseedInfo, string topDir = null) {
+			if (reseedInfo.Has<JsonArray>("drop")) { Drop(reseedInfo.Get<JsonArray>("drop")); }
+			if (reseedInfo.Has<JsonObject>("index")) { Index(reseedInfo.Get<JsonObject>("index")); }
+			if (reseedInfo.Has<JsonObject>("insert")) { Insert(reseedInfo.Get<JsonObject>("insert"), topDir); }
 			
-		}
-
-		private void Reseed_Drop(JsonArray databases) {
-			foreach (var dbname in databases) {
-				if (dbname.isString) {
-					dbClient.DropDatabase(dbname.stringVal);
+			void Drop(JsonArray databases) {
+				foreach (var dbname in databases) {
+					if (dbname.isString) {
+						dbClient.DropDatabase(dbname.stringVal);
+					}
 				}
 			}
 
-		}
-		private void Reseed_Index(JsonObject descriptor) {
-			string database = descriptor.Pull("database", dbName);
-			string collection = descriptor.Pull("collection", "Garbage");
-			if (database == "$default") { database = dbName; }
+			void Index(JsonObject descriptor) {
+				string database = descriptor.Pull("database", dbName);
+				string collection = descriptor.Pull("collection", "Garbage");
+				if (database == "$default") { database = dbName; }
 
-			JsonObject fields = descriptor.Pull<JsonObject>("fields");
-			MDB db = dbClient.GetDatabase(database);
-			
-			List<CreateIndexModel<BDoc>> indexes = new List<CreateIndexModel<BDoc>>();
-			IndexKeysDefinition<BDoc> index = null;
-			foreach (var pair in fields) {
-				string fieldName = pair.Key;
-				int order = pair.Value;
-				
-				if (order > 0) {
-					index = index?.Ascending(fieldName) ?? Builders<BDoc>.IndexKeys.Ascending(fieldName);
-				} else {
-					index = index?.Descending(fieldName) ?? Builders<BDoc>.IndexKeys.Descending(fieldName);
+				JsonObject fields = descriptor.Pull<JsonObject>("fields");
+				MDB db = dbClient.GetDatabase(database);
+
+				List<CreateIndexModel<BDoc>> indexes = new List<CreateIndexModel<BDoc>>();
+				IndexKeysDefinition<BDoc> index = null;
+				foreach (var pair in fields) {
+					string fieldName = pair.Key;
+					int order = pair.Value;
+
+					if (order > 0) {
+						index = index?.Ascending(fieldName) ?? Builders<BDoc>.IndexKeys.Ascending(fieldName);
+					} else {
+						index = index?.Descending(fieldName) ?? Builders<BDoc>.IndexKeys.Descending(fieldName);
+					}
 				}
+
+				var model = new CreateIndexModel<BDoc>(index);
+				db.GetCollection<BDoc>(collection).Indexes.CreateOne(model);
+			}
+
+			void Insert(JsonObject descriptor, string dir) {
+				string database = descriptor.Pull("database", dbName);
+				string collection = descriptor.Pull("collection", "Garbage");
+
+				string[] files = descriptor.Pull<string[]>("files");
+				if (files == null) { files = new string[] { collection }; }
+
+				dir = ForwardSlashPath(dir);
+				if (!dir.EndsWith("/")) { dir += "/"; }
+
+				foreach (var file in files) {
+					string json = null;
+					string fpath = dir + file;
+
+					if (file.EndsWith("/**")) {
+						string directory = fpath.Replace("/**", "");
+
+						Glob(database, collection, directory);
+
+					} else {
+						try { json = json ?? File.ReadAllText(fpath); } catch (Exception) { }
+						try { json = json ?? File.ReadAllText(fpath + ".json"); } catch (Exception) { }
+						try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
+
+						if (json == null) {
+							Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
+							continue;
+						}
+
+						JsonValue data = Json.Parse(json);
+						if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+							Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
+							continue;
+						}
+
+						if (data is JsonObject) {
+							data["filename"] = UpToLast(FromLast(ForwardSlashPath(fpath), "/"), ".");
+							InsertData(database, collection, data as JsonObject);
+						} else if (data is JsonArray) {
+							InsertData(database, collection, data as JsonArray);
+						}
+					}
+				}
+
+
 			}
 			
-			var model = new CreateIndexModel<BDoc>(index);
-			db.GetCollection<BDoc>(collection).Indexes.CreateOne(model);
-		}
-
-		private void Reseed_Insert(JsonObject descriptor, string dir) {
-			string database = descriptor.Pull("database", dbName);
-			string collection = descriptor.Pull("collection", "Garbage");
-			
-			string[] files = descriptor.Pull<string[]>("files");
-			if (files == null) { files = new string[] { collection }; }
-
-			dir = ForwardSlashPath(dir);
-			if (!dir.EndsWith("/")) { dir += "/"; }
-
-			foreach (var file in files) {
-				string json = null;
-				string fpath = dir + file;
-
-				if (file.EndsWith("/**")) {
-					string directory = fpath.Replace("/**", "");
-
-					Reseed_Insert_Glob(database, collection, directory);
-
-				} else {
-					try { json = json ?? File.ReadAllText(fpath); } catch (Exception) { }
-					try { json = json ?? File.ReadAllText(fpath + ".json"); } catch (Exception) { }
-					try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
-
-					if (json == null) {
-						Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
-						continue;
+			void Glob(string database, string collection, string directory) {
+				List<string> files = AllFilesInDirectory(directory);
+				foreach (string file in files) {
+					string json = null;
+					try {
+						json = json ?? File.ReadAllText(file);
+					} catch (Exception e) {
+						Log.Warning($"Seeder could not find {{{file}}}.", e);
 					}
 
-					JsonValue data = Json.Parse(json);
-					if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-						Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
-						continue;
+					try {
+						JsonValue data = Json.Parse(json);
+
+						if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
+							Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
+							continue;
+						}
+
+						if (data is JsonObject) {
+							data["filename"] = UpToLast(FromLast(ForwardSlashPath(file), "/"), ".");
+							InsertData(database, collection, data as JsonObject);
+						} else if (data is JsonArray) {
+							InsertData(database, collection, data as JsonArray);
+						}
+
+					} catch (Exception e) {
+						Log.Warning($"Seeder could not parse {{{file}}}.", e);
 					}
-
-					if (data is JsonObject) {
-						data["filename"] = UpToLast(FromLast(ForwardSlashPath(fpath), "/"), ".");
-						InsertData(database, collection, data as JsonObject);
-					} else if (data is JsonArray) {
-						InsertData(database, collection, data as JsonArray);
-					}
-				}
-
-
-			}
-		}
-
-		private void Reseed_Insert_Glob(string database, string collection, string directory) {
-			List<string> files = AllFilesInDirectory(directory);
-			foreach (string file in files) {
-				string json = null;
-				try {
-					json = json ?? File.ReadAllText(file);
-				} catch (Exception e) {
-					Log.Warning($"Seeder could not find {{{file}}}.", e);
-				}
-
-				try {
-					JsonValue data = Json.Parse(json);
-				
-					if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-						Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
-						continue;
-					}
-
-					if (data is JsonObject) {
-						data["filename"] = UpToLast(FromLast(ForwardSlashPath(file), "/"), ".");
-						InsertData(database, collection, data as JsonObject);
-					} else if (data is JsonArray) {
-						InsertData(database, collection, data as JsonArray);
-					}
-
-				} catch (Exception e) {
-					Log.Warning($"Seeder could not parse {{{file}}}.", e);
 				}
 			}
+
 		}
 
 		private List<string> AllFilesInDirectory(string directory, List<string> collector = null) {

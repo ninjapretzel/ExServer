@@ -358,6 +358,7 @@ namespace Ex {
 				}
 			}
 		}
+
 		/// @BAD @HACKY @IMPROVEME - Baking+caching generic args for packers/unpackers. And other stuff.
 		/// There has gotta be a more efficient way to bind generic types to unknown function calls.
 		/// Maybe bake lambdas instead? I know those can leak captures....
@@ -914,7 +915,7 @@ namespace Ex {
 			}
 		}
 
-		/// <summary> Get a snapshot list of all entities that have the given component. </summary>
+		/// <summary> Get a snapshot list of all entities that have the given component type attached. </summary>
 		/// <typeparam name="T"> Component type to search for </typeparam>
 		/// <param name="lim"> List of Guids to check </param>
 		/// <returns> A list of Entities for the given guids that exist and have the given component associated with them </returns>
@@ -934,7 +935,7 @@ namespace Ex {
 			return ents;
 		}
 
-		/// <summary> Get a list of all entities that have the given components. </summary>
+		/// <summary> Get a list of all entities that have the given component types attached. </summary>
 		/// <typeparam name="T1"> Component type to search for </typeparam>
 		/// <typeparam name="T2"> Component type to search for </typeparam>
 		/// <param name="lim"> List of Guids to check </param>
@@ -958,7 +959,7 @@ namespace Ex {
 			return ents;
 		}
 
-		/// <summary> Get a list of all entities that have the given components. </summary>
+		/// <summary> Get a list of all entities that have the given component types attached. </summary>
 		/// <typeparam name="T1"> Component type to search for </typeparam>
 		/// <typeparam name="T2"> Component type to search for </typeparam>
 		/// <typeparam name="T3"> Component type to search for </typeparam>

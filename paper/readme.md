@@ -225,7 +225,7 @@ Essentially an ECS - Entity-Component-System, however, I have currently discarde
 - `Comp`onents may be attached or removed at any time.
 - `Comp`onent types must only contain "[Blittable](https://docs.microsoft.com/en-us/dotnet/framework/interop/blittable-and-non-blittable-types)" memory
 	- (memory must be able to be directly copied to any system and retain the same meaning)
-	- this basically just means no pointers/system specific identifiers of any kind.
+	- this basically just means no pointers/system specific hashes/identifiers of any kind.
 - Any `Entity` may be used to look up attached `Comp`onents
 - Any `Comp` may be used to look up its `Entity`
 - `Entity`s and `Comp`onents may only interact with others within the same `Service`.
@@ -246,9 +246,18 @@ I consider it hacky, as I have caches for methods that can pack any possible typ
 
 The "System" part of a strict ECS system can be accomplished simply by registering additional `Service`s, which get the `EntityService` attached to the same `Server`, and do lookups for `Entity`s that contain a set of 1, 2, or 3 well known `Comp`onents, and operating on those sets of entities as needed.
 
-I brought over all of the `Map` code from the previous attempt, and rewired it to work with `Entity`s and `Comp`onents. Clients can be subscribed to an `Entity` ID by the server (and they are always given an `Entity` with the same ID as their `Client` object). This will make the client always receive data for that entity when it is updated.
+### `Map`s again
+`Map`s are handled by a `MapService`, which is used to locate, create, and destroy `Map`s.
 
-I extended the system to allow for "sharding"/"channels"/"blocks", but haven't actually tested it yet.
+I brought over all of the `Map` code from the previous attempt, and rewired it to work with `Entity`s and `Comp`onents. Clients can be subscribed to an `Entity` ID by the server (and they are always given an `Entity` with the same ID as their `Client` object). This will make the client always receive data for that entity when it is updated, however technically the subscription model is a part of the `EntityService`, which the `MapService` makes use of.
+
+`Map`s no longer run on `async Task`s, but run on workers within a thread pool. The `MapService` Active `Map`s are thrown into a `ConcurrentQueue` and yanked out by a worker, which calculates the delta time for that map, and runs the update logic, and then puts it back into the queue. The `MapService` maintains a `WorkPool<Map>`, which manages worker threads that will update `Map`s, as well as the set of `Map`s that should actually be worked on, to allow for removals.
+
+Movement, spawning, and despawning, and server-side `Entity` collision detection is handled within the worker thread, with each map being an isolated container. Currently, collision detection is un-implemented, but will use `Comp`onents on entities within the map for very simple collision detection.
+
+I designed the `MapService` to allow for "sharding"/"channels"/"blocks", or multiple separate copies of the same map, with different sets of clients connected, but haven't actually tested it yet.
+
+`Map`s are still broken into fixed-sized cells, and the visibility calculation is the same as the previous attempt, but I added a feature to add bounds to the map itself, which clamps the positions of any `Entity`s within the map, when they are moved.
 
 ### Using a real database
 

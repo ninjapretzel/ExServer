@@ -230,7 +230,7 @@ Essentially an ECS - Entity-Component-System, however, I have currently discarde
 - Any `Comp` may be used to look up its `Entity`
 - `Entity`s and `Comp`onents may only interact with others within the same `Service`.
 
-I used a not-well-known type called `ConditionalWeakTable<TKey, TValue>`, which stores weak-references to value objects, alongside a weak-reference to a key object. When the key "disappears", the weak-reference data is also inaccessible, and dropped upon the next garbage collection. These are thread safe, as far as I can tell, and work perfectly for storing arbitrary entity data attached to some entity reference.
+I used a not-well-known type called `ConditionalWeakTable<TKey, TValue>` (See [this](https://docs.microsoft.com/en-us/dotnet/api/system.runtime.compilerservices.conditionalweaktable-2?view=netcore-3.1) and [this](https://stackoverflow.com/questions/18465630/understanding-conditionalweaktable) for some details about how it works.) , which stores weak-references to value objects, alongside a weak-reference to a key object. When the key "disappears", the weak-reference data is also inaccessible, and dropped upon the next garbage collection. These are thread safe, as far as I can tell, and work perfectly for storing arbitrary entity data attached to some entity reference.
 
 I use a composite type: `ConcurrentDictionary<Type, ConditionalWeakTable<Entity, Comp>>`, to store all of the `Comp`onents, organized by type. If an entity has a `Comp`onent attached to it, it appears as a key in the inner dictionary, with its current component data as the value.
 
@@ -238,9 +238,10 @@ I use a composite type: `ConcurrentDictionary<Type, ConditionalWeakTable<Entity,
 
 The sending of data is still invoked manually (rather than attempting to do it automatically), to allow for control over when data is actually sent, due to the previous constraint. This way every field of a `Comp`onent can be set before the data is sent to all subscribers.
 
-I have a bit of reflection that is done to automatically sync fields on components from client to server, without need for writing more "glue code" to synchronize the entity type. A lot of it is in a fairly hacky state, but works feasibly well. 
+I have a bit of reflection that is done to automatically sync fields on components from client to server, without need for writing more "glue code" to synchronize the entity type. A lot of it is in a fairly hacky state, but works feasibly well. The offending code is in [EntityService.cs:362](../ExServer/Core/Services/MapService/EntityService.cs)
 
-I consider it hacky, as I have caches for methods that can pack any possible type, when technically only `ValueType`s that do not contain references should be packed. I have no way to statically verify this at the moment (though I am sure there is a way to get the C# compiler to do so for me). In order to have certain functionality with these, I made various `ValueType` `struct`s which are able to be converted to/from reference types like `string` or `float[]` of various maximum sizes. This allows for fields within the `Comp`onents to be directly serialized, but they have to be declared as one of those types, eg `InteropString32`.
+
+I consider it hacky, as I have caches for methods that can pack any possible type, when technically only `ValueType`s that do not contain references should be packed. I have no way to statically verify this at the moment (though I am sure there is a way to get the C# compiler to do so for me). In order to have certain functionality with these, I made various `ValueType` `struct`s which are able to be converted to/from reference types like `string` or `float[]` of various maximum sizes. This allows for fields within the `Comp`onents to be directly serialized, but they have to be declared as one of those types, eg `InteropString32`. (see the [Other nifty stuff](#Other-nifty-stuff) below)
 
 (In the cases of sending `string`s directly, plain `string`s can be used, the interop types I made are specifically for packing into `struct`s.)
 
@@ -288,9 +289,9 @@ While I was working on the netcode, I wanted a way to easily serialize data. Typ
 
 Code that makes use of specific offsets within `TypedReference` can't rely on the runtime always being one or the other, and for maximum portability, should have some way of investigating if it is in a `Mono` based runtime or a `.net` based runtime (simply checking the platform is not sufficient, as for example, Unity3d's editor uses the Mono runtime.
 
-This code can be found [in this file](ExServer/Core/Utils/Unsafe.cs) around line 469. That method, and some similar methods above. Thankfully it is fairly easy to test if the Mono Runtime is being used, by using reflection and checking for a type being present: simply `Mono.Runtime`.
+This code can be found [in this file](../ExServer/Core/Utils/Unsafe.cs) around line 469. That method, and some similar methods above. Thankfully it is fairly easy to test if the Mono Runtime is being used, by using reflection and checking for a type being present: simply `Mono.Runtime`.
 
-I mostly use the `ToBytes`/`FromBytes` methods in my netcode, indirectly through the [`Pack`/`Unpack`](ExServer/Core/Utils/Packing.cs) static classes, which are used whenever binary data needs to be provided to an RPC.
+I mostly use the `ToBytes`/`FromBytes` methods in my netcode, indirectly through the [`Pack`/`Unpack`](../ExServer/Core/Utils/Packing.cs) static classes, which are used whenever binary data needs to be provided to an RPC.
 
 
 #### `UDP` and `TCP` simultaneously.

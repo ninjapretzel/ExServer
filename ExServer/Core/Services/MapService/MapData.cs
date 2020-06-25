@@ -83,6 +83,9 @@ namespace Ex {
 	public class EntityInfo : DBEntry {
 		/// <summary> Kind of entity </summary>
 		public string type { get; set; }
+		/// <summary> Source filename. </summary>
+		[BsonIgnoreIfNull]
+		public string filename{ get; set; } = "";
 		/// <summary> Is this a global (map-wide) entity? </summary>
 		[BsonIgnoreIfNull] 
 		public bool global { get; set; } = false;

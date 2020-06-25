@@ -115,7 +115,7 @@ namespace Ex.Utils {
 		public long seed { get; set; }
 
 		/// <summary> Basic constructor, uses the current time (DateTime.Now.Ticks) to seed its initial position. </summary>
-		public SRNG() { seed = DateTime.Now.Ticks; }
+		public SRNG() { seed = DateTime.UtcNow.Ticks; }
 		/// <summary> Seeded constructor. Uses the given <paramref name="seed"/> as the starting point in the sequence. </summary>
 		/// <param name="seed"> Value of the starting point of this sequence </param>
 		public SRNG(long seed) { this.seed = seed; }

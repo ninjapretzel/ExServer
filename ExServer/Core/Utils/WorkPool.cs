@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,7 @@ namespace Ex.Utils {
 			private int workPerBreak = 100;
 			/// <summary> MS to sleep </summary>
 			private int sleepTime = 1;
-
+			
 			/// <summary> Iterations worked since last break </summary>
 			private int workedThisBreak = 0;
 			/// <summary> Total lifetime iterations worked </summary>
@@ -84,7 +85,7 @@ namespace Ex.Utils {
 						//Thread.MemoryBarrier();
 						try {
 							if (isPaused) {
-								Thread.Sleep(sleepTime);
+								ThreadUtil.Hold(sleepTime);
 							} else {
 								work();
 								worked++;
@@ -95,7 +96,7 @@ namespace Ex.Utils {
 								workedThisBreak = 0;
 								// Waiting...
 								//Console.WriteLine($"{this} is waiting... running?{isRunning} paused?{isPaused}");
-								Thread.Sleep(sleepTime);
+								ThreadUtil.Hold(sleepTime);
 							}
 						} catch (Exception e) {
 							errorHandler?.Invoke(e);
@@ -279,11 +280,11 @@ namespace Ex.Utils {
 					}
 				} else {
 					//Console.WriteLine($"No work to do, skipped in {this}");
-					try { Thread.Sleep(sleepTime); } 
-					catch {
+					try { ThreadUtil.Hold(sleepTime); } 
+					catch {}
 					//catch (Exception e) {
-						//throw new Exception($"WorkPool {id} thread interrupted!", e);
-					}
+					//	throw new Exception($"WorkPool {id} thread interrupted!", e);
+					//}
 				}
 			});
 

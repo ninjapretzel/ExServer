@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Ex{
+namespace Ex {
 
 	/// <summary> Service providing network debugging messages when common events occur. </summary>
 	public class DebugService : Service {
@@ -16,8 +16,17 @@ namespace Ex{
 			Log.Verbose("Debug Service Disabled");
 		}
 
+		public float timeout;
+		public bool enableDebugPings = false;
 		public override void OnTick(float delta) {
-			Log.Verbose("Debug Service Tick " + delta);
+			// Log.Verbose("Debug service tick");
+			if (!isMaster && enableDebugPings) {
+				timeout += delta;
+				if (timeout > 1.0f) {
+					server.localClient.Hurl(this.Ping);
+					timeout -= 1.0f;
+				}
+			}
 		}
 
 
@@ -30,10 +39,14 @@ namespace Ex{
 		}
 
 		public void Ping(RPCMessage msg) {
-			Log.Verbose($"Ping'd by {msg.sender.identity}");
+			Log.Info($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
-			msg.sender.Call(Pong);
+			if (msg.wasUDP) {
+				msg.sender.Hurl(Pong);
+			} else {
+				msg.sender.Call(Pong);
+			}
 
 			// If accessing another service's methods, this will help keep references during refactoring:
 			// sender.Call(Members<DebugService>.i.Pong);
@@ -41,10 +54,11 @@ namespace Ex{
 		}
 		public void Pong(RPCMessage msg) {
 
-			Log.Verbose($"Pong'd by {msg.sender.identity}");
+			Log.Info($"Pong'd by {msg.sender.identity}");
 
 		}
 
+		
 	}
 	
 }

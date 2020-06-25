@@ -20,6 +20,15 @@ namespace Ex {
 
 
 #if !UNITY
+	/// <summary> Shape for the bounds of a map </summary>
+	public enum BoundsShape { 
+		/// <summary> Axis Aligned Bounding Box, or hard bounding on all XYZ. </summary>
+		Box, 
+		/// <summary> Y-Axis Aligned Bounding Cylinder, or distance bounding on XZ (Radius of X), hard bounding on Y. </summary>
+		Cylinder, 
+		/// <summary> Bounding Sphere (Radius of X), or distance bounding on XYZ. </summary>
+		Sphere, 
+	}
 	/// <summary> DB info for data about a map, used to create and make decisions about a map instance </summary>
 	[BsonIgnoreExtraElements] 
 	public class MapInfo : DBEntry {
@@ -57,6 +66,10 @@ namespace Ex {
 		/// <summary> Bounds of map space in arbitrary units. If bounds is zero'd, map is infinite. </summary>
 		[BsonIgnoreIfNull]
 		public Bounds bounds { get; set; }
+		[BsonIgnoreIfNull]
+		public BoundsShape boundsShape { get; set; }
+
+		
 
 		/// <summary> Entities in the map </summary>
 		[BsonIgnoreIfNull]

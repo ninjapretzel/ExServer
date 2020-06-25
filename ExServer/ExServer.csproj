@@ -104,6 +104,9 @@
     <Compile Include="Core\Utils\Vectors.cs" />
     <Compile Include="Core\Utils\WorkPool.cs" />
     <Compile Include="Core\VersionInfo.cs" />
+    <Compile Include="Game\Server\EternusGame.cs" />
+    <Compile Include="Game\Server\GameState.cs" />
+    <Compile Include="Game\Server\StatCalculation.cs" />
     <Compile Include="Libs\BakaTest.cs" />
     <Compile Include="Core\Utils\FNode\FNodeTests.cs" />
     <Compile Include="Core\Utils\SimpleCrypto.cs" />
@@ -112,7 +115,6 @@
     <Compile Include="Libs\Extensions\DataExt.cs" />
     <Compile Include="Libs\Extensions\ExceptionExt.cs" />
     <Compile Include="Core\Utils\FNode\FNode.cs" />
-    <Compile Include="Libs\Extensions\ThreadExt.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON.cs" />
     <Compile Include="Libs\XtoJSON\XtoJSON_Tests.cs" />
     <Compile Include="Macros\CopySourceMacro.cs" />
@@ -153,7 +155,9 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Folder Include="Game\Shared\" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Fody.3.3.5\build\Fody.targets" Condition="Exists('..\packages\Fody.3.3.5\build\Fody.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

@@ -1,0 +1,48 @@
+using Ex;
+using MongoDB.Bson.Serialization.Attributes;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Eternus {
+	
+	/// <summary> Database object for the primary user save data. </summary>
+	[BsonIgnoreExtraElements]
+	public class GameState : DBData { 
+		public GameState() : base() { 
+			data["flags"] = new JsonObject();
+			data["levels"] = new JsonObject();
+			data["exp"] = new JsonObject();
+			data["wallet"] = new JsonObject();
+		}
+
+		public JsonObject flags { get { return data.Get<JsonObject>(MemberName()); } }	
+		public JsonObject levels { get { return data.Get<JsonObject>(MemberName()); } }	
+		public JsonObject exp { get { return data.Get<JsonObject>(MemberName()); } }
+
+		
+	}
+
+	/// <summary> Database object to store changing resources. 
+	/// These would be kept and modifed primarily in memory, 
+	/// but have changes journaled every few seconds. </summary>
+	[BsonIgnoreExtraElements]
+	public class UserResources : DBData { }
+
+	/// <summary> Database object to store player stats. </summary>
+	[BsonIgnoreExtraElements]
+	public class UnitStats : DBData { 
+		public UnitStats() : base() { 
+			data["baseStats"] = new JsonObject();
+			data["combatStats"] = new JsonObject();
+		}
+		public JsonObject baseStats { get { return data.Get<JsonObject>(MemberName()); } }
+		public JsonObject combatStats { get { return data.Get<JsonObject>(MemberName()); } }
+	}
+	
+		
+
+	
+}

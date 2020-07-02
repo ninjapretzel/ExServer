@@ -28,9 +28,13 @@ namespace Ex {
 		/// <summary> Is this component on a master server? </summary>
 		public bool isMaster { get { return service.server.isMaster; } }
 
+		/// <summary> Last used server timestamp, when updating data fields through <see cref="EntityService.SetComponentInfo(RPCMessage)"/>. </summary>
+		public DateTime lastServerModification;
+
 		/// <summary> Send component data to all subscribers. </summary>
 		public void Send() {
-			service.SendComponent(this);
+			if (isMaster) { service.SendComponent(this); }
+			else { throw new InvalidOperationException("Comp.Send: Components may only be sent from the server!"); }
 		}
 
 		public override string ToString() { return $"{entityId}'s {GetType().FullName}"; }

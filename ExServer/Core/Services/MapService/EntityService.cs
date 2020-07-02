@@ -439,23 +439,29 @@ namespace Ex {
 				TypedReference cref = __makeref(component);
 				
 				if (component != null) {
-					Log.Debug($"slave.SetComponentInfo:\nBefore: {component}");
-					object[] unpackerArgs = new object[1];
-					for (int i = 0; i+2 < msg.numArgs && i < info.syncedFields.Length; i++) {
-						FieldInfo field = info.syncedFields[i];
-						unpackerArgs[0] = msg[i + 2];
-						try {
-							
-							field.SetValue(component, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
-							//This doesn't work inside of unity because mono.
-							//field.SetValueDirect(cref, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
-						} catch (Exception e) {
-							Log.Warning(e, $"Failed to unpack and set {field.FieldType} {type}.{field.Name}");
-						}
-					}
-					Log.Debug($"slave.SetComponentInfo:\nAfter: {component}");
+					if (component.lastServerModification < msg.sentAt) {
+						component.lastServerModification = msg.sentAt;
 
-					server.On(new ComponentChanged() { id = id, componentType = type });
+						Log.Debug($"slave.SetComponentInfo:\nBefore: {component}");
+						object[] unpackerArgs = new object[1];
+						for (int i = 0; i+2 < msg.numArgs && i < info.syncedFields.Length; i++) {
+							FieldInfo field = info.syncedFields[i];
+							unpackerArgs[0] = msg[i + 2];
+							try {
+							
+								field.SetValue(component, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+								//This doesn't work inside of unity because mono.
+								//field.SetValueDirect(cref, GET_UNPACKER(field.FieldType).Invoke(null, unpackerArgs));
+							} catch (Exception e) {
+								Log.Warning(e, $"Failed to unpack and set {field.FieldType} {type}.{field.Name}");
+							}
+						}
+						Log.Debug($"slave.SetComponentInfo:\nAfter: {component}");
+
+						server.On(new ComponentChanged() { id = id, componentType = type });
+					} else {
+						Log.Debug($"slave.SetComponentInfo:\nComponent was more recently modified.");
+					}
 				} else {
 
 					Log.Debug($"slave.SetComponentInfo: No COMPONENT {type} FOUND on {id}! ");

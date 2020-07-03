@@ -215,13 +215,13 @@ namespace Ex {
 						try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
 
 						if (json == null) {
-							Log.Warning($"Seeder could not find file {{{file}}} under {{{dir}}}");
+							Log.Warning($"Seeder could not find file {{{ForwardSlashPath(file)}}} under {{{dir}}}");
 							continue;
 						}
 
 						JsonValue data = Json.Parse(json);
 						if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-							Log.Warning($"Seeder cannot use {{{file}}} under {{{dir}}}, it is not an object or array.");
+							Log.Warning($"Seeder cannot use {{{ForwardSlashPath(file)}}} under {{{dir}}}, it is not an object or array.");
 							continue;
 						}
 
@@ -251,7 +251,7 @@ namespace Ex {
 						JsonValue data = Json.Parse(json);
 
 						if (data == null || !(data is JsonObject) && !(data is JsonArray)) {
-							Log.Warning($"Seeder cannot use {{{file}}}, it is not an object or array.");
+							Log.Warning($"Seeder cannot use {{{ForwardSlashPath(file)}}}, it is not an object or array.");
 							continue;
 						}
 
@@ -263,7 +263,7 @@ namespace Ex {
 						}
 
 					} catch (Exception e) {
-						Log.Warning($"Seeder could not parse {{{file}}}.", e);
+						Log.Warning($"Seeder could not parse {{{ForwardSlashPath(file)}}}.", e);
 					}
 				}
 			}

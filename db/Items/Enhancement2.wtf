@@ -1,0 +1,29 @@
+[
+	{
+		name: "Tough Carapace",
+		desc: "Tough carapaces left behind by bugs. Still surging with hume energies. May be utilized to bend the laws of physics.",
+		stackable: true,
+	},
+	{
+		name: "Sharp Bug Weapon",
+		desc: "Sharp nails, teeth, claws, stingers and the like, left behind by bugs. Still surging with destructive hume energies, may be utilized to bend the laws of physics.",
+		stackable: true,
+	},
+	{
+		name: "Terror Energy",
+		desc: "Remnants of the energy of the furthest ones. ",
+		stackable: true,
+	},
+	{
+		name: "Horror Energy",
+		desc: "Remnants of the energy of the oldest ones.",
+		stackable: true,
+	},
+	{
+		name: "Boolean Cube",
+		desc: "A 1cm^3 cube which can hold a bit of information. Combine 8 to make a Byte Cube",
+		stackable: true,
+		refinable: true, // Refinable flag
+		refinement: "Byte Cube" // With a string, it is implicitly the name (or id if names suck) of the result
+	},
+]

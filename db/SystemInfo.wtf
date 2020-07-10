@@ -3,7 +3,7 @@
 {
 	// To fly away on the wings of time
 	// And then I can be in everywhen
-	game: "EternuS",
+	game: "Polyverse",
 	tickrate: 100,
 	is3d: true,
 	

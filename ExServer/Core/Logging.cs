@@ -53,9 +53,7 @@ namespace Ex {
 
 		/// <summary> True to insert backslash color codes. </summary>
 		public static bool colorCodes = true;
-
-		/// <summary> Current active log level </summary>
-		public static LogLevel logLevel = LogLevel.Verbose;
+		
 		/// <summary> Log handler to use to print logs </summary>
 		public static Logger logHandler;
 		/// <summary> Queue of unhandled <see cref="LogInfo"/>s </summary>
@@ -206,17 +204,15 @@ namespace Ex {
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
+			
+			if (obj == null) { obj = "[null]"; }
+			string callerInfo = CallerInfo(callerName, callerPath, callerLine, level);
+			string message = (colorCodes ? ColorCode(level) : "") + obj.ToString() 
+				+ (ex != null ? $"\n{ex.InfoString()}" : "")
+				+ callerInfo;
 
-			if (logLevel >= level) {
-				if (obj == null) { obj = "[null]"; }
-				string callerInfo = CallerInfo(callerName, callerPath, callerLine, level);
-				string message = (colorCodes ? ColorCode(level) : "") + obj.ToString() 
-					+ (ex != null ? $"\n{ex.InfoString()}" : "")
-					+ callerInfo;
-
-				logs.Enqueue(new LogInfo(level, message, tag));
-
-			}
+			logs.Enqueue(new LogInfo(level, message, tag));
+			
 		}
 
 

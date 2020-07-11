@@ -77,6 +77,26 @@ namespace Ex {
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 			mainForm = new MainForm();
+
+			Action logStuff = () => {
+				Log.Verbose("VERBOSE VERBOSE VERBOSE");
+				Log.Debug("Debug. Debug.");
+				Log.Info("Information.");
+				Log.Warning("!!!!ATCHUNG!!!!");
+				Log.Error("Oh Shi-");
+			};
+			// logStuff();
+
+			Action logColors = () => {
+				Log.Info("Color Test." +
+					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp"
+					+ "\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll"
+					+ "\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm"
+					+ "\n\\1\\2\\3\\4\\5\\6\\7\\8\\9\\0");
+
+			};
+
+			logColors();
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Console.WriteLine(Directory.GetCurrentDirectory());
@@ -102,10 +122,10 @@ namespace Ex {
 		private static void SetupLogger() {
 			Log.ignorePath = SourceFileDirectory();
 			Log.fromPath = "ExServer";
-			Log.logLevel = LogLevel.Info;
 			
+			// Write all info and more severe to textfield 
 			Log.logHandler += (info) => {
-				if (mainForm != null) {
+				if (info.level <= LogLevel.Info && mainForm != null) {
 					string msg = info.message;
 					var msgs = msg.ToString().Rich();
 					msgs.Add(new RichTextBoxMessage("\n"));
@@ -113,38 +133,20 @@ namespace Ex {
 				}
 			};
 			Log.logHandler += (info) => {
-				Console.WriteLine($"{info.tag}: {info.message}");
+				if (info.level <= LogLevel.Info) {
+					Console.WriteLine($"{info.tag}: {info.message}");
+				}
 			};
 			
 			// Todo: Change logfile location when deployed
+			// Log ALL messages to file.
 			string logfolder = $"{SourceFileDirectory()}/../logs";
-			ConcurrentQueue<string> logs = new ConcurrentQueue<string>();
-
 			if (!Directory.Exists(logfolder)) { Directory.CreateDirectory(logfolder); }
 			string logfile = $"{logfolder}/{DateTime.UtcNow.UnixTimestamp()}.log";
 			Log.logHandler += (info) => {
-				logs.Enqueue($"{info.tag}: {info.message}\n");
+				File.AppendAllText(logfile, $"{info.tag}: {info.message}\n");
 			};
 			
-			Action logStuff = () => {
-				Log.Verbose("VERBOSE VERBOSE VERBOSE");
-				Log.Debug("Debug. Debug.");
-				Log.Info("Information.");
-				Log.Warning("!!!!ATCHUNG!!!!");
-				Log.Error("Oh Shi-");
-			};
-			// logStuff();
-
-			Action logColors = () => {
-				Log.Info("Color Test." +
-					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp" 
-					+ "\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll" 
-					+ "\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm" 
-					+ "\n\\1\\2\\3\\4\\5\\6\\7\\8\\9\\0");
-					
-			};
-				
-			logColors();
 
 		}
 

@@ -115,6 +115,14 @@ namespace Ex {
 				Console.WriteLine($"{tag}: {msg}");
 			};
 			
+			// Todo: Change logfile location when deployed
+			string logfolder = $"{SourceFileDirectory()}/../logs";
+			if (!Directory.Exists(logfolder)) { Directory.CreateDirectory(logfolder); }
+			string logfile = $"{logfolder}/{DateTime.UtcNow.UnixTimestamp()}.log";
+			Log.logHandler += (tag, msg) => {
+				File.AppendAllText(logfile, $"{tag}: {msg}\n");
+			};
+			
 			Action logStuff = () => {
 				Log.Verbose("VERBOSE VERBOSE VERBOSE");
 				Log.Debug("Debug. Debug.");

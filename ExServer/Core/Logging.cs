@@ -74,7 +74,7 @@ namespace Ex {
 					while (logs.TryDequeue(out info)) {
 						try {
 							logHandler.Invoke(info);
-						} catch (Exception e) { }
+						} catch (Exception) { /* Can't really log when there's an exception */ }
 					}
 					Thread.Sleep(1);
 				}
@@ -82,9 +82,11 @@ namespace Ex {
 			t.Start();
 			return t;
 		}
+		/// <summary> Stops the logging thread (after a delay) </summary>
 		public static void Stop() {
 			go = false;
 		}
+		/// <summary> Restarts the logging thread </summary>
 		public static void Restart() {
 			go = false;
 			logThread.Join();

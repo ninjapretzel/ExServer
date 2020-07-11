@@ -56,6 +56,20 @@ namespace Ex {
 			public Vector3 rotation { get; set; }
 		}
 		
+		/// <summary> Connected DBService </summary>
+		DBService db;
+		/// <summary> Connected MapService </summary>
+		MapService mapService;
+		/// <summary> Connected LoginService </summary>
+		LoginService loginService;
+		
+		public override void OnStart() {
+			db = GetService<DBService>();
+			mapService = GetService<MapService>();
+			loginService = GetService<LoginService>();
+			loginService.userInitializer += InitializeEntityInfo;
+
+		}
 
 		public void InitializeEntityInfo(Guid userID) {
 
@@ -66,10 +80,10 @@ namespace Ex {
 			info.map = "Limbo";
 			info.guid = userID;
 
-			GetService<DBService>().Save(info);
+			db.Save(info);
 			Log.Info($"Saved EntityInfo for {userID}");
 
-			var check = GetService<DBService>().Get<UserEntityInfo>(userID);
+			var check = db.Get<UserEntityInfo>(userID);
 			Log.Info($"Retrieved saved info? {check}");
 
 
@@ -83,11 +97,10 @@ namespace Ex {
 			Client client = succ.client;
 			Guid clientId = client.id;
 			Log.Info($"{nameof(EntityService)}: Got LoginSuccess for {succ.client.identity} !");
-			var user = GetService<LoginService>().GetLogin(client);
+			var user = loginService.GetLogin(client);
 			Guid userId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
-
-			var db = GetService<DBService>();
+			
 			UserEntityInfo info = db.Get<UserEntityInfo>(userId);
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
@@ -123,9 +136,9 @@ namespace Ex {
 				trs.scale = Vector3.one;
 
 				Log.Info($"{client.identity} Entering map at {info.position} / {info.rotation}");
+				
+				mapService.EnterMap(client, info.map, info.position, info.rotation);
 				trs.Send();
-
-				GetService<MapService>().EnterMap(client, info.map, info.position, info.rotation);
 
 			} else {
 
@@ -137,7 +150,7 @@ namespace Ex {
 		public ConcurrentDictionary<string, EntityInfo> entityInfos;
 		public EntityInfo GetEntityInfo(string typeName) {
 			if (entityInfos.ContainsKey(typeName)) { return entityInfos[typeName]; }
-			var info = (entityInfos[typeName] = GetService<DBService>().Get<EntityInfo>("Content", "type", typeName));
+			var info = (entityInfos[typeName] = db.Get<EntityInfo>("Content", "type", typeName));
 			
 			if (DEBUG_TYPES) {
 				Log.Debug($"Baking type info into {typeof(Ex.Typed).FullName} for {typeName}");
@@ -258,7 +271,7 @@ namespace Ex {
 				subscribers = new ConcurrentDictionary<Guid, ConcurrentSet<Client>>();
 #if !UNITY
 				entityInfos = new ConcurrentDictionary<string, EntityInfo>();
-				GetService<LoginService>().userInitializer += InitializeEntityInfo;
+				
 #endif
 			}
 		}
@@ -269,10 +282,7 @@ namespace Ex {
 			if (isMaster) {
 #if !UNITY
 				entityInfos = null;
-				var login = GetService<LoginService>();
-				if (login != null) {
-					login.userInitializer -= InitializeEntityInfo;
-				}
+				
 				/// Should have already sent disconnect messages to connected clients 
 				subscriptions.Clear();
 				subscribers.Clear();
@@ -280,6 +290,7 @@ namespace Ex {
 			}
 
 		}
+
 
 		/// <summary> Server -> Client RPC. Requests that the client spawn a new entity </summary>
 		/// <param name="msg"> RPC Info. </param>
@@ -689,10 +700,7 @@ namespace Ex {
 
 				TRS trs = GetComponent<TRS>(entity);
 				OnMap onMap = GetComponent<OnMap>(entity);
-
-				var db = GetService<DBService>();
-				var loginService = GetService<LoginService>();
-
+				
 				LoginService.Session? session = loginService.GetLogin(client);
 				Credentials creds;
 				if (session.HasValue) {
@@ -740,7 +748,7 @@ namespace Ex {
 				if (onMap != null) {
 					// If they are on a map, delay revocation until map is ready.
 					Log.Debug($"\\eRemoving {client.identity} from {onMap.mapId}:{onMap.mapInstanceIndex}");
-					GetService<MapService>().ExitMap(client, onMap.mapId, onMap.mapInstanceIndex);
+					mapService.ExitMap(client, onMap.mapId, onMap.mapInstanceIndex);
 				} else {
 					// Otherwise revoke it here and now.
 					// This happens for example, if they do not log in.
@@ -921,14 +929,19 @@ namespace Ex {
 			return table.Remove(entity);
 		}
 
+		// <summary> Flags to modify <see cref="SendComponent(Comp, SendFlags)"/> to force data to owner. </summary>
+		//[Flags] public enum SendFlags {
+		//	None = 0,
+		//	ForceToOwner = 0x0001
+		//}
 		/// <summary> Sends the information for a component to all subscribers of that component's entity </summary>
 		/// <param name="comp"> Component to send </param>
-		public void SendComponent(Comp comp) {
+		public void SendComponent(Comp comp) {//, SendFlags flags = SendFlags.None) {
 			Type t = comp.GetType();
 			bool serverOnly = IS_SERVER_ONLY(t);
 			if (serverOnly) { return; }
 			bool ownerOnly = IS_OWNER_ONLY(t);
-			bool othersOnly = IS_OTHERS_ONLY(t);
+			bool othersOnly = IS_OTHERS_ONLY(t); // && !(flags == SendFlags.ForceToOwner);
 			bool always = !ownerOnly && !othersOnly;
 
 			Guid id = comp.entityId;

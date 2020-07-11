@@ -22,7 +22,7 @@ namespace Poly {
 
 		}
 
-		public void On(Server.Started start) {
+		public override void OnStart() {
 
 			db = GetService<DBService>();
 			logins = GetService<LoginService>();

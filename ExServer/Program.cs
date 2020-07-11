@@ -165,8 +165,7 @@ namespace Ex {
 				.Reseed("../../../db")
 				;
 
-			var sync = server.AddService<SyncService>();
-			{
+			var sync = server.AddService<SyncService>(); {
 				var debugSync = sync.Context("debug");
 				JsonObject data = new JsonObject();
 				data["gameState"] = new JsonObject("gravity", 9.8f, "tickrate", 100);
@@ -178,13 +177,8 @@ namespace Ex {
 			}
 
 			server.AddService<LoginService>();
-
-			
-
 			server.AddService<EntityService>();
 			server.AddService<MapService>();
-
-			
 				
 		}
 		

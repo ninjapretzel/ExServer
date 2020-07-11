@@ -58,38 +58,23 @@ namespace Eternus {
 		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
 		public void Initialize(Guid guid) {
-			var gameState = Reinit<GameState>(guid, it => { 
+			var gameState = db.Initialize<GameState>(guid, it => { 
 				it.flags["test"] = true;
 				it.levels["primary"] = 1;
 				it.exp["primary"] = 0;
 			});
-			var resources = Reinit<UserResources>(guid, it => {
+			var resources = db.Initialize<UserResources>(guid, it => {
 
 			});
-			var stats = Reinit<UnitStats>(guid, it => {
+			var stats = db.Initialize<UnitStats>(guid, it => {
 				foreach (var pair in statCalc.BaseStats) {
 					it.baseStats[pair.Key] = 5;
 				}
 
 				statCalc.FullRecalc(it);
-
 			});
 			
 		}
-		
-		/// <summary> Deletes and re-creates a model of a given type by GUID. </summary>
-		/// <typeparam name="T"> Generic type of database entry to reinitialize </typeparam>
-		/// <param name="guid"> Primary GUID to reinitialize for </param>
-		/// <param name="initializer"> Optional procedure to set up the thing. </param>
-		/// <returns> Created object </returns>
-		private T Reinit<T>(Guid guid, Action<T> initializer = null) where T : DBEntry, new() {
-			db.Remove<T>(guid);
-			T thing = new T() { guid = guid };
-			initializer?.Invoke(thing);
-			db.Save(thing);
-			return thing;
-		}
-
 
 		/// <summary> Callback when the Service is removed from the server </summary>
 		public override void OnDisable() {

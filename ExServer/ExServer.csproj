@@ -104,9 +104,12 @@
     <Compile Include="Core\Utils\Vectors.cs" />
     <Compile Include="Core\Utils\WorkPool.cs" />
     <Compile Include="Core\VersionInfo.cs" />
-    <Compile Include="Game\Server\EternusGame.cs" />
-    <Compile Include="Game\Server\GameState.cs" />
-    <Compile Include="Game\Server\StatCalculation.cs" />
+    <Compile Include="Game\Server\Eternus\EternusGame.cs" />
+    <Compile Include="Game\Server\Eternus\GameState.cs" />
+    <Compile Include="Game\Server\Poly\StatCalculation.cs" />
+    <Compile Include="Game\Server\Poly\GameState.cs" />
+    <Compile Include="Game\Server\Poly\PolyGame.cs" />
+    <Compile Include="Game\Server\Eternus\StatCalculation.cs" />
     <Compile Include="Libs\BakaTest.cs" />
     <Compile Include="Core\Utils\FNode\FNodeTests.cs" />
     <Compile Include="Core\Utils\SimpleCrypto.cs" />

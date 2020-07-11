@@ -140,16 +140,19 @@ namespace Ex {
 		private static void SetupServer() {
 			server = new Server(32055, 100);
 
+			server.AddService<Poly.PolyGame>();
+			// server.AddService<Eternus.EternusGame>();
 			server.AddService<DebugService>();
-			server.AddService<LoginService>();
-			
 
-			server.AddService<EntityService>();
-			server.AddService<MapService>();
+
+			server.AddService<DBService>()
+				.Connect()
+				.UseDatabase("Test1")
+				.CleanDatabase()
+				.Reseed("../../../db")
+				;
 
 			var sync = server.AddService<SyncService>();
-
-
 			{
 				var debugSync = sync.Context("debug");
 				JsonObject data = new JsonObject();
@@ -159,19 +162,19 @@ namespace Ex {
 				data["Data"] = new JsonArray("Not", "an", "object,", "Neither", "does", "this");
 				debugSync.SetData(data);
 				debugSync.DefaultSubs("Test", "Data");
-
 			}
+
+			server.AddService<LoginService>();
+
 			
-			server.AddService<DBService>()
-				.Connect()
-				.UseDatabase("Test1")
-				.CleanDatabase()
-				.Reseed("../../../db")
-				;
+
+			server.AddService<EntityService>();
+			server.AddService<MapService>();
+
+			
 				
-			server.AddService<Eternus.EternusGame>();
-			
 		}
+		
 
 		private static void SetupAdminClient() {
 			TcpClient connection = new TcpClient("localhost", 32055);

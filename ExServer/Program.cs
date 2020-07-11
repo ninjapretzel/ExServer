@@ -41,14 +41,18 @@ namespace Ex {
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+				//CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+				//CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
+				// For GMTKJam2020
+				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/GMTKJam2020/Assets/Plugins/ExClient/Core");
+				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/GMTKJam2020/Assets/Plugins/ExClient/Game/Shared");
 #endif
 
 				SetupLogger();
 				StaticSetup();
-				SelfTest();
+				// Skipping test for GMTKJam2020
+				// SelfTest();
 				ActualProgram();
 				
 				// Console.Read();

@@ -3,14 +3,14 @@
 	// before they are transferred to any other maps.
 	name: "Limbo",
 	procedural: false,
-	cellSize: 3,
-	cellDist: 2,
+	cellSize: 20,
+	cellDist: 3,
 	showOthers: false,
 	is3d: false,
 	axes: "xz",
 	bounds: [
 		0,0,0,
-		20000,1000,20000,
+		2000,1000,2000,
 	},
 	boundsShape: "Cylinder",
 	sparse: false,
@@ -18,41 +18,7 @@
 	
 	
 	entities: [
-		{
-			type: "Terrain2",
-			position: [ 0, 0, 0 ], 
-			rotation: [ 0, 0, 0 ],
-			scale: [ 1, 1, 1 ],
-		}, 
 		
-		{
-			type: "MiscC",
-			position: [ -136, -369.5, 102 ],
-			rotation: [ 0, 0, 0 ],
-			scale: [ 1, 1, 1 ],
-		},
-		{
-			type: "MiscA",
-			position: [ -146, -369.5, 102 ],
-			rotation: [ 0, 0, 0 ],
-			scale: [ 1, 1, 1 ],
-		},
-		{
-			type: "Radar",
-			position: [ -146, -369.5, 112 ],
-			rotation: [ 0, 0, 0 ],
-			scale: [ 1, 1, 1 ],
-		},
-
-		
-		
-		{
-			type: "Spider",
-			position: [ -100, -364, 90], 
-			rotation: [ 0, 0, 0 ],
-			scale: [ 1, 1, 1 ],
-		}
-			
 	],
 	
 	

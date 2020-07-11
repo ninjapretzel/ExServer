@@ -141,7 +141,7 @@ namespace Ex {
 				trs.Send();
 
 			} else {
-
+				Log.Warning($"EntityService.On(LoginSuccess_Server): Cannot find entity info for user {userId}/{username}");
 			}
 		}
 		public const bool DEBUG_TYPES = true;

@@ -48,12 +48,12 @@ namespace Poly {
 		public void On(LoginService.LoginSuccess_Server succ) {
 			Log.Info("PolyGame.On(LoginSuccess_Server)");
 			Client client = succ.client;
-			Guid clientId = client.id;
-			
+			var user = GetService<LoginService>().GetLogin(client);
+			Guid userId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 
-			GameState gameState = db.Get<GameState>(clientId);
+			GameState gameState = db.Get<GameState>(userId);
 			if (gameState == null) {
-				Initialize(clientId);
+				Initialize(userId);
 			} else {
 
 			}
@@ -61,7 +61,7 @@ namespace Poly {
 		}
 
 		public static readonly string[] skins = new string[] {
-			"cube", "sphere", "capsule", "cylinder"
+			"Cube", "Sphere", "Capsule", "Cylinder"
 		};
 
 		public void Initialize(Guid guid) {

@@ -3,7 +3,7 @@
 	// before they are transferred to any other maps.
 	name: "Limbo",
 	procedural: false,
-	cellSize: 20,
+	cellSize: 100,
 	cellDist: 3,
 	showOthers: false,
 	is3d: false,

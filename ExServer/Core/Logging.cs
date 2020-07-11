@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Ex {
@@ -22,9 +24,24 @@ namespace Ex {
 	}
 
 	
-	public delegate void Logger(string tag, string msg);
+	public delegate void Logger(LogInfo info);
 
+	/// <summary> Log message info passed on to <see cref="Logger"/> callbacks. </summary>
+	public struct LogInfo {
+		/// <summary> Severity of logging </summary>
+		public LogLevel level { get; private set; }
+		/// <summary> Log Message </summary>
+		public string message { get; private set; }
+		/// <summary> Log Tag </summary>
+		public string tag { get; private set; }
+		public LogInfo(LogLevel level, string message, string tag) {
+			this.level = level;
+			this.message = message;
+			this.tag = tag;
+		}
+	}
 
+	/// <summary> Class handling statically accessible logging </summary>
 	public static class Log {
 
 		public static readonly string[] LEVEL_CODES = { "\\r", "\\y", "\\w", "\\h", "\\d" };
@@ -41,6 +58,38 @@ namespace Ex {
 		public static LogLevel logLevel = LogLevel.Verbose;
 		/// <summary> Log handler to use to print logs </summary>
 		public static Logger logHandler;
+		/// <summary> Queue of unhandled <see cref="LogInfo"/>s </summary>
+		public static readonly ConcurrentQueue<LogInfo> logs = new ConcurrentQueue<LogInfo>();
+
+		/// <summary> If logging is currently running </summary>
+		private static bool go = false;
+		/// <summary> Thread handling logging  </summary>
+		private static Thread logThread = InitializeLoggingThread();
+		/// <summary> Initializes thread that handles logging </summary>
+		private static Thread InitializeLoggingThread() {
+			go = true;
+			Thread t = new Thread(() => {
+				LogInfo info;
+				while (go) {
+					while (logs.TryDequeue(out info)) {
+						try {
+							logHandler.Invoke(info);
+						} catch (Exception e) { }
+					}
+					Thread.Sleep(1);
+				}
+			});
+			t.Start();
+			return t;
+		}
+		public static void Stop() {
+			go = false;
+		}
+		public static void Restart() {
+			go = false;
+			logThread.Join();
+			logThread = InitializeLoggingThread();
+		}
 
 		/// <summary> Logs a message using the Verbose LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
@@ -163,10 +212,12 @@ namespace Ex {
 					+ (ex != null ? $"\n{ex.InfoString()}" : "")
 					+ callerInfo;
 
-				logHandler?.Invoke(tag, message);
+				logs.Enqueue(new LogInfo(level, message, tag));
+
 			}
 		}
-		
+
+
 		/// <summary> Little helper method to consistantly format caller information </summary>
 		/// <param name="callerName"> Name of method </param>
 		/// <param name="callerPath"> Path of file method is contained in </param>

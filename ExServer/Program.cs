@@ -94,7 +94,7 @@ namespace Ex {
 			Console.WriteLine("Window closed, Terminating server.");
 			admin.server.Stop();
 			server.Stop();
-
+			Log.Stop();
 			// oof. figure out why we need this. sometimes (errors?)
 			// Application.Exit();
 		}
@@ -104,23 +104,26 @@ namespace Ex {
 			Log.fromPath = "ExServer";
 			Log.logLevel = LogLevel.Info;
 			
-			Log.logHandler += (tag, msg) => {
+			Log.logHandler += (info) => {
 				if (mainForm != null) {
+					string msg = info.message;
 					var msgs = msg.ToString().Rich();
 					msgs.Add(new RichTextBoxMessage("\n"));
 					mainForm.AddToLog(msgs);
 				}
 			};
-			Log.logHandler += (tag, msg) => {
-				Console.WriteLine($"{tag}: {msg}");
+			Log.logHandler += (info) => {
+				Console.WriteLine($"{info.tag}: {info.message}");
 			};
 			
 			// Todo: Change logfile location when deployed
 			string logfolder = $"{SourceFileDirectory()}/../logs";
+			ConcurrentQueue<string> logs = new ConcurrentQueue<string>();
+
 			if (!Directory.Exists(logfolder)) { Directory.CreateDirectory(logfolder); }
 			string logfile = $"{logfolder}/{DateTime.UtcNow.UnixTimestamp()}.log";
-			Log.logHandler += (tag, msg) => {
-				File.AppendAllText(logfile, $"{tag}: {msg}\n");
+			Log.logHandler += (info) => {
+				logs.Enqueue($"{info.tag}: {info.message}\n");
 			};
 			
 			Action logStuff = () => {

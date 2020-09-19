@@ -3,3 +3,6 @@
 /ExServer/obj
 /packages
 /logs
+
+/**/obj/*
+/**/bin/*

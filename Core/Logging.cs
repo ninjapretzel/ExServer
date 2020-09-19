@@ -43,8 +43,10 @@ namespace Ex {
 
 	/// <summary> Class handling statically accessible logging </summary>
 	public static class Log {
-
+		
 		public static readonly string[] LEVEL_CODES = { "\\r", "\\y", "\\w", "\\h", "\\d" };
+		public static string defaultTag = "Baka";
+		
 		public static string ColorCode(LogLevel level) { return (LEVEL_CODES[(int)level]); }
 		/// <summary> Path to use to filter file paths </summary>
 		public static string ignorePath = null;
@@ -94,7 +96,7 @@ namespace Ex {
 		/// <summary> Logs a message using the Verbose LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Verbose(object obj, string tag = "Baka",
+		public static void Verbose(object obj, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -104,7 +106,7 @@ namespace Ex {
 		/// <param name="ex"> Exception to log. </param>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Verbose(object obj, Exception ex, string tag = "Baka",
+		public static void Verbose(object obj, Exception ex, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -114,7 +116,7 @@ namespace Ex {
 		/// <summary> Logs a message using the Debug LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Debug(object obj, string tag = "Baka",
+		public static void Debug(object obj, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -124,7 +126,7 @@ namespace Ex {
 		/// <param name="ex"> Exception to log. </param>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Debug(object obj, Exception ex, string tag = "Baka",
+		public static void Debug(object obj, Exception ex, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -134,7 +136,7 @@ namespace Ex {
 		/// <summary> Logs a message using the Info LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Info(object obj, string tag = "Baka",
+		public static void Info(object obj, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -144,7 +146,7 @@ namespace Ex {
 		/// <param name="ex"> Exception to log. </param>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Info(object obj, Exception ex, string tag = "Baka",
+		public static void Info(object obj, Exception ex, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -154,7 +156,7 @@ namespace Ex {
 		/// <summary> Logs a message using the Warning LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Warning(object obj, string tag = "Baka",
+		public static void Warning(object obj, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -164,7 +166,7 @@ namespace Ex {
 		/// <param name="ex"> Exception to log. </param>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Warning(object obj, Exception ex, string tag = "Baka",
+		public static void Warning(object obj, Exception ex, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -174,7 +176,7 @@ namespace Ex {
 		/// <summary> Logs a message using the Error LogLevel. </summary>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Error(object obj, string tag = "Baka",
+		public static void Error(object obj, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -184,7 +186,7 @@ namespace Ex {
 		/// <param name="ex"> Exception to log. </param>
 		/// <param name="obj"> Message to log. </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Error(object obj, Exception ex, string tag = "Baka",
+		public static void Error(object obj, Exception ex, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
@@ -200,12 +202,12 @@ namespace Ex {
 		/// <param name="callerPath">File of calling method </param>
 		/// <param name="callerLine">Line number of calling method </param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void log(Exception ex, object obj, LogLevel level = LogLevel.Info, string tag = "Baka",
+		public static void log(Exception ex, object obj, LogLevel level = LogLevel.Info, string tag = null,
 				[CallerMemberName] string callerName = "[NO METHOD]",
 				[CallerFilePath] string callerPath = "[NO PATH]",
 				[CallerLineNumber] int callerLine = -1) {
-			
 			if (obj == null) { obj = "[null]"; }
+			if (tag == null) { tag = defaultTag; }
 			string callerInfo = CallerInfo(callerName, callerPath, callerLine, level);
 			string message = (colorCodes ? ColorCode(level) : "") + obj.ToString() 
 				+ (ex != null ? $"\n{ex.InfoString()}" : "")
@@ -245,26 +247,13 @@ namespace Ex {
 			string s = path.Replace('\\', '/');
 			return s;
 		}
-
-		/// <summary> Converts backslashes to forward slashes in the info string. </summary>
-		/// <param name="e"> Exception to print </param>
-		/// <returns> String containing info about an exception, and all of its inner exceptions, with forward slashes in the stack trace paths. </returns>
-		public static string FInfoString(this Exception e) {
-			return ForwardSlashPath(InfoString(e));
-		}
-		/// <summary> Converts backslashes to forward slashes in the mini info string. </summary>
-		/// <param name="e"> Exception to print </param>
-		/// <returns> String containing info about an exception, with forward slashes in the stack trace paths. </returns>
-		public static string FMiniInfoString(this Exception e) {
-			return ForwardSlashPath(MiniInfoString(e));
-		}
-
+		
 		/// <summary> Constructs a string with information about an exception, and all of its inner exceptions. </summary>
 		/// <param name="e"> Exception to print. </param>
 		/// <returns> String containing info about an exception, and all of its inner exceptions. </returns>
 		public static string InfoString(this Exception e) {
 			StringBuilder str = "\nException Info: " + e.MiniInfoString();
-			str += "\n\tMessage: " + e.Message;
+			str += "\n\tMessage: " + ForwardSlashPath(e.Message);
 			Exception ex = e.InnerException;
 
 			while (ex != null) {
@@ -273,7 +262,7 @@ namespace Ex {
 			}
 
 
-			return str;
+			return ForwardSlashPath(str);
 		}
 
 		/// <summary> Constructs a string with information about an exception. </summary>
@@ -281,9 +270,9 @@ namespace Ex {
 		/// <returns> String containing exception type, message, and stack trace. </returns>
 		public static string MiniInfoString(this Exception e) {
 			StringBuilder str = e.GetType().ToString();
-			str = str + "\n\tMessage: " + e.Message;
+			str = str + "\n\tMessage: " + ForwardSlashPath(e.Message);
 			str = str + "\nStack Trace: " + e.StackTrace;
-			return ForwardSlashPath(str);
+			return str;
 		}
 
 	}

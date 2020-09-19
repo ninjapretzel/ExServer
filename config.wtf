@@ -1,0 +1,13 @@
+{
+	database: {
+		host: "mongodb://localhost:27017",
+		name: "Test1",
+	},
+	logLevel: "Info",
+	// Platforms:
+	Unix: {
+		database: {
+			host: "mongodb://10.0.2.2:27017",
+		},
+	},
+}

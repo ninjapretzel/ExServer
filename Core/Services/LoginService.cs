@@ -465,12 +465,14 @@ namespace Ex {
 
 			return true;
 		}
+		
 		/// <summary> Default Password 'Hash' function. </summary>
 		/// <param name="pass"> password to hash </param>
 		/// <returns> Simple salted + hashed result. </returns>
 		public static string DefaultHash(string pass) {
 			return ":\\:" + (pass + "IM A STUPID HACKER DECOMPILING YOUR CODE LOL").GetHashCode() + ":/:";
 		}
+		
 
 	}
 

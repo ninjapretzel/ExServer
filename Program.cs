@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+//using System.Windows.Forms;
 using Ex.Libs;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -25,38 +25,54 @@ namespace Ex {
 
 		public static Server server;
 		public static Client admin;
-		public static MainForm mainForm;
+		public static JsonObject global = new JsonObject();
+		public static JsonObject config;
+		
+		// public static MainForm mainForm;
 		/// <summary> The main entry point for the application. </summary>
 		[STAThread]
 		static void Main() {
+			Console.Clear();
+		
+			string platform = System.Environment.OSVersion.Platform.ToString();
+			global["platform"] = platform;
+			Console.WriteLine($"Platform detected: ({platform})");
+			config = Json.Parse<JsonObject>(File.ReadAllText("./config.wtf"));
+			if (config.Has(platform)) {
+				config = config.CombineRecursively(config.Get<JsonObject>(platform));
+			}
+			
 			try {
 #if DEBUG
 				// Might be a bad idea long-term.
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				// Still more visible than doing some weird VS build command hook.
-				
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+				try {
+					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
-				// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
+					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
-				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-				CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
-
-#endif
-
+					CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+					CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+				} catch (Exception) {
+					Console.WriteLine("Copying source files failed.");
+				}
+#endif	
 				SetupLogger();
 				StaticSetup();
-				// Skipping test for GMTKJam2020
+				
 				// SelfTest();
 				ActualProgram();
+				
+				
 				
 				// Console.Read();
 
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
-				Console.Read();
+				//Console.Read();
 			}
 		}
 
@@ -71,9 +87,9 @@ namespace Ex {
 		
 		
 		static void ActualProgram() {
-			Application.EnableVisualStyles();
-			Application.SetCompatibleTextRenderingDefault(false);
-			mainForm = new MainForm();
+			// Application.EnableVisualStyles();
+			// Application.SetCompatibleTextRenderingDefault(false);
+			// mainForm = new MainForm();
 
 			Action logStuff = () => {
 				Log.Verbose("VERBOSE VERBOSE VERBOSE");
@@ -93,6 +109,7 @@ namespace Ex {
 
 			};
 
+			logStuff();
 			logColors();
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
@@ -103,45 +120,59 @@ namespace Ex {
 			// Thread.Sleep(1000);
 
 			SetupAdminClient();
-			Console.WriteLine("Server started, showing window.");
+			string str = @"
++===========================================================================+
+|                              SERVER STARTED                               |
+|                     Press \rENTER \wat any time to exit                       |
++===========================================================================+";
+			Log.Info(str);
+			
+			
+			Console.ReadLine();
+			
+			
 
-			Application.Run(mainForm);
 
-
-			Console.WriteLine("Window closed, Terminating server.");
+			Console.WriteLine("\n\n\nTerminating server.\n\n\n");
 			admin.server.Stop();
 			server.Stop();
 			Log.Stop();
 			// oof. figure out why we need this. sometimes (errors?)
 			// Application.Exit();
 		}
-
+		
 		private static void SetupLogger() {
 			Log.ignorePath = SourceFileDirectory();
 			Log.fromPath = "ExServer";
+			Log.defaultTag = "Ex";
+			LogLevel target = Enum.Parse<LogLevel>(config["logLevel"].stringVal);
 			
 			// Write all info and more severe to textfield 
-			Log.logHandler += (info) => {
+			/* Log.logHandler += (info) => {
 				if (info.level <= LogLevel.Info && mainForm != null) {
 					string msg = info.message;
 					var msgs = msg.ToString().Rich();
 					msgs.Add(new RichTextBoxMessage("\n"));
 					mainForm.AddToLog(msgs);
 				}
-			};
+			}; */
+				
 			Log.logHandler += (info) => {
-				if (info.level <= LogLevel.Info) {
-					Console.WriteLine($"{info.tag}: {info.message}");
+				// Console.WriteLine($"{info.tag}: {info.message}");
+				if (info.level <= target) {
+					Pretty.Print($"\n{info.tag}: {info.message}\n");
+					
+					//Pretty.Print(Pretty.Code(0, 4));
 				}
 			};
 			
 			// Todo: Change logfile location when deployed
 			// Log ALL messages to file.
-			string logfolder = $"{SourceFileDirectory()}/../logs";
+			string logfolder = $"{SourceFileDirectory()}/logs";
 			if (!Directory.Exists(logfolder)) { Directory.CreateDirectory(logfolder); }
 			string logfile = $"{logfolder}/{DateTime.UtcNow.UnixTimestamp()}.log";
 			Log.logHandler += (info) => {
-				File.AppendAllText(logfile, $"{info.tag}: {info.message}\n");
+				File.AppendAllText(logfile, $"\n{info.tag}: {info.message}\n");
 			};
 			
 
@@ -156,10 +187,10 @@ namespace Ex {
 
 
 			server.AddService<DBService>()
-				.Connect()
-				.UseDatabase("Test1")
-				.CleanDatabase()
-				.Reseed("../../../db")
+				.Connect(config["database"]["host"].stringVal)
+				.UseDatabase(config["database"]["name"].stringVal)
+				//.CleanDatabase()
+				//.Reseed("db")
 				;
 
 			var sync = server.AddService<SyncService>(); {
@@ -202,7 +233,7 @@ namespace Ex {
 		static void SelfTest() {
 			BakaTest.BakaTestHook.RunTests();
 		}
-
+/*
 		private static void TestColors(string testStr) {
 			var msgs = testStr.Rich();
 
@@ -217,7 +248,7 @@ namespace Ex {
 			}
 		}
 
+*/
 	}
-
 
 }

@@ -138,6 +138,14 @@ namespace Ex {
 		public Vector3 position;
 		/// <summary> Adjustment to rotation, euler angles</summary>
 		public Vector3 rotation;
+		/// <summary> Primary color </summary>
+		public Vector4 color = Vector4.one;
+		/// <summary> Additional color </summary>
+		public Vector4 color2 = Vector4.one;
+		/// <summary> Additional color </summary>
+		public Vector4 color3 = Vector4.one;
+		/// <summary> Additional color </summary>
+		public Vector4 color4 = Vector4.one;
 		/// <inheritdoc />
 		public override string ToString() { return $"{entityId} display {{{prefab}}} at pos:{{{position}}} / rot:{{{rotation}}}"; }
 	}

@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Reflection;
+using Ex.Utils.Ext;
 
 namespace Ex {
 
@@ -49,11 +50,24 @@ namespace Ex {
 
 #if !UNITY
 
-		[BsonIgnoreExtraElements]
-		public class UserEntityInfo : DBEntry {
-			public string map { get; set; }
-			public Vector3 position { get; set; }
-			public Vector3 rotation { get; set; }
+		/// <summary> Interface for loading standard user entity data from database. </summary>
+		public interface UserEntityInfo : IDBEntry {
+			/// <summary> Map the user is on </summary>
+			string map { get; set; }
+			/// <summary> Position they were last at </summary>
+			Vector3 position { get; set; }
+			/// <summary> Orientation they were last at </summary>
+			Vector3 rotation { get; set; }
+			/// <summary> Model used to display the user </summary>
+			string skin { get; set; }
+			/// <summary> Primary Color, 0xRRGGBBAA </summary>
+			string color { get; set; }
+			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
+			string color2 { get; set; }
+			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
+			string color3 { get; set; }
+			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
+			string color4 { get; set; }
 		}
 		
 		/// <summary> Connected DBService </summary>
@@ -62,32 +76,23 @@ namespace Ex {
 		MapService mapService;
 		/// <summary> Connected LoginService </summary>
 		LoginService loginService;
+
+		Func<UserEntityInfo> GenerateUser;
+		Func<Guid, UserEntityInfo> FindUser;
+
+		public void RegisterUserEntityInfo<T>() where T : UserEntityInfo, new() {
+			GenerateUser = () => new T();
+			FindUser = (guid) => db.Get<T>(guid);
+
+		}
 		
 		public override void OnStart() {
 			db = GetService<DBService>();
 			mapService = GetService<MapService>();
 			loginService = GetService<LoginService>();
-			loginService.userInitializer += InitializeEntityInfo;
 
 		}
 
-		public void InitializeEntityInfo(Guid userID) {
-
-			Log.Info($"Initializing EntityInfo for {userID}");
-			UserEntityInfo info = new UserEntityInfo();
-			info.position = Vector3.zero;
-			info.rotation = Vector3.zero;
-			info.map = "Limbo";
-			info.guid = userID;
-
-			db.Save(info);
-			Log.Info($"Saved EntityInfo for {userID}");
-
-			var check = db.Get<UserEntityInfo>(userID);
-			Log.Info($"Retrieved saved info? {check}");
-
-
-		}
 		/// <summary> Called when a login occurs. </summary>
 		/// <param name="succ"></param>
 		public void On(LoginService.LoginSuccess_Server succ) {
@@ -101,7 +106,7 @@ namespace Ex {
 			Guid userId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
 			
-			UserEntityInfo info = db.Get<UserEntityInfo>(userId);
+			UserEntityInfo info = FindUser(userId);
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
 			var display = AddComponent<Display>(clientId);
@@ -118,7 +123,12 @@ namespace Ex {
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			if (username != "admin") {
 				nameplate.name = username;
-				display.prefab = "Models/Cube";
+				display.prefab = "Models/" + info.skin;
+				display.color = HexUtils.ToVector4Color(info.color);
+				display.color2 = HexUtils.ToVector4Color(info.color2);
+				display.color3 = HexUtils.ToVector4Color(info.color3);
+				display.color4 = HexUtils.ToVector4Color(info.color4);
+				
 			} else {
 				nameplate.name = "";
 				display.prefab = "Empty";
@@ -707,7 +717,7 @@ namespace Ex {
 					creds = session.Value.credentials;
 					Log.Info($"EntityService.OnDisconnected: Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
 
-					var info = db.Get<UserEntityInfo>(creds.userId);
+					var info = FindUser(creds.userId);
 					if (info == null) {
 						Log.Error($"EntityService.OnDisconnected: Problem, no EntityInfo was initialized for {creds.userId}");
 					} else {

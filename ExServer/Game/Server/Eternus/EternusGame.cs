@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Ex;
+using Ex.Utils;
+using Ex.Utils.Ext;
 using MongoDB.Driver;
 
 namespace Eternus {
@@ -13,24 +15,24 @@ namespace Eternus {
 		DBService db;
 		LoginService logins;
 		SyncService sync;
+		EntityService entities;
 
 		StatCalc statCalc;
 
-		/// <summary> Callback when the Service is added to a Servcer </summary>
-		public override void OnEnable() {
+		/// <summary> Callback when all services are loaded on the server.</summary>
+		public override void OnStart() {
 			db = GetService<DBService>();
 			logins = GetService<LoginService>();
 			sync = GetService<SyncService>();
+			entities = GetService<EntityService>();
 
-			var syncData = sync.Context("data");
+			entities.RegisterUserEntityInfo<GameState>();
 			
 			statCalc = db.Get<StatCalc>("Content", "filename", "StatCalc");
 			JsonObject test = new JsonObject(
 				"str", 5, "dex", 12, 
 				"maxHealth", 200,
 				"recHealth", 1.5,
-
-
 				"what", 123123
 			);
 
@@ -45,8 +47,10 @@ namespace Eternus {
 		}
 
 		public void On(LoginService.LoginSuccess_Server succ) {
+			Log.Info("EternusGame.On(LoginSuccess_Server)");
 			Client client = succ.client;
-			Guid clientId = client.id;
+			var user = GetService<LoginService>().GetLogin(client);
+			Guid clientId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 
 			GameState gameState = db.Get<GameState>(clientId);
 			if (gameState == null) {
@@ -58,15 +62,30 @@ namespace Eternus {
 		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
 		public void Initialize(Guid guid) {
+			var userId = guid;
+
 			var gameState = db.Initialize<GameState>(guid, it => { 
+				it.map = "Limbo";
+				it.position = new Vector3(0, 0, 0);
+				it.rotation = new Vector3(0, 0, 0);
+
+				it.skin = "Mech";
+
 				it.flags["test"] = true;
 				it.levels["primary"] = 1;
 				it.exp["primary"] = 0;
+
+
+
+				it.color = new Vector4(1, .5f, .5f, 1).Hex();
+
 			});
 			var resources = db.Initialize<UserResources>(guid, it => {
 
 			});
 			var stats = db.Initialize<UnitStats>(guid, it => {
+				it.owner = userId;
+
 				foreach (var pair in statCalc.BaseStats) {
 					it.baseStats[pair.Key] = 5;
 				}

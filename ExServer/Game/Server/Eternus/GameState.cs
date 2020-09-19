@@ -1,4 +1,5 @@
 using Ex;
+using Ex.Utils;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,17 @@ namespace Eternus {
 	
 	/// <summary> Database object for the primary user save data. </summary>
 	[BsonIgnoreExtraElements]
-	public class GameState : DBData { 
+	public class GameState : DBData, EntityService.UserEntityInfo {
+
+		public string map { get; set; }
+		public Vector3 position { get; set; }
+		public Vector3 rotation { get; set; }
+		[BsonIgnoreIfNull] public string color { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		[BsonIgnoreIfNull] public string color2 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		[BsonIgnoreIfNull] public string color3 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		[BsonIgnoreIfNull] public string color4 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		[BsonIgnoreIfNull] public string skin { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		
 		public GameState() : base() { 
 			data["flags"] = new JsonObject();
 			data["levels"] = new JsonObject();
@@ -34,6 +45,8 @@ namespace Eternus {
 	/// <summary> Database object to store player stats. </summary>
 	[BsonIgnoreExtraElements]
 	public class UnitStats : DBData { 
+		public Guid owner;
+		
 		public UnitStats() : base() { 
 			data["baseStats"] = new JsonObject();
 			data["combatStats"] = new JsonObject();

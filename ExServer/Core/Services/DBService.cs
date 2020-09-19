@@ -29,9 +29,17 @@ using MongoDB.Bson.IO;
 namespace Ex {
 
 #if !UNITY
+	/// <summary> Base interface for any types being stored in the database. 
+	/// Standardizes access to the MongoDB "_id" property, a single relational Guid,</summary>
+	public interface IDBEntry {
+		/// <summary> MongoDB "_id" property for uniqueness </summary>
+		[BsonId] ObjectId id { get; set; }
+		/// <summary> Guid to relate entry to some specific entity or user. </summary>
+		Guid guid { get; set; }
+	}
 	/// <summary> Base class for any types being stored in the database. 
 	/// Standardizes access to the MongoDB "_id" property, a single relational Guid,</summary>
-	public class DBEntry {
+	public class DBEntry : IDBEntry{
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
 		[BsonId] public ObjectId id { get; set; }
 		/// <summary> Guid to relate entry to some specific entity or user. </summary>
@@ -40,7 +48,7 @@ namespace Ex {
 
 	/// <summary> Provides the same as the <see cref="DBEntry"/> class, 
 	/// and also a generic 'data' object for arbitrary data. </summary>
-	public class DBData : DBEntry {
+	public abstract class DBData : DBEntry {
 		/// <summary> Used to defer storage of arbitrary data. </summary>
 		public JsonObject data;
 		/// <summary> Helpful macro that grabs the calling member name of anything that calls it. 
@@ -51,7 +59,23 @@ namespace Ex {
 		/// <returns> Name of member calling this method. </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static string MemberName([CallerMemberName] string caller = null) { return caller; }
+		/// <summary> Default constructor, constructs `an empty <see cref="data"/> JsonObject </summary>
 		public DBData() : base() { data = new JsonObject(); }
+
+		/// <summary> Utility function to grab a <see cref="Vector3"/> from a <see cref="JsonArray"/> field </summary>
+		/// <param name="data"> Data <see cref="JsonObject"/> to look at </param>
+		/// <param name="field"> field to examine </param>
+		/// <returns> <see cref="Vector3"/> converted from <see cref="JsonArray"/>'s first three indexes.</returns>
+		public static Vector3 V3(JsonObject data, string field) {
+			Vector3 ret = Vector3.zero;
+			if (data.Has<JsonArray>(field)) {
+				JsonArray arr = data.Get<JsonArray>(field);
+				if (arr.Count > 0) { ret.x = arr[0].floatVal; }
+				if (arr.Count > 1) { ret.y = arr[1].floatVal; }
+				if (arr.Count > 2) { ret.z = arr[2].floatVal; }
+			}
+			return ret;
+		}
 	}
 	
 #endif 
@@ -286,7 +310,7 @@ namespace Ex {
 		/// <param name="guid"> Primary GUID to reinitialize for </param>
 		/// <param name="initializer"> Optional procedure to set up the thing. </param>
 		/// <returns> Created object </returns>
-		public T Initialize<T>(Guid guid, Action<T> initializer = null ) where T : DBEntry, new() {
+		public T Initialize<T>(Guid guid, Action<T> initializer = null ) where T : IDBEntry, new() {
 			Remove<T>(guid);
 			T thing = new T() { guid = guid };
 			
@@ -466,14 +490,14 @@ namespace Ex {
 		/// <summary> Get a collection of stuff in the default database  </summary>
 		/// <typeparam name="T"> Generic type of collection </typeparam>
 		/// <returns> Collection of items, using the name of the type </returns>
-		public IMongoCollection<T> Collection<T>() where T : DBEntry {
+		public IMongoCollection<T> Collection<T>() where T : IDBEntry {
 			return defaultDB.GetCollection<T>(typeof(T).Name);
 		}
 		/// <summary> Get a collection of stuff of a given type in a given database </summary>
 		/// <typeparam name="T"> Generic type of collection </typeparam>
 		/// <param name="databaseName"> Name of database to sample </param>
 		/// <returns> Collection of items, using the name of the type </returns>
-		public IMongoCollection<T> Collection<T>(string databaseName) where T : DBEntry {
+		public IMongoCollection<T> Collection<T>(string databaseName) where T : IDBEntry {
 			return dbClient.GetDatabase(databaseName).GetCollection<T>(typeof(T).Name);
 		}
 
@@ -483,7 +507,7 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of DBEntry Table to get from </typeparam>
 		/// <param name="id"> ID to look for 'guid' </param>
 		/// <returns> Retrieved result matching the ID, or null </returns>
-		public T Get<T>(Guid id) where T : DBEntry {
+		public T Get<T>(Guid id) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), id);
 			T result = Collection<T>().Find(filter).FirstOrDefault();
 			return result;
@@ -494,7 +518,7 @@ namespace Ex {
 		/// <param name="idField"> ID Field to look for 'guid' within </param>
 		/// <param name="id"> ID to look for 'guid' </param>
 		/// <returns> Retrieved result matching the ID, or null </returns>
-		public T Get<T>(string idField, Guid id) where T : DBEntry {
+		public T Get<T>(string idField, Guid id) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(idField, id);
 			T result = Collection<T>().Find(filter).FirstOrDefault();
 			return result;
@@ -505,7 +529,7 @@ namespace Ex {
 		/// <param name="idField"> Field of ID to match </param>
 		/// <param name="id"> ID to match in field </param>
 		/// <returns> First item matching id, or null. </returns>
-		public T Get<T>(string idField, string id) where T : DBEntry {
+		public T Get<T>(string idField, string id) where T : IDBEntry {
 			// Todo: Benchmark and figure out which of these is faster
 			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
 			//var filter = Builders<T>.Filter.Eq(idField, id);
@@ -520,7 +544,7 @@ namespace Ex {
 		/// <param name="idField"> Field of ID to match </param>
 		/// <param name="id"> ID to match in field </param>
 		/// <returns> First item matching id, or null. </returns>
-		public T Get<T>(string databaseName, string idField, string id) where T : DBEntry {
+		public T Get<T>(string databaseName, string idField, string id) where T : IDBEntry {
 			// Todo: Benchmark and figure out which of these is faster
 			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
 			//var filter = Builders<T>.Filter.Eq(idField, id);
@@ -535,7 +559,7 @@ namespace Ex {
 		/// <param name="id"> ID to look for ID </param>
 		/// <returns> All elements matching the given ID </returns>
 		/// <remarks> For example, if `Item` has a field `owner:string`, this can be used to find all `Item`s owned by a given entity. </remarks>
-		public List<T> GetAll<T>(string idField, Guid id) where T : DBEntry {
+		public List<T> GetAll<T>(string idField, Guid id) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(idField, id);
 			List<T> result = Collection<T>().Find(filter).ToList();
 			return result;
@@ -548,7 +572,7 @@ namespace Ex {
 		/// <returns> All elements matching the given ID </returns>
 		/// <remarks> For example, if `Item` has a field `owner:Guid`, this can be used to find all `Item`s owned by a given entity. </remarks>
 
-		public List<T> GetAll<T>(string idField, string id) where T : DBEntry {
+		public List<T> GetAll<T>(string idField, string id) where T : IDBEntry {
 			var filter = BsonHelpers.Query($"{{ \"{idField}\": \"{id}\" }}");
 			//var filter = Builders<T>.Filter.Eq(idField, id);
 
@@ -571,7 +595,7 @@ namespace Ex {
 		/// <summary> Saves the given item into the default database. Updates the item, or inserts it if one does not exist yet.  </summary>
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
 		/// <param name="item"> Item to insert </param>
-		public void Save<T>(T item) where T : DBEntry {
+		public void Save<T>(T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
 
 			var coll = Collection<T>();
@@ -593,7 +617,7 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
 		/// <param name="databaseName"> Name of database to sample </param>
 		/// <param name="item"> Item to insert </param>
-		public void Save<T>(string databaseName, T item) where T : DBEntry {
+		public void Save<T>(string databaseName, T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
 
 			var coll = Collection<T>(databaseName);
@@ -613,7 +637,7 @@ namespace Ex {
 		/// <summary> Removes the given item from the default database. </summary>
 		/// <typeparam name="T"> Generic type of item to delete </typeparam>
 		/// <param name="item"> Item to delete </param>
-		public void Remove<T>(T item) where T : DBEntry {
+		public void Remove<T>(T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
 			var coll = Collection<T>();
 			try {
@@ -625,7 +649,7 @@ namespace Ex {
 		/// <summary> Removes all of the data for the given guid from the default database. </summary>
 		/// <typeparam name="T"> Generic type of item to delete </typeparam>
 		/// <param name="guid"> Guid of data to delete </param>
-		public void Remove<T>(Guid guid) where T : DBEntry {
+		public void Remove<T>(Guid guid) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), guid);
 			var coll = Collection<T>();
 			try {
@@ -639,7 +663,7 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of item to delete </typeparam>
 		/// <param name="databaseName"> Database name to delete </param>
 		/// <param name="item"> Item to delete </param>
-		public void Remove<T>(string databaseName, T item) where T : DBEntry {
+		public void Remove<T>(string databaseName, T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
 			var coll = Collection<T>(databaseName);
 			try {
@@ -653,7 +677,7 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of item to delete </typeparam>
 		/// <param name="databaseName"> Database name to delete from </param>
 		/// <param name="guid"> Guid of data to delete </param>
-		public void Remove<T>(string databaseName, Guid guid) where T : DBEntry {
+		public void Remove<T>(string databaseName, Guid guid) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), guid);
 			var coll = Collection<T>(databaseName);
 			try {

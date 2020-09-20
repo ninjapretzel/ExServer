@@ -33,7 +33,7 @@ namespace Ex {
 	/// Standardizes access to the MongoDB "_id" property, a single relational Guid,</summary>
 	public interface IDBEntry {
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
-		[BsonId] ObjectId id { get; set; }
+		[BsonId] ObjectId _id { get; set; }
 		/// <summary> Guid to relate entry to some specific entity or user. </summary>
 		Guid guid { get; set; }
 	}
@@ -41,7 +41,7 @@ namespace Ex {
 	/// Standardizes access to the MongoDB "_id" property, a single relational Guid,</summary>
 	public class DBEntry : IDBEntry{
 		/// <summary> MongoDB "_id" property for uniqueness </summary>
-		[BsonId] public ObjectId id { get; set; }
+		[BsonId] public ObjectId _id { get; set; }
 		/// <summary> Guid to relate entry to some specific entity or user. </summary>
 		public Guid guid { get; set; }
 	}
@@ -596,7 +596,7 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
 		/// <param name="item"> Item to insert </param>
 		public void Save<T>(T item) where T : IDBEntry {
-			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
 
 			var coll = Collection<T>();
 			var check = coll.Find(filter).FirstOrDefault();
@@ -618,7 +618,7 @@ namespace Ex {
 		/// <param name="databaseName"> Name of database to sample </param>
 		/// <param name="item"> Item to insert </param>
 		public void Save<T>(string databaseName, T item) where T : IDBEntry {
-			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
 
 			var coll = Collection<T>(databaseName);
 			var check = coll.Find(filter).FirstOrDefault();
@@ -638,12 +638,12 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of item to delete </typeparam>
 		/// <param name="item"> Item to delete </param>
 		public void Remove<T>(T item) where T : IDBEntry {
-			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
 			var coll = Collection<T>();
 			try {
 				coll.DeleteOne(filter);
 			} catch (Exception e) {
-				Log.Error($"Failed to delete database entry for {typeof(T)}::{item.id}", e);
+				Log.Error($"Failed to delete database entry for {typeof(T)}::{item._id}", e);
 			}
 		}
 		/// <summary> Removes all of the data for the given guid from the default database. </summary>
@@ -664,12 +664,12 @@ namespace Ex {
 		/// <param name="databaseName"> Database name to delete </param>
 		/// <param name="item"> Item to delete </param>
 		public void Remove<T>(string databaseName, T item) where T : IDBEntry {
-			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.id), item.id);
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
 			var coll = Collection<T>(databaseName);
 			try {
 				coll.DeleteOne(filter);
 			} catch (Exception e) {
-				Log.Error($"Failed to delete database entry for {typeof(T)}::{item.id}", e);
+				Log.Error($"Failed to delete database entry for {typeof(T)}::{item._id}", e);
 			}
 		}
 

@@ -16,6 +16,8 @@ namespace Ex {
 	public class Client {
 
 		#region Constants/Static stuff
+		/// <summary> Static configuration, set true somewhere if UDP connection should be attempted. </summary>
+		public static bool attemptUdp = false;
 
 		/// <summary> max timeout for stream interaction </summary>
 		public const int DEFAULT_READWRITE_TIMEOUT = 10 * 1000;
@@ -123,20 +125,23 @@ namespace Ex {
 				int remoteUdpPort = remotePort + 1;
 				localUdpHost = new IPEndPoint(remoteIpep.Address, localUdpPort);
 				remoteUdpHost = new IPEndPoint(remoteIpep.Address, remoteUdpPort);
-			
-				try {
-					udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-					// Note: May need this if there are disconnections due to ICMP errors.
-					// const int SIO_UDP_CONNRESET = -1744830452;
-					// udp.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 },  null);
-					if (isMaster) {
-						udp.Bind(localUdpHost);
+				
+				if (attemptUdp) {
+					try {
+						udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+						// Note: May need this if there are disconnections due to ICMP errors.
+						// const int SIO_UDP_CONNRESET = -1744830452;
+						// udp.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 },  null);
+						if (isMaster) {
+							udp.Bind(localUdpHost);
+						}
+						Log.Info($"{identity} UDP Connected to {localUdpHost} ==> {remoteUdpHost}");
+					} catch (Exception e) {
+						Log.Warning($"{identity} Failed to bind UDP. Disabling UDP.", e);
+						udp = null;
 					}
-					Log.Info($"{identity} UDP Connected to {localUdpHost} ==> {remoteUdpHost}");
-				} catch (Exception e) {
-					Log.Warning($"{identity} Failed to bind UDP. Disabling UDP.", e);
-					udp = null;
 				}
+				udp = null;
 				
 			} else {
 				remoteIP = "????";
@@ -174,8 +179,8 @@ namespace Ex {
 		public void DisconnectSlave() {
 			if (isSlave) {
 				server.Stop();
-				tcp.Dispose();
-				udp.Dispose();
+				if (tcp != null) { tcp.Dispose(); }
+				if (udp != null) { udp.Dispose(); }
 			}
 		}
 

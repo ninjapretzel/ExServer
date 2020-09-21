@@ -78,7 +78,7 @@ namespace Ex {
 
 		static void StaticSetup() {
 
-			JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
+			//JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
 			try {
 				DBService.RegisterSerializers();
 			} catch (Exception e) { Log.Error("Error registering DB Serializers", e); }
@@ -119,7 +119,7 @@ namespace Ex {
 
 			// Thread.Sleep(1000);
 
-			SetupAdminClient();
+			// SetupAdminClient();
 			string str = @"
 +===========================================================================+
 |                              SERVER STARTED                               |
@@ -134,7 +134,7 @@ namespace Ex {
 
 
 			Console.WriteLine("\n\n\nTerminating server.\n\n\n");
-			admin.server.Stop();
+			//admin.server.Stop();
 			server.Stop();
 			Log.Stop();
 			// oof. figure out why we need this. sometimes (errors?)
@@ -189,8 +189,8 @@ namespace Ex {
 			server.AddService<DBService>()
 				.Connect(config["database"]["host"].stringVal)
 				.UseDatabase(config["database"]["name"].stringVal)
-				//.CleanDatabase()
-				//.Reseed("db")
+				.CleanDatabase()
+				.Reseed("db")
 				;
 
 			var sync = server.AddService<SyncService>(); {

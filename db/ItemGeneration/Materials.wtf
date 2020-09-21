@@ -80,15 +80,14 @@
 		apply: [ 
 			// Fixed rules are strings (always apply same rule)
 			"Name", 
-			"Counts", 
+			// "Counts", 
 			{ // Weights based on prevelance of each category irl
 				AlkalaiMetal: 6, AlkalaiEarth: 6,
-				TransMetal: 68, PostTransMetal: 12, 
-				//Metaloid: 6, Nonmetals: 7, 
-				//Halogen: 6, Noble: 7, 
+				TransMetal: 68, PostTransMetal: 12,
+				Metaloid: 6, Nonmetal: 7,
+				Halogen: 6, Noble: 7,
 			},
 		],
-		// frand: { weight: [1, 100], },
 		
 		
 		Counts: {
@@ -96,7 +95,7 @@
 			apply: {
 				// Not really based on anything, but will select a count appliation.
 				// High duplicity should be fairly rare
-				Mono: 1419, 
+				Mono: 6419,
 				Di: 289, Duo: 11,
 				Tri: 222, Tre: 16,
 				Tetra : 155, Tetro: 13,
@@ -110,7 +109,7 @@
 		Name: {
 			type: "settings",
 			// Apply 'Mid' a few times
-			apply: { repeat: [0,5], rule: "Mid" },
+			apply: { repeat: [0,2], rule: "Mid" },
 			// Extras happen after all other things in this rule, before any recursion.
 			// This effectively capitalizes the prefix.
 			extras: [ "capitalize" ],
@@ -192,7 +191,7 @@
 		
 		AlkalaiMetal: {
 			suffix: { thium, ssium, },
-			set: { stpState: "Solid", },
+			set: { stpState: "Solid", group: "$name" },
 			frand: {
 				// These are pretty light earlier on
 				weight:			[6, 230],
@@ -205,15 +204,15 @@
 				
 				ionizeEnergy:	[0.025, 0.234],
 				reactivity:		[0.950, 0.990],
-				conductivity:	[0.800, 0.990], 
+				conductivity:	[0.800, 0.990],
 				
 				malleability:	[0.750, 0.990],
 				hardness:		[0.700, 0.990],
-			}
+			},
 		},
 		AlkalaiEarth: {
 			suffix: { llium, rium, },
-			set: { stpState: "Solid", },
+			set: { stpState: "Solid", group: "$name" },
 			frand: {
 				weight:			[9, 240],
 				num:			[2.000, 3.000],
@@ -235,7 +234,7 @@
 			suffix: { ron, kel, alt, er, ery, nc, old, ver, ten, nun,
 				nium: 3, mium: 3, dium: 3, bium: 2, },
 			// One IRL T-metal liquid at STP
-			set: { stpState: { Solid: 67, Liquid: 1 }, },
+			set: { stpState: { Solid: 67, Liquid: 1 }, group: "$name" },
 			frand: {
 				// bias their weights higher 
 				weight:			[45, 300],
@@ -254,7 +253,7 @@
 		},
 		PostTransMetal: {
 			suffix: { in, ad, uth, th, vium, zium, },
-			set: { stpState: { Solid, }, },
+			set: { stpState: { Solid: 88, Liquid: 1 }, group: "$name" },
 			frand: {
 				// Post transition metals tend to be heavy
 				weight:			[110, 300],
@@ -273,7 +272,7 @@
 		},
 		Metaloid: {
 			suffix: { ium, ic, ony, },
-			set: { stpState: { Gas: 3, Solid: 4, }, },
+			set: { stpState: { Solid: 177, Liquid: 1 }, group: "$name" },
 			frand: {
 				// Middle of table, not heavy but not light either
 				weight:			[28, 127],
@@ -293,7 +292,7 @@
 		Nonmetal: {
 			
 			suffix: { gen, ous, ur, },
-			set: { stpState: { Gas: 3, Solid: 4, }, },
+			set: { stpState: { Gas: 3, Solid: 4, }, group: "$name" },
 			frand: {
 				// Plain non-metals tend to be very light
 				weight:			[1, 35],
@@ -312,7 +311,7 @@
 		},
 		Halogen: {
 			suffix: { ine, },
-			set: { stpState: { Gas: 2, Liquid:1, Solid: 3, }, },
+			set: { stpState: { Gas: 2, Liquid:1, Solid: 3, }, group: "$name" },
 			check: {
 				stpState: { 
 					Gas: { set: { weight: 10, }, },
@@ -340,8 +339,9 @@
 		},
 		Noble: {
 			suffix: { on, },
-			set: { stpState: { Gas, }, },
+			set: { stpState: "Gas", group: "$name" },
 			frand: {
+				weight:			[.1, 10],
 				num:			[18.000, 20.000],
 				density:		[0.005, 0.155],
 				latentEnergy:	[0.020, 0.190],

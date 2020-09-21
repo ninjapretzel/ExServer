@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Ex {
 
 	/// <summary> All informtation used to generate some data. </summary>
-	public struct ItemGenSeed {
+	public struct GenSeed {
 		/// <summary> Root ID </summary>
 		public Guid root { get; private set; }
 		/// <summary> Offset to seed, typically also randomly generated </summary>
@@ -16,27 +16,11 @@ namespace Ex {
 		/// <summary> Scale or Index of item for derived items </summary>
 		public double scale { get; private set; }
 
-		/// <summary> Gets the long seed value from root/offset information </summary>
-		public long seed {
-			get {
-				long v = 0;
-				byte[] bytes = Unsafe.ToBytes(root);
-				byte[] vbytes = Unsafe.ToBytes(v);
-
-				for (int i = 0; i < bytes.Length; i++) {
-					vbytes[i % StructInfo<long>.size] ^= bytes[(37 * i) % StructInfo<Guid>.size];
-				}
-				v = Unsafe.FromBytes<long>(vbytes);
-				v += offset * 31337;
-				return v * (v < 0 ? -1 : 1);
-			}
-		}
-
 		/// <summary> Constructor with optional offset/index parameters </summary>
 		/// <param name="root"> Root GUID to use for seed </param>
 		/// <param name="offset"> Offset from root </param>
 		/// <param name="index"> Index of seed </param>
-		public ItemGenSeed(Guid root, long? offset = null, double? scale = null) {
+		public GenSeed(Guid root, long? offset = null, double? scale = null) {
 			this.root = root;
 			this.offset = offset ?? 0;
 			this.scale = scale ?? 0;
@@ -44,8 +28,8 @@ namespace Ex {
 
 		/// <summary> Returns a modified seed with +1 to the <see cref="index"/> field </summary>
 		/// <returns> Returns a modified seed with +1 to the <see cref="index"/> field </returns>
-		public ItemGenSeed Next() {
-			ItemGenSeed next = this;
+		public GenSeed Next() {
+			GenSeed next = this;
 			next.scale += 1.0;
 			return next;
 		}
@@ -53,8 +37,8 @@ namespace Ex {
 		/// <summary> Returns a modified seed with the given <see cref="index"/> </summary>
 		/// <param name="index"> Index value to use </param>
 		/// <returns> Returns a modified seed with the given <see cref="index"/> </returns>
-		public ItemGenSeed Scale(double scale) {
-			ItemGenSeed next = this;
+		public GenSeed Scale(double scale) {
+			GenSeed next = this;
 			next.scale = scale;
 			return next;
 		}
@@ -62,8 +46,8 @@ namespace Ex {
 		/// <summary> Returns a modified seed with the given <see cref="offset"/> </summary>
 		/// <param name="offset"> Index value to use </param>
 		/// <returns> Returns a modified seed with the given <see cref="offset"/> </returns>
-		public ItemGenSeed Offset(long offset) {
-			ItemGenSeed next = this;
+		public GenSeed Offset(long offset) {
+			GenSeed next = this;
 			next.offset = offset;
 			return next;
 		}
@@ -71,6 +55,15 @@ namespace Ex {
 
 	/// <summary> Procedural data generator </summary>
 	public class Generator {
+		public class Gen : Generatable<Gen, DBEntry, object> { 
+			public override void Generate(DBService db, DBEntry parent, object settings) { }
+		};
+		/// <summary> Debugging flag </summary>
+		public static bool debug = false;
+		/// <summary> Debugging print</summary>
+		public static void Print(object o) { 
+			if (debug) { Log.Info(o);  }
+		}
 
 		/// <summary> Ruleset to use to generate data </summary>
 		private JsonObject ruleset;
@@ -81,7 +74,7 @@ namespace Ex {
 		/// <summary> Used to hold the state of a generation process </summary>
 		private class State {
 			/// <summary> Seed used to begin generation </summary>
-			public ItemGenSeed igSeed;
+			public GenSeed igSeed;
 			/// <summary> Current random state </summary>
 			public Random random;
 			/// <summary> Path to the current rule </summary>
@@ -99,7 +92,7 @@ namespace Ex {
 			/// <summary> root property from seed </summary>
 			public Guid root { get { return igSeed.root; } }
 
-			public State(ItemGenSeed igSeed) {
+			public State(GenSeed igSeed) {
 				this.igSeed = igSeed;
 				// Resulting creation + history
 				result = new JsonObject(
@@ -113,12 +106,8 @@ namespace Ex {
 				
 				path = new List<string>();
 				
-				long seed = igSeed.seed;
-				long hi = (seed >> 32) & 0x00000000FFFFFFFF;
-				long low = seed & 0x00000000FFFFFFFF;
-
-				int mix = (int)(low ^ hi);
-				random = new Random(mix < 0 ? -mix : mix);
+				int seed = Generatable.GuidToSeed(igSeed.root);
+				random = new Random(seed);
 			}
 
 			/// <summary> Chooses one key from an object, using paired numbers as weights to select. 
@@ -133,6 +122,10 @@ namespace Ex {
 						total += pair.Value;
 						last = pair.Key;
 					}
+					if (pair.Value.isBool && pair.Value.boolVal) {
+						total += 1;
+						last = pair.Key;
+					}
 				}
 
 				float choose = (float)(random.NextDouble()) * total;
@@ -140,8 +133,11 @@ namespace Ex {
 				foreach (var pair in weights) {
 					if (pair.Value.isNumber) {
 						check += pair.Value;
-						if (check > choose) { return pair.Key; }
 					}
+					if (pair.Value.isBool && pair.Value.boolVal) {
+						check += 1;	
+					}
+					if (check > choose) { return pair.Key; }
 				}
 
 				return last;
@@ -248,6 +244,7 @@ namespace Ex {
 
 		public Generator(JsonObject ruleset) {
 			this.ruleset = ruleset;
+			// Log.Info("Generator created with ruleset = " + ruleset.PrettyPrint());
 			extras = new Dictionary<string, Action<JsonObject>>();
 			extras["capitalize"] = (obj) => {
 				var name = obj.Pull("name", "");
@@ -269,7 +266,7 @@ namespace Ex {
 		/// <param name="startingRule"> Name of rule to search for and begin at </param>
 		/// <param name="igSeed"> Seed value used to generate data </param>
 		/// <returns> Generated data + history. </returns>
-		public JsonObject Generate(string startingRule, ItemGenSeed igSeed) {
+		public JsonObject Generate(string startingRule, GenSeed igSeed) {
 			State state = new State(igSeed);
 			state.result["startingRule"] = startingRule;
 			state.result["genType"] = ruleset.Get<string>("type");
@@ -279,10 +276,6 @@ namespace Ex {
 			if (initializer != null) {
 				state.result.SetRecursively(initializer);
 			}
-
-			long lseed = igSeed.seed;
-			double scale = igSeed.scale;
-			
 
 			// The rule is to add the empty history for the next rule before calling Apply
 			// This allows Apply to figure out exactly where in the chain it is.
@@ -298,8 +291,12 @@ namespace Ex {
 		/// <param name="rule"> Rule to apply </param>
 		/// <param name="history"> History to reuse or create. </param>
 		private void ApplyRule(State state, JsonObject rule, JsonObject history) {
-
-			Console.WriteLine("Applying rule " + state.lastHistory["path"].stringVal);
+			string rulePath = state.lastHistory["path"].stringVal;
+			string ruleName = FromLast(rulePath, ".");
+			//debug = rulePath.Contains("AlkalaiMetal");
+			debug = false;
+			Print("Applying rule " + rulePath);
+			debug = false;
 
 			var rolls = history.Get<JsonObject>("rolls");
 			bool firstTime = rolls.Count == 0;
@@ -320,6 +317,7 @@ namespace Ex {
 
 				if (rule.Has("suffix")) {
 					string suffix = state.ReduceToString(rule["suffix"]);
+					
 					state.result["name"] = state.result.Get<string>("name") + suffix;
 				}
 
@@ -328,6 +326,7 @@ namespace Ex {
 					foreach (var pair in setter) {
 						var key = pair.Key;
 						var val = pair.Value;
+						if (val == "$name") { val = ruleName; }
 						state.result[key] = state.ReduceToString(val);
 					}
 				}
@@ -496,7 +495,7 @@ namespace Ex {
 
 			// Rules eventually are told to us by strings describing them.
 			if (thing.isString) {
-				Console.WriteLine($"Applying String rule at {path} => {thing.stringVal}");
+				Print($"Applying String rule at {path} => {thing.stringVal}");
 				var nextRule = FindRule(rule, thing.stringVal);
 				if (nextRule is JsonObject) {
 					ApplyRule(state, nextRule as JsonObject, state.lastHistory);
@@ -505,7 +504,7 @@ namespace Ex {
 
 			// May have arrays to describe a sequence of rules to apply
 			if (thing.isArray) {
-				Console.WriteLine($"Applying Array rule at {path} => {thing.ToString()}");
+				Print($"Applying Array rule at {path} => {thing.ToString()}");
 				foreach (var val in (thing as JsonArray)) {
 					if (val.isString) {
 						// If we're at a string, add it then apply it, since the next Apply will invoke a rule.
@@ -527,7 +526,9 @@ namespace Ex {
 				// todo later: support other meta-applications with objects describing them...
 				} else {
 					string chosen = state.WeightedChoose(thing as JsonObject);
-					Console.WriteLine($"Applying Weighted Choice rule at {path} => {chosen}");
+					Print($"Chose {chosen} from rolls of {thing}");
+
+					Print($"Applying Weighted Choice rule at {path} => {chosen}");
 					state.PushHistory(chosen);
 					Apply(state, chosen, rule);
 					state.PopHistory();
@@ -545,7 +546,7 @@ namespace Ex {
 			JsonObject info = thing as JsonObject;
 			JsonValue reps = info["repeat"];
 			string ruleName = state.ReduceToString(info["rule"]);
-			Console.WriteLine($"Applying Repeat rule at {path} => {ruleName} x {reps.ToString()}");
+			Print($"Applying Repeat rule at {path} => {ruleName} x {reps.ToString()}");
 			// Try to reduce reps into a number...
 			// if we want to do something an exact number of times, reps will just be a number.
 			// if we want a simple randInt range, it will be an array
@@ -556,7 +557,7 @@ namespace Ex {
 			}
 
 			if (reps.isNumber) {
-				Console.WriteLine($"Doing Repeat rule at {path} => {ruleName} x {reps.ToString()}");
+				Print($"Doing Repeat rule at {path} => {ruleName} x {reps.ToString()}");
 				int rep = reps.intVal;
 				for (int i = 0; i < rep; i++) {
 					state.PushHistory(ruleName);
@@ -622,7 +623,14 @@ namespace Ex {
 			return obj;
 		}
 
+		private static string FromLast(string str, string search) {
+			if (str.Contains(search) && !str.EndsWith(search)) {
+				int ind = str.LastIndexOf(search);
 
+				return str.Substring(ind + 1);
+			}
+			return "";
+		}
 
 		/// <summary> Pre-baked stat group table with all variations of stat applier names </summary>
 		private static readonly Dictionary<string, StatTableEntry> statGroupTable = BuildStatTable();

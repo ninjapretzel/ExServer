@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Eternus.Generation;
 using Ex;
 using Ex.Utils;
 using Ex.Utils.Ext;
 using MongoDB.Driver;
+
+using Random = System.Random;
 
 namespace Eternus {
 	
@@ -36,13 +39,23 @@ namespace Eternus {
 				"what", 123123
 			);
 
+
+
 			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
 			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
 			Log.Info(result1);
 			Log.Info(result2);
 
+			Guid rootGuid = Guid.Parse("00000000-0000-0000-0000-000000000000");
+			Root root = db.Initialize<Root>(rootGuid, it => {
+				Random rand = new Random(Generatable.GuidToSeed(rootGuid));
+				it.universeGuid = rand.NextGuid();
+			});
 			
-				
+			UniverseSettings uniSettings = new UniverseSettings() { iteration = 1 };
+			Universe uni = Universe.Generate(db, root.universeGuid, root, uniSettings);
+
+
 			
 		}
 

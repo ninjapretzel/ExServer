@@ -46,6 +46,59 @@ namespace Ex {
 		public Guid guid { get; set; }
 	}
 
+	/// <summary> Abstract interface for any DB content that is generated dynamically. </summary>
+	/// <typeparam name="Self"> Should always be the defining type. </typeparam>
+	/// <typeparam name="Parent"> Parent <see cref="Generatable{Self, Parent, Settings}"/> type, or a root <see cref="IDBEntry"/> type. </typeparam>
+	/// <typeparam name="Settings"> Settings type </typeparam>
+	public abstract class Generatable<Self, Parent, Settings> : DBEntry 
+			where Self : Generatable<Self, Parent, Settings>, new()
+			where Parent : IDBEntry {
+		/// <summary> Called when the data for the generatable thing is to be generated. 
+		/// The <see cref="IDBEntry.guid"/> will be set before this is called, though the <see cref="IDBEntry._id"/> may not be. </summary>
+		public abstract void Generate(DBService db, Parent parent, Settings data);
+		/// <summary> Guid of this object's parent. Should be set before each object is <see cref="Generate"/>'d. </summary>
+		public Guid parentGuid;
+
+		///// <summary> Linked parent object. Should be set before each object is <see cref="Generate"/>'d. </summary>
+		//public Parent parent;
+
+		/// <summary> Convert the <see cref="IDBEntry.guid"/> into a random seed. </summary>
+		public int seed { get { return Generatable.GuidToSeed(guid); } }
+		/// <summary> Generates an instance of this type. </summary>
+		/// <param name="db"></param>
+		/// <param name="guid"></param>
+		/// <param name="parent"></param>
+		/// <param name="settings"></param>
+		/// <returns></returns>
+		public static Self Generate(DBService db, Guid guid, Parent parent, Settings settings) {
+			Log.Info($"Generating a {typeof(Self)} with a guid of {guid}");
+			return db.Initialize<Self>(guid, it => {
+				//it.parent = parent;
+				it.parentGuid = parent.guid;
+				it.Generate(db, parent, settings);
+			});
+		}
+	}
+	/// <summary> Class to hold non-generic helpers for <see cref="Generatable{Self, Parent, Settings}"/></summary>
+	public static class Generatable {
+
+		/// <summary> Conversion from <see cref="Guid"/> to <see cref="int"/> seed for use with random generation. </summary>
+		/// <param name="guid"> GUID to convert </param>
+		/// <returns> <see cref="int"/> value derived from seed </returns>
+		public static int GuidToSeed(Guid guid) {
+			int s = ~0;
+			byte[] b = guid.ToByteArray();
+
+			s ^= (b[00] << (0 * 8)); s ^= (b[01] << (1 * 8)); s ^= (b[02] << (2 * 8)); s ^= (b[03] << (3 * 8));
+			s ^= (b[04] << (0 * 8)); s ^= (b[05] << (1 * 8)); s ^= (b[06] << (2 * 8)); s ^= (b[07] << (3 * 8));
+			s ^= (b[08] << (0 * 8)); s ^= (b[09] << (1 * 8)); s ^= (b[10] << (2 * 8)); s ^= (b[11] << (3 * 8));
+			s ^= (b[12] << (0 * 8)); s ^= (b[13] << (1 * 8)); s ^= (b[14] << (2 * 8)); s ^= (b[15] << (3 * 8));
+
+			return s;
+		}
+	}
+		
+
 	/// <summary> Provides the same as the <see cref="DBEntry"/> class, 
 	/// and also a generic 'data' object for arbitrary data. </summary>
 	public abstract class DBData : DBEntry {
@@ -231,9 +284,9 @@ namespace Ex {
 						Glob(database, collection, directory);
 
 					} else {
-						try { json = json ?? File.ReadAllText(fpath); } catch (Exception) { }
-						try { json = json ?? File.ReadAllText(fpath + ".json"); } catch (Exception) { }
-						try { json = json ?? File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
+						try { json ??= File.ReadAllText(fpath); } catch (Exception) { }
+						try { json ??= File.ReadAllText(fpath + ".json"); } catch (Exception) { }
+						try { json ??= File.ReadAllText(fpath + ".wtf"); } catch (Exception) { }
 
 						if (json == null) {
 							Log.Warning($"Seeder could not find file {{{ForwardSlashPath(file)}}} under {{{dir}}}");
@@ -320,6 +373,7 @@ namespace Ex {
 			Save(thing);
 			return thing;
 		}
+
 
 		/// <summary> Creates a <see cref="BDoc"/> out of every <see cref="JsonObject"/> in <paramref name="data"/>, and inserts each as a new record in the given <paramref name="database"/> and <paramref name="collection"/>. </summary>
 		/// <param name="database"> Database to add data to </param>
@@ -608,6 +662,25 @@ namespace Ex {
 					var result = coll.ReplaceOne(filter, item);
 				}
 				
+			} catch (Exception e) {
+				Log.Error("Failed to save database entry", e);
+			}
+		}
+
+		public void SaveByGuid<T>(T item) where T : IDBEntry {
+			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), item.guid);
+			//var filter = Builders<T>.Filter.
+
+			var coll = Collection<T>();
+			var check = coll.FindSync(filter).FirstOrDefault();
+
+			try {
+				if (check == null) {
+					coll.InsertOne(item);
+				} else {
+					var result = coll.ReplaceOne(filter, item);
+				}
+
 			} catch (Exception e) {
 				Log.Error("Failed to save database entry", e);
 			}

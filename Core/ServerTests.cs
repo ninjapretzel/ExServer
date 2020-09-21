@@ -93,9 +93,9 @@ public static class Server_Tests {
 		
 			var gen = new Generator(data);
 		
-			ItemGenSeed igSeed_1_0 = new ItemGenSeed(Guid.Parse("3f162ba3-d167-4888-a26b-c193615e2af1"));
-			ItemGenSeed igSeed_2_0 = new ItemGenSeed(Guid.Parse("819f5900-9794-4d64-9aa9-e45e0dae9cde"));
-			ItemGenSeed igSeed_2_1 = igSeed_2_0.Next();
+			GenSeed igSeed_1_0 = new GenSeed(Guid.Parse("3f162ba3-d167-4888-a26b-c193615e2af1"));
+			GenSeed igSeed_2_0 = new GenSeed(Guid.Parse("819f5900-9794-4d64-9aa9-e45e0dae9cde"));
+			GenSeed igSeed_2_1 = igSeed_2_0.Next();
 
 			var result = gen.Generate("Mineral", igSeed_1_0);
 

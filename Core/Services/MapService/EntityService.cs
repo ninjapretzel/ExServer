@@ -77,9 +77,13 @@ namespace Ex {
 		/// <summary> Connected LoginService </summary>
 		LoginService loginService;
 
+		/// <summary> Registered callback to generate a new user information. </summary>
 		Func<UserEntityInfo> GenerateUser;
+		/// <summary> Registered callback to locate a user by ID. </summary>
 		Func<Guid, UserEntityInfo> FindUser;
 
+		/// <summary> Call this to register a <see cref="UserEntityInfo"/> extension of <see cref="IDBEntry"/> as the container for Entity data.</summary>
+		/// <typeparam name="T"> Generic type that implements <see cref="UserEntityInfo"/></typeparam>
 		public void RegisterUserEntityInfo<T>() where T : UserEntityInfo, new() {
 			GenerateUser = () => new T();
 			FindUser = (guid) => db.Get<T>(guid);
@@ -158,15 +162,19 @@ namespace Ex {
 				Log.Warning($"EntityService.On(LoginSuccess_Server): Cannot find entity info for user {userId}/{username}");
 			}
 		}
-		public const bool DEBUG_TYPES = true;
+		/// <summary> If true, adds a <see cref="Ex.Typed"/> component to every <see cref="Entity"/> loaded from database </summary>
+		public const bool DEBUG_ENTITY_TYPES = true;
 
 		/// <summary> EntityInfo (spawn source) data cached from database by type </summary>
 		public ConcurrentDictionary<string, EntityInfo> entityInfos;
+		/// <summary> Returns an <see cref="EntityInfo"/> from the database, out of the "Content" database.</summary>
+		/// <param name="typeName"> Name of the type of entity, eg "Spider" or "Spawner" </param>
+		/// <returns> <see cref="EntityInfo"/> that can be used to spawn an entity of the given type. </returns>
 		public EntityInfo GetEntityInfo(string typeName) {
 			if (entityInfos.ContainsKey(typeName)) { return entityInfos[typeName]; }
 			var info = (entityInfos[typeName] = db.Get<EntityInfo>("Content", "type", typeName));
 			
-			if (DEBUG_TYPES) {
+			if (DEBUG_ENTITY_TYPES) {
 				Log.Debug($"Baking type info into {typeof(Ex.Typed).FullName} for {typeName}");
 				var comps = new ComponentInfo[info.components.Length + 1];
 				for (int i = 0; i < info.components.Length; i++) {

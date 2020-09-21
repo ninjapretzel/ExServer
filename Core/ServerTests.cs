@@ -28,7 +28,7 @@ public static class Server_Tests {
 
 	}
 
-	private static TestData DefaultSetup(string testDbName = "Testing", string testDb = "../../../db", int port = 12345, float tick = 50) {
+	private static TestData DefaultSetup(string testDbName = "Testing", string testDb = "db", int port = 12345, float tick = 50) {
 		Server server = new Server(port, tick);
 		server.AddService<DebugService>();
 		server.AddService<LoginService>();

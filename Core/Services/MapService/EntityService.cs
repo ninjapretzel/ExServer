@@ -98,6 +98,10 @@ namespace Ex {
 		public void On(LoginService.LoginSuccess_Server succ) {
 			if (!isMaster) { return; }
 			Log.Info("EntityService.On(LoginSuccess_Server)");
+			if (FindUser == null && GenerateUser == null) {
+				Log.Error("A call to EntityService.RegisterUserEntityInfo<>() must be made before a login may produce an entity!");
+				return;
+			}
 
 			Client client = succ.client;
 			Guid clientId = client.id;

@@ -651,40 +651,34 @@ namespace Ex {
 		/// <param name="item"> Item to insert </param>
 		public void Save<T>(T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
-
 			var coll = Collection<T>();
-			var check = coll.Find(filter).FirstOrDefault();
+			T check = coll.Find(filter).FirstOrDefault();
 			
 			try {
-				if (check == null) {
-					coll.InsertOne(item);
-				} else {
-					var result = coll.ReplaceOne(filter, item);
-				}
-				
+				if (check != null) { coll.DeleteOne(filter); }
+				coll.InsertOne(item);
 			} catch (Exception e) {
 				Log.Error("Failed to save database entry", e);
 			}
 		}
 
+		/// <summary> Saves the given item into the default database. Updates the item, or inserts it if one does not exist yet. 
+		/// Unlike <see cref="Save{T}(T)"/>, this detects the item based off of the item's <see cref="IDBEntry.guid"/> field. </summary>
+		/// <typeparam name="T"> Generic type of item to insert </typeparam>
+		/// <param name="item"> Item to insert </param>
 		public void SaveByGuid<T>(T item) where T : IDBEntry {
-			var filter = Builders<T>.Filter.Eq(nameof(DBEntry.guid), item.guid);
-			//var filter = Builders<T>.Filter.
-
+			var filter = Builders<T>.Filter.Eq(nameof(IDBEntry.guid), item.guid);
 			var coll = Collection<T>();
-			var check = coll.FindSync(filter).FirstOrDefault();
+			T check = coll.Find(filter).FirstOrDefault();
 
 			try {
-				if (check == null) {
-					coll.InsertOne(item);
-				} else {
-					var result = coll.ReplaceOne(filter, item);
-				}
-
+				if (check != null) { coll.DeleteOne(filter); }
+				coll.InsertOne(item);
 			} catch (Exception e) {
 				Log.Error("Failed to save database entry", e);
 			}
 		}
+
 
 		/// <summary> Saves the given item into the given database. Updates the item, or inserts it if one does not exist yet.  </summary>
 		/// <typeparam name="T"> Generic type of item to insert  </typeparam>
@@ -692,16 +686,12 @@ namespace Ex {
 		/// <param name="item"> Item to insert </param>
 		public void Save<T>(string databaseName, T item) where T : IDBEntry {
 			var filter = Builders<T>.Filter.Eq(nameof(DBEntry._id), item._id);
-
 			var coll = Collection<T>(databaseName);
-			var check = coll.Find(filter).FirstOrDefault();
+			T check = coll.Find(filter).FirstOrDefault();
 
 			try {
-				if (check == null) {
-					coll.InsertOne(item);
-				} else {
-					var result = coll.ReplaceOne(filter, item);
-				}
+				if (check != null) { coll.DeleteOne(filter); }
+				coll.InsertOne(item);
 			} catch (Exception e) {
 				Log.Error("Failed to save database entry", e);
 			}

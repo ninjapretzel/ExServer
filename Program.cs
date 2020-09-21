@@ -37,6 +37,7 @@ namespace Ex {
 			string platform = System.Environment.OSVersion.Platform.ToString();
 			global["platform"] = platform;
 			Console.WriteLine($"Platform detected: ({platform})");
+			Console.WriteLine($"Is mono platform? {Unsafe.MonoRuntime}");
 			config = Json.Parse<JsonObject>(File.ReadAllText("./config.wtf"));
 			if (config.Has(platform)) {
 				config = config.CombineRecursively(config.Get<JsonObject>(platform));
@@ -63,7 +64,7 @@ namespace Ex {
 				SetupLogger();
 				StaticSetup();
 				
-				// SelfTest();
+				SelfTest();
 				ActualProgram();
 				
 				
@@ -113,7 +114,7 @@ namespace Ex {
 			logColors();
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
-			Console.WriteLine(Directory.GetCurrentDirectory());
+			Log.Info($"Working Directory: Directory.GetCurrentDirectory()");
 			SetupServer();
 			server.Start();
 
@@ -189,8 +190,8 @@ namespace Ex {
 			server.AddService<DBService>()
 				.Connect(config["database"]["host"].stringVal)
 				.UseDatabase(config["database"]["name"].stringVal)
-				.CleanDatabase()
-				.Reseed("db")
+				//.CleanDatabase()
+				//.Reseed("db")
 				;
 
 			var sync = server.AddService<SyncService>(); {

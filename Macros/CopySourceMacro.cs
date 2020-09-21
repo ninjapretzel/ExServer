@@ -24,7 +24,11 @@ public static class CopySourceMacro {
 			if (!Directory.Exists(folder)) {
 				Directory.CreateDirectory(folder);
 			}
-			File.Copy(file, destination, true);
+			string text = File.ReadAllText(file);
+			text = text.Replace("\r\n", "\n").Replace("\n\r", "\n").Replace("\r", "\n");
+			File.WriteAllText(destination, text);
+
+			//File.Copy(file, destination, true);
 		}
 	}
 

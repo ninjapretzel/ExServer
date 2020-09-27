@@ -130,6 +130,12 @@ namespace Ex {
 			return ret;
 		}
 	}
+
+	/// <summary> Base class for anything generated with <see cref="Generator"/>. </summary>
+	public abstract class DBGenerated : DBEntry {
+		/// <summary> Generator History </summary>
+		public JsonArray genHistory;
+	}
 	
 #endif 
 

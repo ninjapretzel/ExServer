@@ -25,7 +25,7 @@ namespace Eternus.Generation {
 	}
 
 	/// <summary> Mineral description</summary>
-	public class Mineral : DBData {
+	public class Mineral : DBGenerated {
 		public enum Group {
 			NONE,
 			AlkalaiMetal, AlkalaiEarth,
@@ -33,29 +33,29 @@ namespace Eternus.Generation {
 			Metaloid, Nonmetal, Halogen, Noble,
 		}
 		/// <summary> Name of the Mineral </summary>
-		public string name { get { return data.Get<string>(MemberName()); } }
+		public string name;
 		/// <summary> Standard Temperature/Pressure state </summary>
-		public string stpState { get { return data.Get<string>(MemberName()); } }
+		public string stpState;
 		/// <summary> Elemental group </summary>
-		public Group group { get { return data.Get<Group>(MemberName()); } }
+		public Group group;
 		/// <summary> Series number (0-20 instead of 1-18) </summary>
-		public float num { get { return data.Get<float>(MemberName()); } }
+		public float num;
 		/// <summary> "Atomic Weight" </summary>
-		public float weight { get { return data.Get<float>(MemberName()); } }
+		public float weight;
 		/// <summary> Material Density </summary>
-		public float density { get { return data.Get<float>(MemberName()); } }
+		public float density;
 		/// <summary> Relative reactivity (0-1) </summary>
-		public float reactivity { get { return data.Get<float>(MemberName()); } }
+		public float reactivity;
 		/// <summary> Relative malleability (0-1) </summary>
-		public float malleability { get { return data.Get<float>(MemberName()); } }
+		public float malleability;
 		/// <summary> Relative magnetism (0-1) </summary>
-		public float magnetism { get { return data.Get<float>(MemberName()); } }
+		public float magnetism;
 		/// <summary> Relative electron conductivity (0-1) </summary>
-		public float conductivity { get { return data.Get<float>(MemberName()); } }
+		public float conductivity;
 		/// <summary> Relative ionization energy (0-1) </summary>
-		public float ionizeEnergy { get { return data.Get<float>(MemberName()); } }
+		public float ionizeEnergy;
 		/// <summary> Relative latent energy (0-1) </summary>
-		public float latentenergy { get { return data.Get<float>(MemberName()); } }
+		public float latentenergy;
 
 	}
 	/// <summary> Top level item generated. Everything belongs to a universe. </summary>
@@ -82,7 +82,8 @@ namespace Eternus.Generation {
 				GenSeed genSeed = new GenSeed(guid);
 				var result = gen.Generate("Mineral", genSeed);
 				
-				Mineral m = new Mineral() { data = result, guid = guid };
+				Mineral m = new Mineral() { guid = guid };
+				Json.ReflectInto(result, m);
 				generated.Add(m);
 				db.SaveByGuid(m);
 

@@ -327,7 +327,7 @@ namespace Ex {
 		/// <param name="position"> Position to move entity to (null if unchanged) </param>
 		/// <param name="rotation"> Rotation to give entity (null if unchanged) </param>
 		/// <param name="serverMove"> Did the server initiate the move? True for things such as warping via portal or being pushed by an attack. </param>
-		public void Move(Guid entityId, Vector3? position, Vector4? rotation, bool serverMove = false) {
+		public void Move(Guid entityId, Vector3? position, Vector3? rotation, bool serverMove = false) {
 			EntityMoveRequest move = new EntityMoveRequest();
 			move.id = entityId;
 			TRS trs = entityService.GetComponent<TRS>(entityId);

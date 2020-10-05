@@ -26,16 +26,6 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
 namespace Ex.Utils {
-	#region extensions
-	public static class MathExtensions {
-		public static Vector3Int ToInts(this Vector3 v) {
-			int x = FloorToInt(v.x);
-			int y = FloorToInt(v.y);
-			int z = FloorToInt(v.z);
-			return new Vector3Int(x,y,z);
-		}
-	}
-	#endregion
 	#region Mathf
 	/// <summary> Like UnityEngine.Mathf, Wrap <see cref="System.Math"/> functions to deal with float/int, and some custom functions. </summary>
 	public struct Mathf {

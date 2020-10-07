@@ -13,7 +13,7 @@ namespace Ex.Utils {
 		/// <param name="regionB"> Second Region </param>
 		/// <param name="regionSize"> Size of region, defaults to 2048 </param>
 		/// <returns> Difference between two given pairs </returns>
-		public static Vector3 TrueDifference(Vector3 posA, Vector3Int regionA, Vector3 posB, Vector3Int regionB, float regionSize = 2048f) {
+		public static Vector3 Difference(Vector3 posA, Vector3Int regionA, Vector3 posB, Vector3Int regionB, float regionSize = 2048f) {
 			if (regionA == regionB) { return posB - posA; }
 
 			Vector3 regionDiff = regionB - regionA;
@@ -67,17 +67,17 @@ namespace Ex.Utils {
 			Vector3 expected = Vector3.zero;
 			float regionSize = 2048;
 			{
-				Region.TrueDifference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
+				Region.Difference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
 			}
 			{
 				regionB += Vector3Int.right;
 				expected.x = regionSize;
-				Region.TrueDifference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
+				Region.Difference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
 			}
 			{
 				regionA -= Vector3Int.right;
 				expected.x = regionSize * 2;
-				Region.TrueDifference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
+				Region.Difference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
 			}
 			{
 				posA = new Vector3(regionSize / 2, regionSize / 2, regionSize / 2);
@@ -85,7 +85,7 @@ namespace Ex.Utils {
 				posB = new Vector3(-regionSize / 2, -regionSize / 2, -regionSize / 2);
 				regionB = new Vector3Int(1, 1, 1);
 				expected = Vector3.zero;
-				Region.TrueDifference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
+				Region.Difference(posA, regionA, posB, regionB, regionSize).ShouldEqual(expected);
 			}
 
 

@@ -38,6 +38,8 @@ namespace Ex {
 	[OthersOnlySync] public class TRS : Comp {
 		/// <summary> Location of entity </summary>
 		public Vector3 position;
+		/// <summary> Region of entity in map. Region sizes are determined by map settings. </summary>
+		public Vector3Int region;
 		/// <summary> Rotation of entity (euler angles) </summary>
 		public Vector3 rotation;
 		/// <summary> Scale of entity's display </summary>

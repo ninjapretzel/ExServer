@@ -803,7 +803,7 @@ namespace Ex.Utils {
 		/// <summary> Zero <see cref="Vector3Int"/> (0,0,0) </summary>
 		public static Vector3Int zero { get { return new Vector3Int(0, 0, 0); } }
 		/// <summary> One unit <see cref="Vector3Int"/> (1,1,1) </summary>
-		public static Vector3Int one { get { return new Vector3Int(0, 0, 0); } }
+		public static Vector3Int one { get { return new Vector3Int(1, 1, 1); } }
 		/// <summary> Right unit <see cref="Vector3Int"/> (1,0,0) </summary>
 		public static Vector3Int right { get { return new Vector3Int(1, 0, 0); } }
 		/// <summary> Left unit <see cref="Vector3Int"/> (-1,0,0) </summary>

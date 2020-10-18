@@ -377,7 +377,7 @@ namespace Ex {
 			catch (Exception e) { Log.Error($"DBService.Initialize: Error in initializer of type {typeof(T)}.", e); }
 
 			Save(thing);
-			Log.Info($"DBService.Initialize: Initialized {typeof(T)} for {guid}");
+			// Log.Info($"DBService.Initialize: Initialized {typeof(T)} for {guid}");
 			return thing;
 		}
 

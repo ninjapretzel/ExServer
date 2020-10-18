@@ -189,8 +189,8 @@ namespace Ex {
 			server.AddService<DBService>()
 				.Connect(config["database"]["host"].stringVal)
 				.UseDatabase(config["database"]["name"].stringVal)
-				//.CleanDatabase()
-				//.Reseed("db")
+				.CleanDatabase()
+				.Reseed("db")
 				;
 
 			var sync = server.AddService<SyncService>(); {

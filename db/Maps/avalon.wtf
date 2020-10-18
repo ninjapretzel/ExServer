@@ -9,7 +9,7 @@
 	
 	// Physical space simulation information ...
 	// Size of a single cell
-	cellSize: 10,
+	cellSize: 16,
 	// Radius of cells visible to clients 
 	cellDist: 2,
 	

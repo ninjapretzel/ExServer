@@ -12,8 +12,6 @@ using System.Threading;
 using System.Collections.Concurrent;
 using Ex.Utils;
 using System.Diagnostics;
-using Nancy.Hosting.Self;
-using Nancy;
 
 namespace Ex {
 	
@@ -44,13 +42,6 @@ namespace Ex {
 				config = config.CombineRecursively(config.Get<JsonObject>(platform));
 			}
 			
-			NancyHost selfHost = null;
-			if (config.Has("httpHost")) {
-				string endpoint = config.Get<string>("httpHost");
-				selfHost = new NancyHost(new Uri(endpoint)) { };
-				selfHost.Start();
-				Console.WriteLine($"Self Hosting http at {endpoint}");
-			}
 			
 
 			try {
@@ -84,11 +75,6 @@ namespace Ex {
 			} catch (Exception e) {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
 				//Console.Read();
-			} finally {
-				if (selfHost != null) {
-					selfHost.Stop();
-					selfHost.Dispose();
-				}
 			}
 		}
 

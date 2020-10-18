@@ -201,13 +201,14 @@ namespace Ex {
 			server.AddService<Eternus.EternusGame>();
 			server.AddService<DebugService>();
 
+			JsonObject cfg = config["database"] as JsonObject;
+			var dbService = server.AddService<DBService>()
+				.Connect(cfg["host"].stringVal)
+				.UseDatabase(cfg["name"].stringVal);
 
-			server.AddService<DBService>()
-				.Connect(config["database"]["host"].stringVal)
-				.UseDatabase(config["database"]["name"].stringVal)
-				.CleanDatabase()
-				.Reseed("db")
-				;
+			if (cfg.Has<JsonString>("reload")) {
+				dbService.CleanDatabase().Reseed(cfg["reload"].stringVal);
+			}
 
 			var sync = server.AddService<SyncService>(); {
 				var debugSync = sync.Context("debug");

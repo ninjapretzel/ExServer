@@ -30,6 +30,7 @@ namespace Eternus {
 			entities = GetService<EntityService>();
 
 			entities.RegisterUserEntityInfo<GameState>();
+			logins.userInitializer += Initialize;
 			
 			statCalc = db.Get<StatCalc>("Content", "filename", "StatCalc");
 			JsonObject test = new JsonObject(
@@ -43,8 +44,8 @@ namespace Eternus {
 
 			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
 			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
-			Log.Info(result1);
-			Log.Info(result2);
+			//Log.Info(result1);
+			//Log.Info(result2);
 
 			Guid rootGuid = Guid.Parse("00000000-0000-0000-0000-000000000000");
 			Root root = db.Initialize<Root>(rootGuid, it => {
@@ -61,14 +62,14 @@ namespace Eternus {
 
 		public void On(LoginService.LoginSuccess_Server succ) {
 			Log.Info("EternusGame.On(LoginSuccess_Server)");
-			Client client = succ.client;
-			var user = GetService<LoginService>().GetLogin(client);
-			Guid clientId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
+			//Client client = succ.client;
+			//var user = GetService<LoginService>().GetLogin(client);
+			//Guid clientId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 
-			GameState gameState = db.Get<GameState>(clientId);
-			if (gameState == null) {
-				Initialize(clientId);
-			}
+			//GameState gameState = db.Get<GameState>(clientId);
+			//if (gameState == null) {
+			//	Initialize(clientId);
+			//}
 
 		}
 

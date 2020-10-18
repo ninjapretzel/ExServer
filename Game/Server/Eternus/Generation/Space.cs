@@ -92,11 +92,12 @@ namespace Eternus.Generation {
 
 			generated.Sort( (a, b) => (int) (1000 * (a.num - b.num) ) ) ;
 			i = 0;
+			/*
 			foreach (var m in generated) {
 				Log.Info($"Material {i++:D03} is {guid} / " +
 					$"{m.name} / {m.stpState} / {m.group} / " +
 					$"{m.num} / {m.weight}");
-			}
+			}*/
 
 
 		}

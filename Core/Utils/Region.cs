@@ -1,10 +1,18 @@
-﻿using System;
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+#define UNITY
+#endif
+
+#if UNITY
+using UnityEngine;
+#endif
+using System;
 using System.Collections.Generic;
 using System.Text;
 using static BakaTest.BakaTests;
 
 namespace Ex.Utils {
-	/// <summary> Class holding functions for dealing with positional <see cref="Vector3"/>/<see cref="Vector3Int"/> pairs </summary>
+	/// <summary> Class holding functions for dealing with positional <see cref="Vector3"/>/<see cref="Vector3Int"/> pairs
+	/// mainly to circumvent floating point precision problems (eg past 10k, there tends to be loss of fine details) </summary>
 	public struct Region {
 
 		/// <summary> Default value to use for regionSize </summary>
@@ -13,26 +21,26 @@ namespace Ex.Utils {
 		/// <summary> Position within region </summary>
 		public Vector3 position;
 		/// <summary> Region indexes </summary>
-		public Vector3Int region;
+		public Vector3Int indexes;
 
 		/// <summary> Construct <see cref="Region"/> with region index zero and given <paramref name="position"/>. </summary>
 		/// <param name="position">Position within region</param>
 		public Region(Vector3 position) {
 			this.position = position;
-			this.region = Vector3Int.zero;
+			this.indexes = Vector3Int.zero;
 		}
-		/// <summary> Construct <see cref="Region"/>  with given <paramref name="position"/> and <paramref name="region"/></summary>
+		/// <summary> Construct <see cref="Region"/>  with given <paramref name="position"/> and <paramref name="indexes"/></summary>
 		/// <param name="position">Position within region</param>
-		/// <param name="region">Region indexes</param>
-		public Region(Vector3 position, Vector3Int region) {
+		/// <param name="indexes">Region indexes</param>
+		public Region(Vector3 position, Vector3Int indexes) {
 			this.position = position;
-			this.region = region;
+			this.indexes = indexes;
 		}
 
 		/// <summary> Normalizes this <see cref="Region"/> with the give <paramref name="regionSize"/> </summary>
 		/// <param name="regionSize"> Size of region to use, defaults to <see cref="DEFAULT_REGION_SIZE"/> </param>
 		public void Normalize(float regionSize = DEFAULT_REGION_SIZE) {
-			Normalize(ref position, ref region, regionSize);
+			Normalize(ref position, ref indexes, regionSize);
 		}
 
 		/// <summary> Get the difference between this and another <see cref="Region"/>. </summary>
@@ -40,21 +48,29 @@ namespace Ex.Utils {
 		/// <param name="regionSize"> Size of region to use, defaults to <see cref="DEFAULT_REGION_SIZE"/></param>
 		/// <returns> Difference between this and the given <see cref="Region> "/></returns>
 		public Vector3 Difference(Region other, float regionSize = DEFAULT_REGION_SIZE) {
-			return Difference(position, region, other.position, other.region, regionSize);
+			return Difference(position, indexes, other.position, other.indexes, regionSize);
 		}
 
 		/// <summary> Denormalize this <see cref="Region"/> in relation to the given <paramref name="perspective"/>. </summary>
 		/// <param name="perspective"> <see cref="Region"/> to denormalize compared to </param>
 		/// <param name="regionSize"> Size of region to use, defaults to <see cref="DEFAULT_REGION_SIZE"/> </param>
 		public void RelativeFrom(Region perspective, float regionSize = DEFAULT_REGION_SIZE) {
-			Relative(perspective.region, ref position, ref region, regionSize);
+			Relative(perspective.indexes, ref position, ref indexes, regionSize);
 		}
 
 		/// <summary> Denomalize the <paramref name="other"/> <see cref="Region"/> in relation to this as the perspective. </summary>
 		/// <param name="other"> <see cref="Region"/> to denormalize compared to this </param>
 		/// <param name="regionSize"> Size of region to use, defaults to <see cref="DEFAULT_REGION_SIZE"/> </param>
 		public void RelativeTo(ref Region other, float regionSize = DEFAULT_REGION_SIZE) {
-			Relative(region, ref other.position, ref other.region, regionSize);
+			Relative(indexes, ref other.position, ref other.indexes, regionSize);
+		}
+
+		/// <summary> Get the true position of this <see cref="Region"/>. </summary>
+		/// <param name="regionSize"> Size of region to use, defaults to <see cref="DEFAULT_REGION_SIZE"/> </param>
+		/// <returns> Lossy, "true" position of this Vector3. </returns>
+		public Vector3 TruePosition(float regionSize = DEFAULT_REGION_SIZE) { 
+			Vector3 idx = indexes;
+			return position + idx * regionSize;
 		}
 
 		/// <summary> Get the true difference between two <see cref="Vector3"/>/<see cref="Vector3Int"/> pairs </summary>

@@ -28,9 +28,8 @@ namespace Ex {
 		public static JsonObject global = new JsonObject();
 		public static JsonObject config;
 		
-		// public static MainForm mainForm;
-		/// <summary> The main entry point for the application. </summary>
 		[STAThread]
+		/// <summary> The main entry point for the application. </summary>
 		static void Main() {
 			Console.Clear();
 		

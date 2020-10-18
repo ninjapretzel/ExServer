@@ -101,7 +101,7 @@ namespace Ex {
 		/// <param name="succ"></param>
 		public void On(LoginService.LoginSuccess_Server succ) {
 			if (!isMaster) { return; }
-			Log.Info("EntityService.On(LoginSuccess_Server)");
+			// Log.Info("EntityService.On(LoginSuccess_Server)");
 			if (FindUser == null && GenerateUser == null) {
 				Log.Error("A call to EntityService.RegisterUserEntityInfo<>() must be made before a login may produce an entity!");
 				return;
@@ -115,6 +115,9 @@ namespace Ex {
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
 			
 			UserEntityInfo info = FindUser(userId);
+			if (info == null) {
+				Log.Error($"OnLoginSuccess_Server for user {clientId} -> {username} / UserID={userId} found no entity information!\nDid you forget to set LoginService.userInitializer ?");
+			}
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
 			var display = AddComponent<Display>(clientId);

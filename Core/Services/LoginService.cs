@@ -8,6 +8,7 @@ using System.Threading;
 // For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
 #if !UNITY
 using MongoDB.Bson.Serialization.Attributes;
+using Isopoh.Cryptography.Argon2;
 #endif
 namespace Ex {
 
@@ -15,11 +16,11 @@ namespace Ex {
 	public class Credentials {
 		/// <summary> Name of user </summary>
 		public string username { get; private set; }
-		/// <summary> Password hash </summary>
-		public string passhash { get; private set; }
+		/// <summary> Is this a local credentials, or server credentials? </summary>
+		public bool isLocal { get; private set; }
 		/// <summary> User ID, equal to guid value of token if valid, otherwise <see cref="Guid.Empty"/> </summary>
 		public Guid userId { get; private set; }
-		/// <summary> Token provided by server, typically a valid <see cref="Guid"/></summary>
+		/// <summary> Token provided by server, typically a valid <see cref="Jwt"/> encoded string</summary>
 		public string token { get; private set; }
 		/// <summary> Timestamp of creation </summary>
 		public DateTime created { get; private set; }
@@ -27,26 +28,50 @@ namespace Ex {
 		/// <summary> Used to create a credentials object on the client. </summary>
 		/// <param name="user"> Username </param>
 		/// <param name="token"> Guid session token as a string </param>
-		public Credentials(string user, string token) {
+		public Credentials(string user, string token, string userId) {
 			username = user;
-			passhash = "local";
+			isLocal = true;
 			Guid guid;
 			this.token = token;
-			if (!Guid.TryParse(token, out guid)) { guid = Guid.Empty; }
-			userId = guid;
+			if (!Guid.TryParse(userId, out guid)) { guid = Guid.Empty; }
+			this.userId = guid;
 			created = DateTime.UtcNow;
 		}
 		/// <summary> Used to create a credentials object on the server, after authenticating the user. </summary>
 		/// <param name="user"> Username </param>
 		/// <param name="hash"> Password hash </param>
-		public Credentials(string user, string hash, Guid userId) {
+		public Credentials(string user, string token, Guid userId) {
 			username = user;
-			passhash = hash;
+			this.token = token;
+			isLocal = false;
 			this.userId = userId;
 			created = DateTime.UtcNow;
 		}
 
 	}
+	/// <summary> Delegate for hashing passwords </summary>
+	/// <param name="password"> Password to hash </param>
+	/// <returns> Hashed password </returns>
+	public delegate string HashFn(string password);
+	/// <summary> Delegate for verifying passwords </summary>
+	/// <param name="hash"> Hash to test </param>
+	/// <param name="password"> Password to test </param>
+	/// <returns> True if they match, false otherwise </returns>
+	public delegate bool VerifyFn(string hash, string password);
+	/// <summary> Delegate for packing data into a JWT </summary>
+	/// <typeparam name="T"> Generic type to pack into the JWT </typeparam>
+	/// <param name="data"> Data object to pack into the JWT </param>
+	/// <param name="secret"> Secret password to use </param>
+	/// <param name="expiry"> Time in seconds until token expires </param>
+	/// <returns> Encoded JWT </returns>
+	public delegate string EncodeJWTFn<T>(T data, string secret, int? expiry = null);
+	/// <summary> Delegate for unpacking data from a JWT </summary>
+	/// <typeparam name="T"> Generic type to unpack from JWT </typeparam>
+	/// <param name="token"> Encoded JWT to unpack </param>
+	/// <param name="result"> Output location </param>
+	/// <param name="secret"> Secret password to use </param>
+	/// <returns> true if JWT is valid, false otherwise.  </returns>
+	public delegate bool DecodeJWTFn<T>(string token, out T result, string secret);
 
 	public class LoginService : Service {
 
@@ -188,13 +213,19 @@ namespace Ex {
 		public Func<string, bool> usernameValidator = DefaultValidateUsername;
 		/// <summary> Function used to check for valid passwords. </summary>
 		public Func<string, bool> passwordValidator = DefaultValidatePassword;
-		/// <summary> Hash function. Should be replaced with something more secure than the default. </summary>
-		public Func<string, string> Hash = DefaultHash;
-
+#if !UNITY
+		/// <summary> Hash function. Defaults to <see cref="Isopoh.Cryptography.Argon2.Argon2.Hash"/> with a default configuration </summary>
+		public HashFn Hash = DefaultHash;
+		/// <summary> Hash verification function. Defaults to <see cref="Isopoh.Cryptography.Argon2.Argon2.Verify(string, Argon2Config)"/> with a default configuration </summary>
+		public VerifyFn Verify = DefaultVerify;
+		/// <summary> JWT Encode function. Defaults to <see cref="Jwt.Encode{T}(T, string, int?)"/>. </summary>
+		public EncodeJWTFn<JsonObject> EncodeJWT = Jwt.Encode;
+		/// <summary> JWT Decode function. Defaults to <see cref="Jwt.Decode{T}(string, out T, string)/>"/>. </summary>
+		public DecodeJWTFn<JsonObject> DecodeJWT= Jwt.Decode;
+		
 		/// <summary> Initializer for a newly logged in user </summary>
 		public Action<Guid> userInitializer;
 
-#if !UNITY
 		/// <summary> Connected DBService </summary>
 		DBService dbService;
 
@@ -242,10 +273,8 @@ namespace Ex {
 			if (isAttemptingLogin) { return false; }
 			if (Interlocked.CompareExchange(ref _isAttemptingLogin, 1, 0) != 0) { return false; }
 			
-			loginName = pass;
-			string hashedPass = Hash(pass);
-
-			server.localClient.Call(Login, user, hashedPass, VersionInfo.VERSION);
+			loginName = user;
+			server.localClient.Call(Login, user, pass, VersionInfo.VERSION);
 			return true;
 		}
 
@@ -254,12 +283,16 @@ namespace Ex {
 		public void LoginResponse(RPCMessage msg) {
 			if (!isMaster) {
 				Interlocked.Exchange(ref _isAttemptingLogin, 0);
-				Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
-				if (msg[0] == "succ") {
-					localLogin = new Credentials(loginName, msg[1]);
+				Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}] / [{msg[2]}] / [{msg[3]}]");
+				if (msg[0] == "succ" && msg[1] == loginName) {
+					localLogin = new Credentials(loginName, msg[2], msg[3]);
 					server.On(new LoginSuccess_Client() { credentials = localLogin } );
 				} else {
-					server.On(new LoginFailure_Client() { reason = msg[1] });
+					if (msg[1] != loginName) {
+						server.On(new LoginFailure_Client() { reason = $"Server responded with wrong name. Expected {loginName} got {msg[1]}." });
+					} else {
+						server.On(new LoginFailure_Client() { reason = msg[1] });
+					}
 				}
 			}	
 		}
@@ -279,7 +312,8 @@ namespace Ex {
 		public void Login(RPCMessage msg) {
 #if !UNITY
 			string user = msg[0];
-			string hash = msg[1];
+			string pass = msg[1];
+
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
 			// Login flow.
 			Credentials creds = null;
@@ -307,29 +341,28 @@ namespace Ex {
 					if (userInfo == null) {
 						Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 						
-						Guid userId = Guid.NewGuid();
 						userInfo = CreateNewUser(msg);
 
 						if (userInfo != null) {
 							result = LoginResult.Success_Created;
-							creds = new Credentials(user, hash, userInfo.guid);
+							string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+							creds = new Credentials(user, token, userInfo.guid);
 						} else {
 							result = LoginResult.Failed_CreationCooldown;
 							reason = "Too many account creations";
 						}
-
-						
 
 					} else {
 						// Check credentials against existing credentials.
 						if (loginsByUserId.ContainsKey(userInfo.guid)) {
 							reason = "Already logged in";
 							result = LoginResult.Failed_UserAlreadyLoggedIn;
-						} else if (hash != userInfo.hash) {
+						} else if (!Verify(userInfo.hash, pass)) {
 							reason = "Bad credentials";
 							result = LoginResult.Failed_BadCredentials;
-						} else {
-							creds = new Credentials(user, hash, userInfo.guid);
+						} else { // normal existing user login
+							string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+							creds = new Credentials(user, token, userInfo.guid);
 							result = LoginResult.Success;
 						}
 					
@@ -345,6 +378,7 @@ namespace Ex {
 				attempt.result = result;
 				attempt.result_desc = result.ToString();
 				attempt.timestamp = DateTime.UtcNow;
+				string hash = Hash(pass);
 				attempt.hash = hash;
 				attempt.userName = user;
 				attempt.ip = msg.sender.remoteIP;
@@ -380,7 +414,7 @@ namespace Ex {
 					userInfo.lastLogin = DateTime.UtcNow;
 					dbService.Save(userInfo);
 
-					msg.sender.Call(LoginResponse, "succ", creds.userId);
+					msg.sender.Call(LoginResponse, "succ", creds.username, creds.token, creds.userId);
 
 					Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
 
@@ -395,10 +429,10 @@ namespace Ex {
 #if !UNITY
 		private UserLoginInfo CreateNewUser(RPCMessage msg) {
 			string user = msg[0];
-			string hash = msg[1];
+			string pass = msg[1];
 
 			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), msg.sender.remoteIP);
-			Log.Debug($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
+			Log.Info($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
 			if (accountCreations.Count > 5) {
 				return null;
 			}
@@ -406,12 +440,16 @@ namespace Ex {
 			Guid userId = Guid.NewGuid();
 			UserLoginInfo userInfo = new UserLoginInfo();
 			userInfo.userName = user;
+			string hash = Hash(pass);
 			userInfo.hash = hash;
 			userInfo.guid = userId;
 			userInfo.lastLogin = DateTime.UtcNow;
 			dbService.Save(userInfo);
 
 			try {
+				if (userInitializer == null) {
+					Log.Warning($"LoginService.CreateNewUser: No userInitializer found. Please set a function to set up a new user.");
+				}
 				userInitializer?.Invoke(userId);
 
 				dbService.Save(new UserAccountCreation() {
@@ -428,6 +466,21 @@ namespace Ex {
 
 			return userInfo;
 		}
+
+		/// <summary> Default Password 'Hash' function. </summary>
+		/// <param name="pass"> password to hash </param>
+		/// <returns> argon2 hash result. </returns>
+		/// <remarks> Literally just wraps <see cref="Argon2.Hash(string, string?, int, int, int, Argon2Type, int, Isopoh.Cryptography.SecureArray.SecureArrayCall?)"/> 
+		/// so that specific overload is found and used. </remarks>
+		public static string DefaultHash(string pass) { return Argon2.Hash(pass); }
+
+		/// <summary> Verifies an argon2 hash. </summary>
+		/// <param name="hash"> Hash to check </param>
+		/// <param name="pass"> Password to check </param>
+		/// <returns> True if password matches hash, false otherwise. </returns>
+		/// <remarks> Wraps <see cref="Argon2.Verify(string, string)"/> </remarks>
+		public static bool DefaultVerify(string hash, string pass) { return Argon2.Verify(hash, pass); }
+
 #endif
 
 
@@ -465,14 +518,7 @@ namespace Ex {
 
 			return true;
 		}
-		
-		/// <summary> Default Password 'Hash' function. </summary>
-		/// <param name="pass"> password to hash </param>
-		/// <returns> Simple salted + hashed result. </returns>
-		public static string DefaultHash(string pass) {
-			return ":\\:" + (pass + "IM A STUPID HACKER DECOMPILING YOUR CODE LOL").GetHashCode() + ":/:";
-		}
-		
+
 
 	}
 

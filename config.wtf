@@ -4,6 +4,7 @@
 		name: "Test1",
 	},
 	logLevel: "Info",
+	httpHost: "http://localhost:3000",
 	// Platforms:
 	Unix: {
 		database: {

@@ -8,6 +8,7 @@ using System.Collections.Specialized;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Principal;
 using System.Net.WebSockets;
+using System.Collections.Generic;
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -39,6 +40,11 @@ namespace MiniHttp {
 		public JsonObject query { get; private set; }
 		/// <summary> JsonObject holding URL derived parameters </summary>
 		public JsonObject param { get; private set; }
+		/// <summary> JsonObject for custom middleware to use. </summary>
+		public JsonObject midData { get; private set; }
+
+		/// <summary> Requested path split on '/' chars </summary>
+		public string[] pathSplit { get { return req.pathSplit; } }
 
 		/// <summary> Default constructor, used when beginning handling of a request. </summary>
 		/// <param name="context"> Raw <see cref="HttpListenerContext"/> to wrap </param>
@@ -49,6 +55,8 @@ namespace MiniHttp {
 			KeepAlive = true;
 
 			query = req.QueryString.ToJsonObject();
+			param = new JsonObject();
+			midData = new JsonObject();
 		
 		}
 		#region HttpListenerContext wrappers
@@ -140,7 +148,7 @@ namespace MiniHttp {
 	
 
 		public override string ToString() {
-			return $"{RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}/{RawUrl}";
+			return $"{RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl}\n{HttpServerHelpers.FmtPath(pathSplit)}";
 		}
 
 		/// <summary> Convinient accessor for <see cref="Res.body"/>. </summary>
@@ -161,6 +169,9 @@ namespace MiniHttp {
 		public Req(Ctx owner, HttpListenerRequest request) {
 			ctx = owner;
 			raw = request;
+
+			pathSplit = HttpServerHelpers.UpToFirst(request.RawUrl, "?").Split("/");
+
 		}
 		#region HttpListenerRequest wrappers
 		/// <summary> Was this request originally HTTPS? (SSL) Wraps into <see cref="HttpListenerRequest.IsSecureConnection"/> </summary>
@@ -239,6 +250,9 @@ namespace MiniHttp {
 		public JsonObject bodyObj { get; set; }
 		/// <summary> <see cref="JsonArray"/> parsed from body, if successful. Populated by the <see cref="ProvidedMiddleware.BodyParser"/> </summary>
 		public JsonArray bodyArr { get; set; }
+
+		/// <summary> Requested path split on '/' chars </summary>
+		public string[] pathSplit { get; private set; }
 	}
 	/// <summary> Response object, mostly wraps <see cref="HttpListenerResponse"/>, and adds some things for convinience </summary>
 	public class Res {
@@ -374,7 +388,7 @@ namespace MiniHttp {
 		/// <param name="ctx"> Context to handle </param>
 		/// <param name="middleware"> Middleware stack to use </param>
 		/// <returns> Task that completes when request has been handled. </returns>
-		private static async Task Handle(Ctx ctx, Middleware[] middleware) {
+		internal static async Task Handle(Ctx ctx, Middleware[] middleware) {
 			NextFn next(int i) {
 				return async () => {
 					if (i+1 >= middleware.Length) { return; }
@@ -391,7 +405,7 @@ namespace MiniHttp {
 				Console.WriteLine($"HttpServer.Handle: Internal error in context: {ctx}\n{e}");
 				ctx.StatusCode = 500;
 				ctx.StatusDescription = $"Internal Server Error";
-				ctx.body = "500 Internal Server Error {e.GetType()} / {e.Message} \nStack Trace:\n{e.StackTrace}";
+				ctx.body = $"500 Internal Server Error {e.GetType()} / {e.Message} \nStack Trace:\n{e.StackTrace}";
 			
 			}
 
@@ -411,6 +425,84 @@ namespace MiniHttp {
 				res.OutputStream.Close();
 			}
 
+		}
+
+	}
+
+
+	public class Router {
+		public class Route {
+			public string method;
+			public string pattern;
+			public string[] splitPattern;
+			public Middleware[] handlers;
+			public Route(string method, string pattern, params Middleware[] handlers) {
+				if (!pattern.StartsWith('/')) { pattern = '/' + pattern; }
+				this.method = method;
+				this.pattern = pattern;
+				splitPattern = pattern.Split("/");
+				this.handlers = handlers;
+			}
+		}
+		private List<Route> routes = new List<Route>();
+
+		public void Use(string pattern, Router router) {
+			routes.Add(new Route("*", pattern, router.Routes));
+		}
+		public void Get(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("GET", pattern, handlers));
+		}
+		public void Head(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("HEAD", pattern, handlers));
+		}
+		public void Post(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("POST", pattern, handlers));
+		}
+		public void Put(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("PUT", pattern, handlers));
+		}
+		public void Delete(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("DELETE", pattern, handlers));
+		}
+		public void Options(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("OPTIONS", pattern, handlers));
+		}
+		public void Connect(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("CONNECT", pattern, handlers));
+		}
+		public void Trace(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("TRACE", pattern, handlers));
+		}
+		public void Patch(string pattern, params Middleware[] handlers) {
+			routes.Add(new Route("PATCH", pattern, handlers));
+		}
+		public Middleware Routes { get { return Handle; } }
+
+		private async Task Handle(Ctx ctx, NextFn next) {
+			// TODO: Maybe a match scoring system?
+			Console.WriteLine($"Matching request path of {HttpServerHelpers.FmtPath(ctx.pathSplit)}");
+			foreach (var route in routes) {
+				Console.WriteLine($"To Route path  {HttpServerHelpers.FmtPath(route.splitPattern)}");
+				if (route.method == "*" || route.method == ctx.HttpMethod) {
+					if (PathMatches(ctx, route)) {
+
+					}
+
+
+				}
+
+			}
+		}
+
+		public static bool PathMatches(Ctx ctx, Route route) {
+
+			int n = route.splitPattern.Length;
+			for (int i = 0; i < n; i++) {
+
+
+			}
+
+			return false;
 		}
 
 	}
@@ -448,6 +540,19 @@ namespace MiniHttp {
 			}
 			await next();
 		};
+		public static readonly Middleware Inspect = async (ctx, next) => {
+			void print(string prefix) {
+				Console.WriteLine($"{prefix}: {ctx}");
+				Console.WriteLine($"Query: {ctx.query}");
+				Console.WriteLine($"Params: {ctx.param}");
+				Console.WriteLine($"Raw body: {ctx.req.body}");
+				Console.WriteLine($"Object: {ctx.req.bodyObj?.ToString()}");
+				Console.WriteLine($"Array: {ctx.req.bodyArr?.ToString()}");
+			}
+			print("\nBefore");
+			await next();
+			print("\nAfter");
+		};
 	}
 
 	public static class HttpServerHelpers {
@@ -458,7 +563,7 @@ namespace MiniHttp {
 			for (int i = 0; i < keys.Length; i++) {
 				string key = keys[i];
 				string value = coll[key];
-				Console.WriteLine($"Pair {i} - \"{key}\"=\"{value}\"");
+				// Console.WriteLine($"Pair {i} - \"{key}\"=\"{value}\"");
 			
 				if (key == null) {
 					// Invert this and set them as flags as true...
@@ -478,6 +583,17 @@ namespace MiniHttp {
 			}
 
 			return obj;
+		}
+
+		public static string UpToFirst(string str, string search) {
+			if (str.Contains(search)) {
+				int ind = str.IndexOf(search);
+				return str.Substring(0, ind);
+			}
+			return str;
+		}
+		public static string FmtPath(string[] paths) {
+			return string.Join(" -> ", paths.Select(it => (it == null || it == "") ? "/" : it));
 		}
 	}
 }

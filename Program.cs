@@ -58,16 +58,14 @@ namespace Ex {
 				string hostname = config["httpHost"].stringVal;
 				string[] prefixes = new string[] { hostname };
 				List<Middleware> middleware = new List<Middleware>();
+				middleware.Add(ProvidedMiddleware.Inspect);
 				middleware.Add(ProvidedMiddleware.BodyParser);
-				// for (int i = 0; i < 10; i++) { middleware.Add(MakeTest(i)); }
-				middleware.Add( async(ctx, next) => {
-					ctx.body = "Aww yeet";
-					Console.WriteLine($"Raw body: {ctx.req.body}");
-					Console.WriteLine($"Object: {ctx.req.bodyObj?.ToString()}");
-					Console.WriteLine($"Array: {ctx.req.bodyArr?.ToString()}");
-					
-				});
 
+				Router r = new Router();
+				r.Get("/", async (ctx, next) => {
+					ctx.body = "Aww yeet";
+				});
+				middleware.Add(r.Routes);
 				httpTask = HttpServer.Watch(prefixes, ()=>running, 500, middleware.ToArray() );
 				Console.WriteLine($"HTTP Listening at {hostname}");
 			}

@@ -12,8 +12,10 @@ using System.Threading;
 using System.Collections.Concurrent;
 using Ex.Utils;
 using System.Diagnostics;
+using MiniHttp;
 
 namespace Ex {
+
 	
 	public static class Program {
 
@@ -27,6 +29,8 @@ namespace Ex {
 		public static Client admin;
 		public static JsonObject global = new JsonObject();
 		public static JsonObject config;
+		public static Task<int> httpTask = null;
+		private static bool running = true;
 		
 		[STAThread]
 		/// <summary> The main entry point for the application. </summary>
@@ -42,7 +46,31 @@ namespace Ex {
 				config = config.CombineRecursively(config.Get<JsonObject>(platform));
 			}
 			
-			
+			if (config.Has<JsonString>("httpHost")) {
+				Middleware MakeTest(int i) {
+					return async (ctx, next) => {
+						Console.WriteLine($"From Before {i}");
+						await next();
+						Console.WriteLine($"From After {i}");
+					};
+				}
+
+				string hostname = config["httpHost"].stringVal;
+				string[] prefixes = new string[] { hostname };
+				List<Middleware> middleware = new List<Middleware>();
+				middleware.Add(ProvidedMiddleware.BodyParser);
+				// for (int i = 0; i < 10; i++) { middleware.Add(MakeTest(i)); }
+				middleware.Add( async(ctx, next) => {
+					ctx.body = "Aww yeet";
+					Console.WriteLine($"Raw body: {ctx.req.body}");
+					Console.WriteLine($"Object: {ctx.req.bodyObj?.ToString()}");
+					Console.WriteLine($"Array: {ctx.req.bodyArr?.ToString()}");
+					
+				});
+
+				httpTask = HttpServer.Watch(prefixes, ()=>running, 500, middleware.ToArray() );
+				Console.WriteLine($"HTTP Listening at {hostname}");
+			}
 
 			try {
 #if DEBUG
@@ -76,6 +104,7 @@ namespace Ex {
 				Console.WriteLine("Top level exception occurred.... Aborting, " + e.InfoString());
 				//Console.Read();
 			}
+			running = false;
 		}
 
 		static void StaticSetup() {

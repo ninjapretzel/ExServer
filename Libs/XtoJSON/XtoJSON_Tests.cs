@@ -683,7 +683,21 @@ public static class Json_Tests {
 				JsonObject expected = new JsonObject("a", true, "b", true, "c", true, "one", true, "two", true, "three", true);
 
 				parsed.ShouldEqual(expected);
+			}
+		}
 
+		public static void TestObjectsetParseStrict() {
+			{
+				string raw = @"
+{
+	a, b, c, one, two, three,
+}".Replace('\'', '\"');
+				Exception caught = null;
+				try {
+					JsonObject fail = Json.ParseStrict<JsonObject>(raw);
+				} catch (Exception e) { caught = e; }
+
+				caught.ShouldNotBe(null);
 			}
 		}
 
@@ -692,8 +706,7 @@ public static class Json_Tests {
 				string raw = @"
 [
 	a, b, c, one, two, three
-]
-	".Replace('\'', '\"');
+]".Replace('\'', '\"');
 
 				JsonArray parsed = Json.Parse<JsonArray>(raw);
 
@@ -708,10 +721,23 @@ public static class Json_Tests {
 				JsonArray expected = new JsonArray("a", "b", "c", "one", "two", "three");
 
 				parsed.ShouldEqual(expected);
-
 			}
 		}
 
+		public static void TestArraySetParseStrict() {
+			{
+				string raw = @"
+[
+	a, b, c, one, two, three
+]".Replace('\'', '\"');
+				Exception caught = null;
+				try {
+					JsonArray fail = Json.ParseStrict<JsonArray>(raw);
+				} catch (Exception e) { caught = e; }
+
+				caught.ShouldNotBe(null);
+			}
+		}
 	}
 
 	/// <summary> Test holding General JsonValue test functions </summary>
@@ -729,11 +755,15 @@ public static class Json_Tests {
 
 				string str = obj.ToString();
 				string pp = obj.PrettyPrint();
-
 				JsonObject strParse = Json.Parse(str) as JsonObject;
 				JsonObject ppParse = Json.Parse(pp) as JsonObject;
 				true.ShouldBe(obj.Equals(strParse));
 				true.ShouldBe(obj.Equals(ppParse));
+
+				JsonObject strStrict = Json.ParseStrict<JsonObject>(str);
+				JsonObject ppStrict = Json.ParseStrict<JsonObject>(pp);
+				true.ShouldBe(obj.Equals(strStrict));
+				true.ShouldBe(obj.Equals(ppStrict));
 			}
 			{
 				JsonObject obj = new JsonObject();
@@ -753,6 +783,10 @@ public static class Json_Tests {
 				true.ShouldBe(obj.Equals(strParse));
 				true.ShouldBe(obj.Equals(ppParse));
 
+				JsonObject strStrict = Json.ParseStrict<JsonObject>(str);
+				JsonObject ppStrict = Json.ParseStrict<JsonObject>(pp);
+				true.ShouldBe(obj.Equals(strStrict));
+				true.ShouldBe(obj.Equals(ppStrict));
 			}
 		}
 		public static void TestBoolConversion() {
@@ -1015,6 +1049,12 @@ public static class Json_Tests {
 				} catch (Exception e) {
 					throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
 				}
+
+				Exception caught = null;
+				try {
+					Json.ParseStrict<JsonObject>(json.Replace('\'', '\"'));
+				} catch (Exception e) { caught = e; }
+				caught.ShouldNotBe(null);
 			}
 		}
 		public static void TestArrays(string[] jsonLits, JsonArray expected) {
@@ -1029,6 +1069,12 @@ public static class Json_Tests {
 				} catch (Exception e) {
 					throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
 				}
+
+				Exception caught = null;
+				try {
+					Json.ParseStrict<JsonArray>(json.Replace('\'', '\"'));
+				} catch (Exception e) { caught = e; }
+				caught.ShouldNotBe(null);
 			}
 		}
 		public static void TestLineComments() {
@@ -1065,6 +1111,8 @@ thing//
 				};
 			JsonObject small = new JsonObject("thing", "value");
 			TestObjects(smalls, small);
+
+
 		}
 
 		public static void TestLineCommentsArrays() {
@@ -1102,7 +1150,7 @@ thing//
 				};
 			JsonArray small = new JsonArray("a", "b", "c", 1, 2, 3);
 			TestArrays(smalls, small);
-
+			
 		}
 		public static void TestBS() {
 

@@ -15,8 +15,25 @@ using System.Collections.Generic;
 ///////////////////////////////////////////////////////////////////////////////////////
 // Basic almost-single-file Http-Server library that I can drop into projects for easy use
 // Somewhat based on NodeJS's Koa/DenoJS's Oak. 
+// https://koajs.com/
 // Simple control with a stack-like middleware-oriented arrangement.
 // Pass `MiddleWare` functions into `HttpServer.Watch` or `HttpServer.Serve`
+// Also note the bit on the koajs `ctx.res` object:
+//```
+//	Bypassing Koa's response handling is not supported. Avoid using the following node properties:
+//		res.statusCode
+//		res.writeHead()
+//		res.write()
+//		res.end()
+//```
+// By consequence of how middleware works, the same applies to this framework.
+//
+// Note: There is one dependency, which is not noted in the above usings: My 'XtoJSON' library.
+// Simply include the following file in parallel with this library: 
+// https://github.com/ninjapretzel/XtoJSON/blob/master/XtoJSON.cs
+/////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
 namespace MiniHttp { 
 
 	/// <summary> Primary workhorse of this framework </summary>

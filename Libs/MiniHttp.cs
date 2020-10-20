@@ -145,16 +145,13 @@ namespace MiniHttp {
 		/// <summary> Gets the output stream. Wraps into <see cref="HttpListenerResponse.OutputStream"/>. </summary>
 		public Stream OutputStream { get { return raw.Response.OutputStream; } }
 		#endregion
-	
-
+		
 		public override string ToString() {
 			return $"{RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl}\n{HttpServerHelpers.FmtPath(pathSplit)}";
 		}
 
 		/// <summary> Convinient accessor for <see cref="Res.body"/>. </summary>
 		public object body { get { return res.body; } set { res.body = value; } }
-
-
 	}
 
 	/// <summary> Request object, mostly wraps <see cref="HttpListenerRequest"/>, and adds some things for convinience </summary>
@@ -319,24 +316,22 @@ namespace MiniHttp {
 		public void Redirect(string url) { raw.Redirect(url); }
 		/// <summary> Wraps <see cref="HttpListenerResponse.SetCookie(Cookie)"/>. </summary>
 		public void SetCookie(Cookie cookie) { raw.SetCookie(cookie); }
-
-
 		#endregion
-	
 	
 		/// <summary> Currently assigned object representing the body. </summary>
 		public object body { get; set; }
-
 	}
-
 
 	/// <summary> Contains entry points standing up http servers. </summary>
 	public class HttpServer {
+		/// <summary> Default restart timer of 1 second. </summary>
+		public static readonly int DEFAULT_RESTART_DELAY = 1000;
+
 		/// <summary> Continuously retries hosting an HTTP server </summary>
 		/// <param name="prefixes"> List of hostnames/ports to accept. </param>
 		/// <param name="stayOpen"> Delegate that provides a <see cref="bool"/> value. True while the server should stay open. </param>
 		/// <param name="restartDelay"> Millisecond delay between restarts, should the program crash.</param>
-		/// <param name="middleware"> Array of middleware to use </param>
+		/// <param name="middleware"> Array of <see cref="Middleware"/> to use </param>
 		/// <returns> Task that completes when the server stops listening. </returns>
 		public static async Task<int> Watch(string[] prefixes, Func<bool> stayOpen, int restartDelay, params Middleware[] middleware) {
 			prefixes = prefixes.Select(it=>(it.EndsWith("/") ? it : it+"/")).ToArray();
@@ -348,6 +343,21 @@ namespace MiniHttp {
 			}
 
 			return 0;
+		}
+		/// <summary> Continuously retries hosting an HTTP server with default settings </summary>
+		/// <param name="prefix"> hostname/port to accept </param>
+		/// <param name="middleware"> Array of <see cref="Middleware"/> to use </param>
+		/// <returns> Task that completes when the server stops listening. </returns>
+		public static Task<int> Watch(string prefix, params Middleware[] middleware) {
+			return Watch(new string[] { prefix }, () => true, DEFAULT_RESTART_DELAY, middleware);
+		}
+		/// <summary> Continuously retries hosting an HTTP server with default settings </summary>
+		/// <param name="prefix"> hostname/port to accept </param>
+		/// <param name="stayOpen"> Delegate that provides a <see cref="bool"/> value. True while the server should stay open. </param>
+		/// <param name="middleware"> Array of <see cref="Middleware"/> to use </param>
+		/// <returns> Task that completes when the server stops listening. </returns>
+		public static Task<int> Watch(string prefix, Func<bool> stayOpen, params Middleware[] middleware) {
+			return Watch(new string[] { prefix }, stayOpen, DEFAULT_RESTART_DELAY, middleware);
 		}
 
 		/// <summary> Begins hosting an HTTP server</summary>
@@ -370,7 +380,11 @@ namespace MiniHttp {
 					while (stayOpen()) {
 						Ctx ctx = new Ctx(await listener.GetContextAsync());
 						// Toss into other task and resume listening.
-						var _ = Task.Run(()=>Handle(ctx, middleware));
+						var _ = Task.Run(async ()=>{ 
+							await Handle(ctx, middleware);
+							await Finish(ctx);
+						});
+
 					}
 
 				} catch (Exception e) {
@@ -378,17 +392,22 @@ namespace MiniHttp {
 					return -1;
 				}
 			}
-
-
 			return 0;
 		}
 
+		/// <summary> Begins hosting an HTTP server</summary>
+		/// <param name="prefix"> hostname/port to accept. </param>
+		/// <param name="middleware"> Array of middleware to use </param>
+		/// <returns> Task that completes when the server stops listening. </returns>
+		public static Task<int> Serve(string prefix, params Middleware[] middleware) {
+			return Serve(new string[] { prefix }, () => true, middleware);
+		}
 
 		/// <summary> Inner function used to handle HTTP contexts. </summary>
 		/// <param name="ctx"> Context to handle </param>
 		/// <param name="middleware"> Middleware stack to use </param>
 		/// <returns> Task that completes when request has been handled. </returns>
-		internal static async Task Handle(Ctx ctx, Middleware[] middleware) {
+		public static async Task Handle(Ctx ctx, Middleware[] middleware) {
 			NextFn next(int i) {
 				return async () => {
 					if (i+1 >= middleware.Length) { return; }
@@ -399,16 +418,20 @@ namespace MiniHttp {
 			try { 
 				// Kick everything off
 				await next(-1)();
-
 			} catch (Exception e) {
 				// Top level exception, srs issue.
 				Console.WriteLine($"HttpServer.Handle: Internal error in context: {ctx}\n{e}");
 				ctx.StatusCode = 500;
 				ctx.StatusDescription = $"Internal Server Error";
 				ctx.body = $"500 Internal Server Error {e.GetType()} / {e.Message} \nStack Trace:\n{e.StackTrace}";
-			
 			}
 
+		}
+
+		/// <summary> Logic to finish handling a <see cref="Ctx"/> object. </summary>
+		/// <param name="ctx"> Request/Response <see cref="Ctx"/> object </param>
+		/// <returns> <see cref="Task"/> that completes when the <paramref name="ctx"/> has been finished</returns>
+		private static async Task Finish(Ctx ctx) {
 			byte[] data = ctx.body as byte[];
 			if (ctx.body is string) {
 				data = ctx.ContentEncoding.GetBytes(ctx.body as string);
@@ -424,18 +447,26 @@ namespace MiniHttp {
 			if (!ctx.KeepAlive) {
 				res.OutputStream.Close();
 			}
-
 		}
 
 	}
 
-
+	/// <summary> Class for handling route matching </summary>
 	public class Router {
+		/// <summary> Class for holding information about a single Route. </summary>
 		public class Route {
-			public string method;
-			public string pattern;
-			public string[] splitPattern;
-			public Middleware[] handlers;
+			/// <summary> HTTP Method to match, or "*" to match any </summary>
+			public string method { get; private set; }
+			/// <summary> Route pattern to match. </summary>
+			public string pattern { get; private set; }
+			/// <summary> Pre-split pattern </summary>
+			public string[] splitPattern { get; private set; }
+			/// <summary> Middleware to use when matching, in order. </summary>
+			public Middleware[] handlers { get; private set; }
+			/// <summary> Constructor </summary>
+			/// <param name="method"> HTTP Method to match (GET, POST, PUT, etc, or "*" for any) </param>
+			/// <param name="pattern"> Path pattern to match </param>
+			/// <param name="handlers"> <see cref="Middleware"/> set to use when matching this route </param>
 			public Route(string method, string pattern, params Middleware[] handlers) {
 				if (!pattern.StartsWith('/')) { pattern = '/' + pattern; }
 				this.method = method;
@@ -444,55 +475,97 @@ namespace MiniHttp {
 				this.handlers = handlers;
 			}
 		}
-		private List<Route> routes = new List<Route>();
+		/// <summary> Empty list of middleware. </summary>
+		private static readonly List<Middleware> EMPTY_MIDDLEWARE = new List<Middleware>();
 
-		public void Use(string pattern, Router router) {
-			routes.Add(new Route("*", pattern, router.Routes));
+		/// <summary> List of <see cref="Route"/>s to match </summary>
+		private List<Route> routes = new List<Route>();
+		/// <summary> List of <see cref="Middleware"/> to always use, given a route has been matched. </summary>
+		private List<Middleware> always = new List<Middleware>();
+
+		/// <summary> Bake a <see cref="Middleware[]"/> from the given <paramref name="handlers"/> 
+		/// and the current set of <see cref="Middleware"/> registered to <see cref="always"/>. </summary>
+		/// <param name="handlers"> <see cref="Middleware"/> set to augment </param>
+		/// <returns> Baked <see cref="Middleware[]"/> containing all of the content of <see cref="always"/> followed by <paramref name="handlers"/>. </returns>
+		private Middleware[] Augment(IEnumerable<Middleware> handlers) {
+			List<Middleware> copy = new List<Middleware>(always);
+			copy.AddRange(handlers);
+			return copy.ToArray();
 		}
-		public void Get(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("GET", pattern, handlers));
-		}
-		public void Head(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("HEAD", pattern, handlers));
-		}
-		public void Post(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("POST", pattern, handlers));
-		}
-		public void Put(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("PUT", pattern, handlers));
-		}
-		public void Delete(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("DELETE", pattern, handlers));
-		}
-		public void Options(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("OPTIONS", pattern, handlers));
-		}
-		public void Connect(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("CONNECT", pattern, handlers));
-		}
-		public void Trace(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("TRACE", pattern, handlers));
-		}
-		public void Patch(string pattern, params Middleware[] handlers) {
-			routes.Add(new Route("PATCH", pattern, handlers));
-		}
+
+		/// <summary> <see cref="Middleware"/> to use before any matching routes. </summary>
+		/// <param name="handlers"> <see cref="Middleware"/> objects to use, in order </param>
+		public void Use(params Middleware[] handlers) { always.AddRange(handlers); }
+		/// <summary> Configure to match any HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when pattern is matched </param>
+		public void Any(string pattern, params Middleware[] handlers) { routes.Add(new Route("*", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the GET HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Get(string pattern, params Middleware[] handlers) { routes.Add(new Route("GET", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the HEAD HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Head(string pattern, params Middleware[] handlers) { routes.Add(new Route("HEAD", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the POST HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Post(string pattern, params Middleware[] handlers) { routes.Add(new Route("POST", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the PUT HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Put(string pattern, params Middleware[] handlers) { routes.Add(new Route("PUT", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the DELETE HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Delete(string pattern, params Middleware[] handlers) { routes.Add(new Route("DELETE", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the OPTIONS HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Options(string pattern, params Middleware[] handlers) { routes.Add(new Route("OPTIONS", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the CONNECT HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Connect(string pattern, params Middleware[] handlers) { routes.Add(new Route("CONNECT", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the TRACE HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Trace(string pattern, params Middleware[] handlers) { routes.Add(new Route("TRACE", pattern, Augment(handlers))); }
+		/// <summary> Configure to match only the PATCH HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
+		/// <param name="pattern"> Path pattern to match </param>
+		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when method and pattern is matched </param>
+		public void Patch(string pattern, params Middleware[] handlers) { routes.Add(new Route("PATCH", pattern, Augment(handlers))); }
+
+		/// <summary> Implicit conversion to <see cref="Middleware"/> via <see cref="Routes"/> </summary>
+		/// <param name="rt"> Router to convert </param>
+		public static implicit operator Middleware (Router rt) { return rt.Routes; }
+		/// <summary> Returns the <see cref="Handle(Ctx, NextFn)"/> as a <see cref="Middleware"/> delegate </summary>
 		public Middleware Routes { get { return Handle; } }
 
+		/// <summary> Function that handles matching and handling a request </summary>
+		/// <param name="ctx"> Request context to handle </param>
+		/// <param name="next"> Next middleware function to call </param>
+		/// <returns> Async <see cref="Task"/> representing work. </returns>
 		private async Task Handle(Ctx ctx, NextFn next) {
 			// TODO: Maybe a match scoring system?
-			Console.WriteLine($"Matching request path of {HttpServerHelpers.FmtPath(ctx.pathSplit)}");
+			//Console.WriteLine($"Matching request path of {HttpServerHelpers.FmtPath(ctx.pathSplit)}");
 			foreach (var route in routes) {
-				Console.WriteLine($"To Route path  {HttpServerHelpers.FmtPath(route.splitPattern)}");
+				//Console.WriteLine($"To Route path  {HttpServerHelpers.FmtPath(route.splitPattern)}");
 				if (route.method == "*" || route.method == ctx.HttpMethod) {
 					if (PathMatches(ctx, route)) {
 						await HttpServer.Handle(ctx, route.handlers);
 						break;
 					}
 				}
-
 			}
 		}
 
+		/// <summary> Function to use to test that a Request's <see cref="Ctx"/> matches a given <see cref="Route"/>, 
+		/// and extracts any <see cref="Ctx.param"/>s from the URL </summary>
+		/// <param name="ctx"> Request <see cref="Ctx"/> to process </param>
+		/// <param name="route"> <see cref="Route"/> to attempt to match </param>
+		/// <returns> true if match, false otherwise. </returns>
 		public static bool PathMatches(Ctx ctx, Route route) {
 			string[] routePath = route.splitPattern;
 			string[] requestPath = ctx.pathSplit;
@@ -512,10 +585,11 @@ namespace MiniHttp {
 			ctx.param.Set(vars);
 			return true;
 		}
-
 	}
 
+	/// <summary> Class holding some default middleware that can be useful. </summary>
 	public static class ProvidedMiddleware {
+		/// <summary> General "BodyParser" middleware, similar to ExpressJS. </summary>
 		public static readonly Middleware BodyParser = async (ctx, next) => {
 			byte[] buffer = new byte[2048];
 			using (MemoryStream stream = new MemoryStream()) {
@@ -538,16 +612,14 @@ namespace MiniHttp {
 						if (result is JsonObject) { ctx.req.bodyObj = result as JsonObject; }
 						if (result is JsonArray) { ctx.req.bodyArr = result as JsonArray; }
 					} catch (Exception) { }
-
-				
 				} else {
 					ctx.req.data = final;
 				}
-
-
 			}
 			await next();
 		};
+		/// <summary> General debugging "Inspect" middleware. 
+		/// Prints out various properties of a request before and after the rest of the Middleware stack. </summary>
 		public static readonly Middleware Inspect = async (ctx, next) => {
 			void print(string prefix) {
 				Console.WriteLine($"{prefix}: {ctx}");
@@ -563,7 +635,11 @@ namespace MiniHttp {
 		};
 	}
 
+	/// <summary> Contains some helper methods that may need to be used globally. </summary>
 	public static class HttpServerHelpers {
+		/// <summary> Convert the <see cref="NameValueCollection"/> type into a <see cref="JsonObject"/> </summary>
+		/// <param name="coll"> <see cref="NameValueCollection"/> to convert </param>
+		/// <returns> <see cref="JsonObject"/> containing the same information as <paramref name="coll"/> </returns>
 		public static JsonObject ToJsonObject(this NameValueCollection coll) {
 			JsonObject obj = new JsonObject();
 
@@ -586,13 +662,15 @@ namespace MiniHttp {
 					} else {
 						obj[key] = value;
 					}
-
 				}
 			}
-
 			return obj;
 		}
 
+		/// <summary> Get the content of the <paramref name="str"/> <see cref="string"/> up until the first occurence of <paramref name="search"/> </summary>
+		/// <param name="str"> <see cref="string"/> to scan </param>
+		/// <param name="search"> <see cref="string"/> to search for </param>
+		/// <returns> <see cref="String.Substring(int, int)"/> from 0 to the index where <paramref name="search"/> was found </returns>
 		public static string UpToFirst(string str, string search) {
 			if (str.Contains(search)) {
 				int ind = str.IndexOf(search);
@@ -600,6 +678,10 @@ namespace MiniHttp {
 			}
 			return str;
 		}
+
+		/// <summary> Helper to format paths for printing </summary>
+		/// <param name="paths"> </param>
+		/// <returns></returns>
 		public static string FmtPath(string[] paths) {
 			return string.Join(" -> ", paths.Select(it => (it == null || it == "") ? "/" : it));
 		}

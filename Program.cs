@@ -46,29 +46,7 @@ namespace Ex {
 				config = config.CombineRecursively(config.Get<JsonObject>(platform));
 			}
 			
-			if (config.Has<JsonString>("httpHost")) {
-				Middleware MakeTest(int i) {
-					return async (ctx, next) => {
-						Console.WriteLine($"From Before {i}");
-						await next();
-						Console.WriteLine($"From After {i}");
-					};
-				}
-
-				string hostname = config["httpHost"].stringVal;
-				string[] prefixes = new string[] { hostname };
-				List<Middleware> middleware = new List<Middleware>();
-				middleware.Add(ProvidedMiddleware.Inspect);
-				middleware.Add(ProvidedMiddleware.BodyParser);
-
-				Router r = new Router();
-				r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
-				r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
-				r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
-				middleware.Add(r.Routes);
-				httpTask = HttpServer.Watch(prefixes, ()=>running, 500, middleware.ToArray() );
-				Console.WriteLine($"HTTP Listening at {hostname}");
-			}
+			if (config.Has<JsonString>("httpHost")) { SetupHttpServer(); }
 
 			try {
 #if DEBUG
@@ -143,7 +121,7 @@ namespace Ex {
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Log.Info($"Working Directory: Directory.GetCurrentDirectory()");
-			SetupServer();
+			SetupExServer();
 			server.Start();
 
 			// Thread.Sleep(1000);
@@ -207,7 +185,31 @@ namespace Ex {
 
 		}
 
-		private static void SetupServer() {
+		private static void SetupHttpServer() {
+			Middleware MakeTest(int i) {
+				return async (ctx, next) => {
+					Console.WriteLine($"From Before {i}");
+					await next();
+					Console.WriteLine($"From After {i}");
+				};
+			}
+
+			string hostname = config["httpHost"].stringVal;
+			string[] prefixes = new string[] { hostname };
+			List<Middleware> middleware = new List<Middleware>();
+			middleware.Add(ProvidedMiddleware.Inspect);
+			middleware.Add(ProvidedMiddleware.BodyParser);
+
+			Router r = new Router();
+			r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
+			r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
+			r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+			middleware.Add(r.Routes);
+			httpTask = HttpServer.Watch(prefixes, () => running, 500, middleware.ToArray());
+			Console.WriteLine($"HTTP Listening at {hostname}");
+		}
+
+		private static void SetupExServer() {
 			server = new Server(32055, 100);
 
 			// server.AddService<Poly.PolyGame>();
@@ -239,6 +241,7 @@ namespace Ex {
 			server.AddService<MapService>();
 				
 		}
+
 		
 
 		private static void SetupAdminClient() {

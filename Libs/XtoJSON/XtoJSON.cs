@@ -1,9 +1,9 @@
 /*	XtoJSON
 	Lightweight JSON Library for C#
-	2015-2017  Jonathan Cohen
+	2015-2020  Jonathan Cohen
 	Contact: ninjapretzel@yahoo.com
 
-	Copyright (c) 2019 Jonathan Cohen aka ninjapretzel
+	Copyright (c) 2020 Jonathan Cohen aka ninjapretzel
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -97,7 +97,7 @@ public static class Json {
 	/// <summary> Major version number </summary>
 	public const int MAJOR = 2;
 	/// <summary> Minor version number </summary>
-	public const int MINOR = 4;
+	public const int MINOR = 5;
 	/// <summary> Sub-minor version Revision number </summary>
 	public const int REV = 0;
 
@@ -2948,7 +2948,6 @@ public static class JsonHelpers {
 		}
 		return s.Replace("\\/", "/");
 	}
-
 
 	/// <summary> Array of numeric types </summary>
 	internal static Type[] numericTypes = new Type[] {

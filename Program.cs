@@ -46,7 +46,6 @@ namespace Ex {
 				config = config.CombineRecursively(config.Get<JsonObject>(platform));
 			}
 			
-			if (config.Has<JsonString>("httpHost")) { SetupHttpServer(); }
 
 			try {
 #if DEBUG
@@ -68,6 +67,7 @@ namespace Ex {
 #endif	
 				SetupLogger();
 				StaticSetup();
+			
 				
 				SelfTest();
 				ActualProgram();
@@ -185,7 +185,7 @@ namespace Ex {
 
 		}
 
-		private static void SetupHttpServer() {
+		private static void SetupHttpServer(Server server) {
 			string hostname = config["httpHost"].stringVal;
 			string[] prefixes = new string[] { hostname };
 			List<Middleware> middleware = new List<Middleware>();
@@ -237,7 +237,8 @@ namespace Ex {
 			server.AddService<LoginService>();
 			server.AddService<EntityService>();
 			server.AddService<MapService>();
-				
+
+			if (config.Has<JsonString>("httpHost")) { SetupHttpServer(server); }
 		}
 
 		

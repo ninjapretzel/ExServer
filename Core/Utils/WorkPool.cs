@@ -56,7 +56,7 @@ namespace Ex.Utils {
 			/// <summary> Unpauses the worker if possible. </summary>
 			public void Unpause() {
 				if (!isRunning || !isPaused || thread == null) {
-					throw new InvalidOperationException($"Cannot Unpause {this} . State is: running?{isRunning} paused?{isPaused} thread?{thread}");
+					throw new InvalidOperationException($"WorkPool.Worker.Unpause: Cannot Unpause {this} . State is: running?{isRunning} paused?{isPaused} thread?{thread}");
 				}
 				isPaused = false;
 			}
@@ -64,7 +64,7 @@ namespace Ex.Utils {
 			/// <summary> Pauses the worker if possible. </summary>
 			public void Pause() {
 				if (!isRunning || isPaused || thread == null) {
-					throw new InvalidOperationException($"Cannot Pause {this} . State is: running?{isRunning} paused?{isPaused} thread?{thread}");
+					throw new InvalidOperationException($"WorkPool.Worker.Pause: Cannot Pause {this} . State is: running?{isRunning} paused?{isPaused} thread?{thread}");
 				}
 				isPaused = true;
 			}
@@ -72,7 +72,7 @@ namespace Ex.Utils {
 			/// <summary> Starts the worker if possible. </summary>
 			/// <param name="work"> Inner work function to run. </param>
 			public void Start(Action work) {
-				if (isRunning) { throw new InvalidOperationException($"{this} is already running! Stop worker before trying to restart it!"); }
+				if (isRunning) { throw new InvalidOperationException($"WorkPool.Worker.Start: {this} is already running! Stop worker before trying to restart it!"); }
 				isRunning = true;
 				isPaused = false;
 				worked = 0;
@@ -109,7 +109,7 @@ namespace Ex.Utils {
 
 			public void Stop() {
 				if (!isRunning) { throw new InvalidOperationException($"{this} Cannot stop when not started!"); }
-				Console.WriteLine($"{this} : stopped.");
+				Console.WriteLine($"WorkPool.Worker.Stop: {this} : stopped.");
 				isRunning = false;
 				thread = null;
 			}
@@ -206,21 +206,21 @@ namespace Ex.Utils {
 
 		/// <summary> Stops all future work. </summary>
 		public void Finish() {
-			Console.WriteLine("Finishing...");
+			Console.WriteLine("WorkPool.Finish: Finishing...");
 			foreach (Worker w in liveWorkers) { w.Stop(); }
-			Console.WriteLine($"Stopped {liveWorkers.Count} live workers...");
+			Console.WriteLine($"WorkPool.Finish: Stopped {liveWorkers.Count} live workers...");
 			foreach (Worker w in sleptWorkers) { w.Stop(); }
-			Console.WriteLine($"Stopped {sleptWorkers.Count} slept workers...");
+			Console.WriteLine($"WorkPool.Finish: Stopped {sleptWorkers.Count} slept workers...");
 
 			liveWorkers.Clear();
 			sleptWorkers.Clear();
 			removedTemp.Clear();
 			workItems.Clear();
-			Console.WriteLine("Cleared all data sets");
+			Console.WriteLine("WorkPool.Finish: Cleared all data sets");
 			int i = 0;
 			T item;
 			while (workItemQueue.TryDequeue(out item)) { i++; }
-			Console.WriteLine($"Cleared {i} work items");
+			Console.WriteLine($"WorkPool.Finish: Cleared {i} work items");
 		}
 
 		/// <summary> Sees if a worker needs to be added or removed, and does so </summary>
@@ -270,7 +270,7 @@ namespace Ex.Utils {
 						workFn(item);
 						//Console.WriteLine($"Worked on {item} in {worker} / {this} ");
 					} catch (Exception e) {
-						throw new Exception($"Error in WorkPool {id}: ", e);
+						throw new Exception($"WorkPool.MakePoolWorker: Error in WorkPool {id}: ", e);
 					} finally {
 						if (removedTemp.Contains(item)) {
 							removedTemp.Remove(item);
@@ -304,6 +304,9 @@ namespace Ex.Utils {
 
 		public static void TestInternal() {
 			int workSize = 100;
+			int delay = 2;
+			int pauseAfter = 200;
+
 			int workPerBreak = 1000;
 			int sleepTime = 3;
 			int failures = 0;
@@ -321,7 +324,7 @@ namespace Ex.Utils {
 				List<TestMap> maps = new List<TestMap>();
 				for (int i = 0; i < numMaps; i++) { maps.Add(new TestMap($"Level {i}")); }
 
-				Wait(20);
+				Wait(delay);
 				failures.ShouldBe(0);
 				workPool.WorkItemCount.ShouldBe(0);
 				workPool.LiveWorkerCount.ShouldBe(1);
@@ -329,30 +332,30 @@ namespace Ex.Utils {
 
 				for (int i = 0; i < maps.Count; i++) {
 					workPool.Add(maps[i]);
-					if ((i+1) % 50 == 0) {
+					if ((i+1) % pauseAfter == 0) {
 						Wait(1);
 					}
 				}
 
 				failures.ShouldBe(0);
-				workPool.WorkItemCount.ShouldBe(507);
-				workPool.LiveWorkerCount.ShouldBe(6);
+				workPool.WorkItemCount.ShouldBe(numMaps);
+				workPool.LiveWorkerCount.ShouldBe(1+numMaps/workSize);
 				workPool.SleptWorkerCount.ShouldBe(0);
 
-				Wait(20);
+				Wait(delay);
 				failures.ShouldBe(0);
-				workPool.WorkItemCount.ShouldBe(507);
-				workPool.LiveWorkerCount.ShouldBe(6);
+				workPool.WorkItemCount.ShouldBe(numMaps);
+				workPool.LiveWorkerCount.ShouldBe(1+numMaps/workSize);
 				workPool.SleptWorkerCount.ShouldBe(0);
 			
 				for (int i = 0; i < maps.Count; i++) {
 					workPool.Remove(maps[i]);
-					if ((i+1) % 50 == 0) {
+					if ((i+1) % pauseAfter == 0) {
 						Wait(1);
 					}
 				}
 
-				Wait(20);
+				Wait(delay);
 				failures.ShouldBe(0);
 				workPool.LiveWorkerCount.ShouldBe(1);
 				workPool.SleptWorkerCount.ShouldBe(5);

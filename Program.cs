@@ -186,14 +186,6 @@ namespace Ex {
 		}
 
 		private static void SetupHttpServer() {
-			Middleware MakeTest(int i) {
-				return async (ctx, next) => {
-					Console.WriteLine($"From Before {i}");
-					await next();
-					Console.WriteLine($"From After {i}");
-				};
-			}
-
 			string hostname = config["httpHost"].stringVal;
 			string[] prefixes = new string[] { hostname };
 			List<Middleware> middleware = new List<Middleware>();
@@ -201,11 +193,17 @@ namespace Ex {
 			middleware.Add(ProvidedMiddleware.BodyParser);
 
 			Router r = new Router();
+
+			r.Use(ProvidedMiddleware.MakeTrace(0));
+			r.Use(ProvidedMiddleware.MakeTrace(1));
+			r.Use(ProvidedMiddleware.MakeTrace(2));
 			r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
 			r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
 			r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
 			middleware.Add(r.Routes);
-			httpTask = HttpServer.Watch(prefixes, () => running, 500, middleware.ToArray());
+
+			httpTask = HttpServer.Watch(hostname, middleware.ToArray());
+
 			Console.WriteLine($"HTTP Listening at {hostname}");
 		}
 

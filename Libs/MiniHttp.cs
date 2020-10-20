@@ -495,7 +495,10 @@ namespace MiniHttp {
 
 		/// <summary> <see cref="Middleware"/> to use before any matching routes. </summary>
 		/// <param name="handlers"> <see cref="Middleware"/> objects to use, in order </param>
-		public void Use(params Middleware[] handlers) { always.AddRange(handlers); }
+		public void Use(params Middleware[] handlers) { 
+			if (routes.Count > 0) { throw new Exception("Router.Use: Please register all Middleware with .Use() _before_ registering any routes with Get/Post/Put/etc."); }
+			always.AddRange(handlers); 
+		}
 		/// <summary> Configure to match any HTTP Method, and the given <paramref name="pattern"/>, to run the given <paramref name="handlers"/>. </summary>
 		/// <param name="pattern"> Path pattern to match </param>
 		/// <param name="handlers"> <see cref="Middleware"/> handlers to use when pattern is matched </param>
@@ -589,6 +592,17 @@ namespace MiniHttp {
 
 	/// <summary> Class holding some default middleware that can be useful. </summary>
 	public static class ProvidedMiddleware {
+		/// <summary> Returns a middleware function that prints a trace message 
+		/// with the given <paramref name="traceNum"/>, both before and after the rest of the stack</summary>
+		/// <param name="traceNum"> Number to print in trace message </param>
+		/// <returns> <see cref="Middleware"/> that prints trace message and <paramref name="traceNum"/>. </returns>
+		public static Middleware MakeTrace(int traceNum) {
+			return async (ctx, next) => {
+				Console.WriteLine($"Trace Before {traceNum}");
+				await next();
+				Console.WriteLine($"Trace After {traceNum}");
+			};
+		}
 		/// <summary> General "BodyParser" middleware, similar to ExpressJS. </summary>
 		public static readonly Middleware BodyParser = async (ctx, next) => {
 			byte[] buffer = new byte[2048];
@@ -629,9 +643,9 @@ namespace MiniHttp {
 				Console.WriteLine($"Object: {ctx.req.bodyObj?.ToString()}");
 				Console.WriteLine($"Array: {ctx.req.bodyArr?.ToString()}");
 			}
-			print("\nBefore");
+			print("\nInspect Before");
 			await next();
-			print("\nAfter");
+			print("\nInspect After");
 		};
 	}
 

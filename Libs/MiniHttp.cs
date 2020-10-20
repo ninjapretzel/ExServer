@@ -485,24 +485,32 @@ namespace MiniHttp {
 				Console.WriteLine($"To Route path  {HttpServerHelpers.FmtPath(route.splitPattern)}");
 				if (route.method == "*" || route.method == ctx.HttpMethod) {
 					if (PathMatches(ctx, route)) {
-
+						await HttpServer.Handle(ctx, route.handlers);
+						break;
 					}
-
-
 				}
 
 			}
 		}
 
 		public static bool PathMatches(Ctx ctx, Route route) {
+			string[] routePath = route.splitPattern;
+			string[] requestPath = ctx.pathSplit;
+			if (routePath.Length != requestPath.Length) { return false; }
 
-			int n = route.splitPattern.Length;
+			JsonObject vars = new JsonObject();
+			int n = routePath.Length;
 			for (int i = 0; i < n; i++) {
-
-
+				string routePart = routePath[i];
+				string requestPart = requestPath[i];
+				if (routePart.StartsWith(":")) {
+					vars[routePart.Substring(1)] = requestPart;
+				} else if (routePart != requestPart) {
+					return false;
+				}
 			}
-
-			return false;
+			ctx.param.Set(vars);
+			return true;
 		}
 
 	}

@@ -62,9 +62,9 @@ namespace Ex {
 				middleware.Add(ProvidedMiddleware.BodyParser);
 
 				Router r = new Router();
-				r.Get("/", async (ctx, next) => {
-					ctx.body = "Aww yeet";
-				});
+				r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
+				r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
+				r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
 				middleware.Add(r.Routes);
 				httpTask = HttpServer.Watch(prefixes, ()=>running, 500, middleware.ToArray() );
 				Console.WriteLine($"HTTP Listening at {hostname}");

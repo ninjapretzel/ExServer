@@ -13,6 +13,7 @@ using System.Collections.Concurrent;
 using Ex.Utils;
 using System.Diagnostics;
 using MiniHttp;
+using static MiniHttp.ProvidedMiddleware;
 
 namespace Ex {
 
@@ -189,17 +190,22 @@ namespace Ex {
 			string hostname = config["httpHost"].stringVal;
 			string[] prefixes = new string[] { hostname };
 			List<Middleware> middleware = new List<Middleware>();
-			middleware.Add(ProvidedMiddleware.Inspect);
-			middleware.Add(ProvidedMiddleware.BodyParser);
+			middleware.Add(Inspect);
+			middleware.Add(BodyParser);
 
 			Router r = new Router();
-
-			r.Use(ProvidedMiddleware.MakeTrace(0));
-			r.Use(ProvidedMiddleware.MakeTrace(1));
-			r.Use(ProvidedMiddleware.MakeTrace(2));
+			r.Use(MakeTrace(0));
 			r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
 			r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
 			r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+
+			Router lower = new Router();
+			lower.Use(MakeTrace(1));
+			lower.Get("/ayy", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Ayy";  } );
+			lower.Get("/bee", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Bee";  } );
+			lower.Get("/", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Homepage";  } );
+			r.Any("/lower/:id/*", lower);
+			
 			middleware.Add(r.Routes);
 
 			httpTask = HttpServer.Watch(hostname, middleware.ToArray());

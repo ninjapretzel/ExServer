@@ -164,7 +164,7 @@ namespace MiniHttp {
 		#endregion
 		
 		public override string ToString() {
-			return $"{RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl}\n{HttpServerHelpers.FmtPath(pathSplit)}";
+			return $"Ctx: {RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl} Path: {HttpServerHelpers.FmtPath(pathSplit)}";
 		}
 
 		/// <summary> Convinient accessor for <see cref="Res.body"/>. </summary>
@@ -184,7 +184,7 @@ namespace MiniHttp {
 			ctx = owner;
 			raw = request;
 
-			pathSplit = HttpServerHelpers.UpToFirst(request.RawUrl, "?").Split("/");
+			pathSplit = HttpServerHelpers.UpToFirst(request.RawUrl, "?").Split("/").Where(it => it != "").ToArray();
 
 		}
 		#region HttpListenerRequest wrappers
@@ -488,9 +488,11 @@ namespace MiniHttp {
 				if (!pattern.StartsWith('/')) { pattern = '/' + pattern; }
 				this.method = method;
 				this.pattern = pattern;
-				splitPattern = pattern.Split("/");
+				splitPattern = pattern.Split("/").Where(it => it != "").ToArray();
 				this.handlers = handlers;
 			}
+			/// <inheritdoc/>
+			public override string ToString() { return HttpServerHelpers.FmtPath(splitPattern); }
 		}
 		/// <summary> Empty list of middleware. </summary>
 		private static readonly List<Middleware> EMPTY_MIDDLEWARE = new List<Middleware>();
@@ -569,9 +571,9 @@ namespace MiniHttp {
 		/// <returns> Async <see cref="Task"/> representing work. </returns>
 		private async Task Handle(Ctx ctx, NextFn next) {
 			// TODO: Maybe a match scoring system?
-			//Console.WriteLine($"Matching request path of {HttpServerHelpers.FmtPath(ctx.pathSplit)}");
+			//Console.WriteLine($"Matching request {ctx}");
 			foreach (var route in routes) {
-				//Console.WriteLine($"To Route path  {HttpServerHelpers.FmtPath(route.splitPattern)}");
+				//Console.WriteLine($"To Route {route}");
 				if (route.method == "*" || route.method == ctx.HttpMethod) {
 					if (PathMatches(ctx, route)) {
 						await HttpServer.Handle(ctx, route.handlers);
@@ -589,21 +591,52 @@ namespace MiniHttp {
 		public static bool PathMatches(Ctx ctx, Route route) {
 			string[] routePath = route.splitPattern;
 			string[] requestPath = ctx.pathSplit;
-			if (routePath.Length != requestPath.Length) { return false; }
 
 			JsonObject vars = new JsonObject();
+			int start = ctx.midData.Pull("pathMatchedTo", 0);
+			int matchedTo = start;
+			bool maybeMatch(bool match) {
+				if (match) {
+					ctx.midData["pathMatchedTo"] = matchedTo;
+					ctx.param.Set(vars);
+				}
+				return match;
+			}
+
+			string lastMatchedPart = "";
 			int n = routePath.Length;
+			int remainingParts = requestPath.Length - start;
+			//Console.WriteLine($"Matching {n} steps starting at {start}");
 			for (int i = 0; i < n; i++) {
 				string routePart = routePath[i];
-				string requestPart = requestPath[i];
+				if (start + i >= requestPath.Length) {
+					matchedTo = i;
+					return maybeMatch(i == n-1 && routePart == "*");
+				}
+				string requestPart = requestPath[start+i];
+				//Console.WriteLine($"Matching part {routePart} to {requestPart}");
+				
 				if (routePart.StartsWith(":")) {
 					vars[routePart.Substring(1)] = requestPart;
+					matchedTo = i;
+					lastMatchedPart = routePart;
+				} else if (routePart == "*") {
+					matchedTo = i;
+					lastMatchedPart = "*";
+					break;
 				} else if (routePart != requestPart) {
 					return false;
 				}
 			}
-			ctx.param.Set(vars);
-			return true;
+
+
+			if (lastMatchedPart != "*" && routePath.Length < remainingParts) {
+				//Console.WriteLine($"Not a match, non-wild card on route of length {routePath.Length} vs request with remaining {remainingParts} parts");
+				return false;
+			}
+			
+			//Console.WriteLine($"Router matched {route}");
+			return maybeMatch(true);
 		}
 	}
 
@@ -714,7 +747,7 @@ namespace MiniHttp {
 		/// <param name="paths"> </param>
 		/// <returns></returns>
 		public static string FmtPath(string[] paths) {
-			return string.Join(" -> ", paths.Select(it => (it == null || it == "") ? "/" : it));
+			return "/" + string.Join(" -> ", paths.Select(it => (it == null || it == "") ? "/" : it));
 		}
 	}
 }

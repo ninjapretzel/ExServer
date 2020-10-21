@@ -188,27 +188,28 @@ namespace Ex {
 
 		private static void SetupHttpServer(Server server) {
 			string hostname = config["httpHost"].stringVal;
-			string[] prefixes = new string[] { hostname };
 			List<Middleware> middleware = new List<Middleware>();
 			middleware.Add(Inspect);
 			middleware.Add(BodyParser);
 
 			Router r = new Router();
 			r.Use(MakeTrace(0));
-			r.Get("/", async (ctx, next) => { ctx.body = "Aww yeet"; });
-			r.Get("/what", async (ctx, next) => { ctx.body = "lolwhat"; });
-			r.Get("/what/:id", async (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+			r.Get("/", (ctx, next) => { ctx.body = "Aww yeet"; });
+			r.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
+			r.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
 
 			Router lower = new Router();
 			lower.Use(MakeTrace(1));
-			lower.Get("/ayy", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Ayy";  } );
-			lower.Get("/bee", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Bee";  } );
-			lower.Get("/", async (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Homepage";  } );
+			lower.Get("/ayy", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Ayy";  } );
+			lower.Get("/bee", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Bee";  } );
+			lower.Get("/cee", (ctx, next) => { ctx.body = new JsonObject("id", ctx.param["id"], "test", 5);  } );
+			lower.Get("/", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Homepage";  } );
+
 			r.Any("/lower/:id/*", lower);
 			
 			middleware.Add(r.Routes);
 
-			httpTask = HttpServer.Watch(hostname, middleware.ToArray());
+			httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
 
 			Console.WriteLine($"HTTP Listening at {hostname}");
 		}

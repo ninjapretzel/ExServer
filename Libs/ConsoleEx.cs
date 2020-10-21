@@ -131,7 +131,7 @@ namespace Ex.Libs {
 		// Internal variables
 		private static int hConsoleOutput;  // handle to output buffer
 		private static int hConsoleInput;   // handle to input buffer
-		private static COORD ConsoleOutputLocation;
+		//private static COORD ConsoleOutputLocation;
 		private static CONSOLE_SCREEN_BUFFER_INFO ConsoleInfo;
 		private static int OriginalConsolePen;
 		private static int CurrentConsolePen;
@@ -145,7 +145,7 @@ namespace Ex.Libs {
 
 			// Get information about the console window characteristics.
 			ConsoleInfo = new CONSOLE_SCREEN_BUFFER_INFO();
-			ConsoleOutputLocation = new COORD();
+			//ConsoleOutputLocation = new COORD();
 			GetConsoleScreenBufferInfo(hConsoleOutput, ref ConsoleInfo);
 			OriginalConsolePen = ConsoleInfo.wAttributes;
 

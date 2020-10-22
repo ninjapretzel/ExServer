@@ -9,6 +9,7 @@ using System.Threading;
 #if !UNITY
 using MongoDB.Bson.Serialization.Attributes;
 using Isopoh.Cryptography.Argon2;
+using MiniHttp;
 #endif
 namespace Ex {
 
@@ -304,135 +305,159 @@ namespace Ex {
 				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
 			}
 		}
-
-		/// <summary> Connected database service </summary>
-		
 		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(RPCMessage)"/></summary>
 		/// <param name="msg"> RPC Info. </param>
 		public void Login(RPCMessage msg) {
 #if !UNITY
 			string user = msg[0];
 			string pass = msg[1];
-
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
+
+			LoginOutcome outcome; 
 			// Login flow.
+			if (GetLogin(msg.sender) != null) {
+				Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
+				outcome.creds = null;
+				outcome.userInfo = null;
+				outcome.reason = "Already Logged In";
+				outcome.result = LoginResult.Failed_ClientAlreadyLoggedIn;
+			} else {
+				outcome = Login(user, pass, msg.sender.remoteIP, version);
+			}
+			Credentials creds = outcome.creds;
+			string reason = outcome.reason;
+			LoginResult result = outcome.result;
+			UserLoginInfo userInfo = outcome.userInfo;
+			if (creds == null) {
+				msg.sender.Call(LoginResponse, "fail", reason);
+
+				Log.Info($"Client {msg.sender.identity} Failed to login.");
+
+				server.On(new LoginFailure_Server() {
+					ip = msg.sender.remoteIP
+				});
+
+			} else {
+				var session = new Session(msg.sender, creds);
+				loginsByClient[msg.sender] = session;
+				loginsByUserId[creds.userId] = session;
+
+				userInfo.lastLogin = DateTime.UtcNow;
+				dbService.Save(userInfo);
+
+				msg.sender.Call(LoginResponse, "succ", creds.username, creds.token, creds.userId);
+
+				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
+
+				server.On(new LoginSuccess_Server(msg.sender));
+			}
+
+#endif
+		}
+
+#if !UNITY
+		/// <summary> Class holding result from <see cref="Login(string, string, string, string)"/> </summary>
+		private struct LoginOutcome {
+			/// <summary> <see cref="LoginResult"/> enum value </summary>
+			public LoginResult result;
+			/// <summary> Description of <see cref="result"/> or other information about login rejection </summary>
+			public string reason;
+			/// <summary> Resulting user credentials from successful login, or null if unsuccessful </summary>
+			public Credentials creds;
+			/// <summary> Resulting DB record from successful login, or null if unsuccessful </summary>
+			public UserLoginInfo userInfo;
+		}
+
+		/// <summary> Function holding client Login validation and recording</summary>
+		/// <param name="user"> Username to login as </param>
+		/// <param name="pass"> password provided by client </param>
+		/// <param name="remoteIP"> IP of client </param>
+		/// <param name="version"> Version of Client</param>
+		/// <returns> <see cref="LoginOutcome"/> containing result information </returns>
+		private LoginOutcome Login(string user, string pass, string remoteIP, string version = null) {
 			Credentials creds = null;
 			LoginResult result = LoginResult.Failed_Unspecified;
 			string reason = "none";
 			UserLoginInfo userInfo = null;
+			if (version != versionCode) {
+				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
+				reason = VERSION_MISMATCH;
+				result = LoginResult.Failed_VersionMismatch;
+			} else if (!usernameValidator(user)) {
+				Log.Debug($"{nameof(LoginService)}: Bad username {user}");
+				reason = "Invalid Username";
+				result = LoginResult.Failed_BadUsername;
+			} else {
+				userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
 
-			#region Submethod CheckLogin()
-			{ // SubMethod: CheckLogin()
-				if (version != versionCode) {
-					Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
-					reason = VERSION_MISMATCH;
-					result = LoginResult.Failed_VersionMismatch;
-				} else if (!usernameValidator(user)) {
-					Log.Debug($"{nameof(LoginService)}: Bad username {user}");
-					reason = "Invalid Username";
-					result = LoginResult.Failed_BadUsername;
-				} else if (GetLogin(msg.sender) != null) {
-					Log.Debug($"{nameof(LoginService)}: Client {msg.sender.identity} already logged in");
-					reason = "Already Logged In";
-					result = LoginResult.Failed_ClientAlreadyLoggedIn;
-				} else {
-					userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
+				if (userInfo == null) {
+					Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 
-					if (userInfo == null) {
-						Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
-						
-						userInfo = CreateNewUser(msg);
+					userInfo = CreateNewUser(user, pass, remoteIP);
 
-						if (userInfo != null) {
-							result = LoginResult.Success_Created;
-							string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
-							creds = new Credentials(user, token, userInfo.guid);
-						} else {
-							result = LoginResult.Failed_CreationCooldown;
-							reason = "Too many account creations";
-						}
-
+					if (userInfo != null) {
+						result = LoginResult.Success_Created;
+						string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+						creds = new Credentials(user, token, userInfo.guid);
 					} else {
-						// Check credentials against existing credentials.
-						if (loginsByUserId.ContainsKey(userInfo.guid)) {
-							reason = "Already logged in";
-							result = LoginResult.Failed_UserAlreadyLoggedIn;
-						} else if (!Verify(userInfo.hash, pass)) {
-							reason = "Bad credentials";
-							result = LoginResult.Failed_BadCredentials;
-						} else { // normal existing user login
-							string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
-							creds = new Credentials(user, token, userInfo.guid);
-							result = LoginResult.Success;
-						}
-					
-
+						result = LoginResult.Failed_CreationCooldown;
+						reason = "Too many account creations";
 					}
-				}
-			} // Submethod: CheckLogin()
-			#endregion
-
-			#region Submethod RecordLoginAttempt
-			{ // SubMethod: RecordLoginAttempt()
-				LoginAttempt attempt = new LoginAttempt();
-				attempt.result = result;
-				attempt.result_desc = result.ToString();
-				attempt.timestamp = DateTime.UtcNow;
-				string hash = Hash(pass);
-				attempt.hash = hash;
-				attempt.userName = user;
-				attempt.ip = msg.sender.remoteIP;
-				if (userInfo != null) {
-					attempt.success = true;
-					attempt.creation = result == LoginResult.Success_Created;
-					attempt.guid = userInfo.guid;
-				} else {
-					attempt.success = attempt.creation = false;
-					attempt.guid = Guid.Empty;
-				}
-
-				dbService.Save(attempt);
-			} // Submethod: RecordLoginAttempt()
-			#endregion
-
-			#region Submethod Respond
-			{// Submethod: Respond()
-				if (creds == null) {
-					msg.sender.Call(LoginResponse, "fail", reason);
-
-					Log.Info($"Client {msg.sender.identity} Failed to login.");
-
-					server.On(new LoginFailure_Server() {
-						ip = msg.sender.remoteIP
-					});
 
 				} else {
-					var session = new Session(msg.sender, creds);
-					loginsByClient[msg.sender] = session;
-					loginsByUserId[creds.userId] = session;
+					// Check credentials against existing credentials.
+					if (loginsByUserId.ContainsKey(userInfo.guid)) {
+						reason = "Already logged in";
+						result = LoginResult.Failed_UserAlreadyLoggedIn;
+					} else if (!Verify(userInfo.hash, pass)) {
+						reason = "Bad credentials";
+						result = LoginResult.Failed_BadCredentials;
+					} else { // normal existing user login
+						string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+						creds = new Credentials(user, token, userInfo.guid);
+						result = LoginResult.Success;
+					}
 
-					userInfo.lastLogin = DateTime.UtcNow;
-					dbService.Save(userInfo);
 
-					msg.sender.Call(LoginResponse, "succ", creds.username, creds.token, creds.userId);
-
-					Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
-
-					server.On(new LoginSuccess_Server(msg.sender));
 				}
+			}
 
-			} // Submethod: Respond()
-			#endregion
-#endif
+			LoginAttempt attempt = new LoginAttempt();
+			attempt.result = result;
+			attempt.result_desc = result.ToString();
+			attempt.timestamp = DateTime.UtcNow;
+			string hash = Hash(pass);
+			attempt.hash = hash;
+			attempt.userName = user;
+			attempt.ip = remoteIP;
+			if (userInfo != null) {
+				attempt.success = true;
+				attempt.creation = result == LoginResult.Success_Created;
+				attempt.guid = userInfo.guid;
+			} else {
+				attempt.success = attempt.creation = false;
+				attempt.guid = Guid.Empty;
+			}
+
+			dbService.Save(attempt);
+
+			LoginOutcome outcome;
+			outcome.creds = creds;
+			outcome.result = result;
+			outcome.reason = reason; ;
+			outcome.userInfo = userInfo;
+
+			return outcome;
 		}
-		
-#if !UNITY
-		private UserLoginInfo CreateNewUser(RPCMessage msg) {
-			string user = msg[0];
-			string pass = msg[1];
 
-			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), msg.sender.remoteIP);
-			Log.Info($"Client at {msg.sender.remoteIP} has {accountCreations.Count} account creations.");
+		/// <summary> Function holding user creation and initialization logic </summary>
+		/// <param name="user"> Username to initialize </param>
+		/// <param name="pass"> Password provided for creation </param>
+		/// <param name="remoteIP"> IP of client </param>
+		/// <returns> Created <see cref="UserLoginInfo"/> record </returns>
+		private UserLoginInfo CreateNewUser(string user, string pass, string remoteIP) {
+			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), remoteIP);
+			Log.Info($"Client at {remoteIP} has {accountCreations.Count} account creations.");
 			if (accountCreations.Count > 5) {
 				return null;
 			}
@@ -455,7 +480,7 @@ namespace Ex {
 				dbService.Save(new UserAccountCreation() {
 					userName = user,
 					guid = userId,
-					ipAddress = msg.sender.remoteIP,
+					ipAddress = remoteIP,
 					time = DateTime.UtcNow
 				});
 

@@ -170,12 +170,14 @@ namespace MiniHttp {
 		public Stream OutputStream { get { return raw.Response.OutputStream; } }
 		#endregion
 		
+
 		public override string ToString() {
-			return $"Ctx: {RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl} Path: {FmtPath(pathSplit)}";
+			return $"Ctx: {RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl} -> {StatusCode} ";
 		}
 
 		/// <summary> Convinient accessor for <see cref="Res.body"/>. </summary>
 		public object body { get { return res.body; } set { res.body = value; } }
+
 	}
 
 	/// <summary> Request object, mostly wraps <see cref="HttpListenerRequest"/>, and adds some things for convinience </summary>
@@ -456,6 +458,7 @@ namespace MiniHttp {
 		/// <param name="ctx"> Request/Response <see cref="Ctx"/> object </param>
 		/// <returns> <see cref="Task"/> that completes when the <paramref name="ctx"/> has been finished</returns>
 		private static async Task Finish(Ctx ctx) {
+			ctx.res.Headers["Server"] = "MiniHttp/0.0.1 +";
 			if (ctx.body == null) {
 				ctx.StatusCode = 404;
 				ctx.StatusDescription = "Not Found";
@@ -664,6 +667,7 @@ namespace MiniHttp {
 			int matchedTo = start;
 			bool maybeMatch(bool match) {
 				if (match) {
+					Console.WriteLine($"Router matched {matchedTo} sections of path");
 					ctx.midData["pathMatchedTo"] = matchedTo;
 					ctx.param.Set(vars);
 				}
@@ -681,11 +685,11 @@ namespace MiniHttp {
 					return maybeMatch(i == n-1 && routePart == "*");
 				}
 				string requestPart = requestPath[start+i];
-				//Console.WriteLine($"Matching part {routePart} to {requestPart}");
+				Console.WriteLine($"Matching part {routePart} to {requestPart}");
 				
 				if (routePart.StartsWith(":")) {
 					vars[routePart.Substring(1)] = requestPart;
-					matchedTo = i;
+					matchedTo = i+1;
 					lastMatchedPart = routePart;
 				} else if (routePart == "*") {
 					matchedTo = i;
@@ -693,6 +697,8 @@ namespace MiniHttp {
 					break;
 				} else if (routePart != requestPart) {
 					return false;
+				} else {
+					matchedTo = i+1;
 				}
 			}
 
@@ -701,7 +707,7 @@ namespace MiniHttp {
 				return false;
 			}
 			
-			//Console.WriteLine($"Router matched {route}");
+			Console.WriteLine($"Router matched {route}");
 			return maybeMatch(true);
 		}
 	}
@@ -749,6 +755,151 @@ namespace MiniHttp {
 			}
 			await next();
 		};
+
+		/// <summary> Default map of extension -> MIME type</summary>
+		/// <remarks> From https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types </remarks>
+		public static readonly Dictionary<string, string> CONTENT_TYPES = new Dictionary<string, string>() {
+			{ "aac", "audio/aac" },
+			{ "abw", "application/x-abiword" },
+			{ "arc", "application/x-freearc" },
+			{ "avi", "video/x-msvideo" },
+			{ "azw", "application/vnd.amazon.ebook" },
+			{ "bin", "application/octet-stream" },
+			{ "bmp", "image/bmp" },
+			{ "bz", "application/x-bzip" },
+			{ "bz2", "application/x-bzip2" },
+			{ "csh", "application/x-csh" },
+			{ "css", "text/css" },
+			{ "csv", "text/csv" },
+			{ "doc", "application/msword" },
+			{ "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+			{ "eot", "application/vnd.ms-fontobject" },
+			{ "epub", "application/epub+zip" },
+			{ "gz", "application/gzip" },
+			{ "gif", "image/gif" },
+			{ "html", "text/html" },
+			{ "htm", "text/html" },
+			{ "ico", "image/vnd.microsoft.icon" },
+			{ "ics", "text/calendar" },
+			{ "jar", "application/java-archive" },
+			{ "jpeg", "image/jpeg" },
+			{ "jpg", "image/jpeg" },
+			{ "js", "text/javascript" },
+			{ "json", "application/json" },
+			{ "jsonld", "application/ld+json" },
+			{ "midi", "audio/midi audio/x-midi" },
+			{ "mid", "audio/midi audio/x-midi" },
+			{ "mjs", "text/javascript" },
+			{ "mp3", "audio/mpeg" },
+			{ "mpeg", "video/mpeg" },
+			{ "mp4", "video/mp4" },
+			{ "mpkg", "application/vnd.apple.installer+xml" },
+			{ "odp", "application/vnd.oasis.opendocument.presentation" },
+			{ "ods", "application/vnd.oasis.opendocument.spreadsheet" },
+			{ "odt", "application/vnd.oasis.opendocument.text" },
+			{ "oga", "audio/ogg" },
+			{ "ogv", "video/ogg" },
+			{ "ogx", "application/ogg" },
+			{ "opus", "audio/opus" },
+			{ "otf", "font/otf" },
+			{ "png", "image/png" },
+			{ "pdf", "application/pdf" },
+			{ "php", "application/x-httpd-php" },
+			{ "ppt", "application/vnd.ms-powerpoint" },
+			{ "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+			{ "rar", "application/vnd.rar" },
+			{ "rtf", "application/rtf" },
+			{ "sh", "application/x-sh" },
+			{ "svg", "image/svg+xml" },
+			{ "swf", "application/x-shockwave-flash" },
+			{ "tar", "application/x-tar" },
+			{ "tif", "image/tiff" },
+			{ "tiff", "image/tiff" },
+			{ "ts", "video/mp2t" },
+			{ "ttf", "font/ttf" },
+			{ "txt", "text/plain" },
+			{ "vsd", "application/vnd.visio" },
+			{ "wav", "audio/wav" },
+			{ "weba", "audio/webm" },
+			{ "webm", "video/webm" },
+			{ "webp", "image/webp" },
+			{ "woff", "font/woff" },
+			{ "woff2", "font/woff2" },
+			{ "xhtml", "application/xhtml+xml" },
+			{ "xls", "application/vnd.ms-excel" },
+			{ "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+			{ "xml", "application/xml" },
+			{ "xul", "application/vnd.mozilla.xul+xml" },
+			{ "zip", "application/zip" },
+			{ "3gp", "video/3gpp" },
+			{ "3g2", "video/3gpp2" },
+			{ "7z", "application/x-7z-compressed" },
+		};
+		/// <summary> Default list of default document filenames to match at roots. </summary>
+		public static readonly List<string> DEFAULT_DOCUMENTS = new List<string>() {
+			"index.html",
+			"index.htm",
+			"default.html",
+			"default.htm",
+		};
+
+		/// <summary> General static file hosting, works with the <see cref="Router"/>'s path matching when mounted. </summary>
+		/// <param name="path"> Local folder path to host statically </param>
+		/// <param name="defaultDocuments"> <see cref="List{string}"/> of filenames to automatically try to match before failing. Defaults to <see cref="DEFAULT_DOCUMENTS"/> if not provided. </param>
+		/// <param name="contentTypes"> <see cref="Dictionary{string, string}"/> to use to match extensions to MIME types. Defaults to <see cref="CONTENT_TYPES"/> if not provided. </param>
+		/// <returns> <see cref="Middleware"/> which statically hosts files in the given folder. </returns>
+		public static Middleware Static(string path = ".", List<string> defaultDocuments = null, Dictionary<string, string> contentTypes = null) {
+			if (path == "") { path = "./"; }
+			if (!path.EndsWith("/")) { path += "/"; }
+			if (contentTypes == null) { contentTypes = CONTENT_TYPES; }
+			if (defaultDocuments == null) { defaultDocuments = DEFAULT_DOCUMENTS; }
+
+			return async(ctx, next) => {
+				int start = ctx.midData.Pull("pathMatchedTo", 0);
+				Console.WriteLine($"Starting check at {start}");
+				string[] requestPath = ctx.pathSplit;
+				List<string> remaining = new List<string>();
+				for (int i = start; i < requestPath.Length; i++) {
+					remaining.Add(requestPath[i]);
+				}
+				string remainingPath = string.Join('/', remaining);
+				string localPath = path + remainingPath;
+				Console.WriteLine($"Looking for static file matching {{{remainingPath}}} at {{{localPath}}}");
+				var res = ctx.res;
+
+				if (File.Exists(localPath)) {
+					Console.WriteLine("Found file.");
+
+					string ext = HttpServerHelpers.FromLast(ctx.pathSplit[ctx.pathSplit.Length-1], ".");
+					res.body = File.ReadAllBytes(localPath);
+					res.StatusCode = 200;
+					res.StatusDescription = "Found";
+					res.ContentType = contentTypes.ContainsKey(ext) ? contentTypes[ext] : "?/?";
+
+				} else {
+					foreach (var doc in defaultDocuments) {
+						string checkPath = localPath + "/" + doc;
+						if (File.Exists(checkPath)) {
+							Console.WriteLine($"Found default document matching {{{doc}}}");
+							string ext = HttpServerHelpers.FromLast(doc, ".");
+							res.body = File.ReadAllBytes(checkPath);
+							res.StatusCode = 200;
+							res.StatusDescription = "Found";
+							res.ContentType = contentTypes.ContainsKey(ext) ? contentTypes[ext] : "?/?";
+							return;
+						}
+					}
+						
+
+					Console.WriteLine("Not found, using next middleware.");
+					await next();
+				}
+				
+
+
+			};
+		}
+
 		/// <summary> General debugging "Inspect" middleware. 
 		/// Prints out various properties of a request before and after the rest of the Middleware stack. </summary>
 		public static readonly Middleware Inspect = async (ctx, next) => {
@@ -809,6 +960,18 @@ namespace MiniHttp {
 				return str.Substring(0, ind);
 			}
 			return str;
+		}
+		/// <summary> Get the content of the <paramref name="str"/> <see cref="string" /> from after the last occurence of <paramref name="search"/> </summary>
+		/// <param name="str"> <see cref="string"/> to scan </param>
+		/// <param name="search"> <see cref="string"/> to search for </param>
+		/// <returns> <see cref="string.Substring(int, int)"/> from the index just after where <paramref name="search"/> was found to the end of the string </returns>
+		public static string FromLast(this string str, string search) {
+			if (str.Contains(search) && !str.EndsWith(search)) {
+				int ind = str.LastIndexOf(search);
+
+				return str.Substring(ind + 1);
+			}
+			return "";
 		}
 
 		/// <summary> Helper to format paths for printing </summary>

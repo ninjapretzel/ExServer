@@ -13,6 +13,7 @@ using System.Collections.Concurrent;
 using Ex.Utils;
 using System.Diagnostics;
 using MiniHttp;
+
 using static MiniHttp.ProvidedMiddleware;
 
 namespace Ex {
@@ -191,10 +192,12 @@ namespace Ex {
 			List<Middleware> middleware = new List<Middleware>();
 			middleware.Add(Inspect);
 			middleware.Add(BodyParser);
+			// middleware.Add(Static("./public"));
 
 			Router r = new Router();
 			r.Use(MakeTrace(0));
 			r.Get("/", (ctx, next) => { ctx.body = "Aww yeet"; });
+			r.Get("/yeet", Static("./public"));
 			r.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
 			r.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
 

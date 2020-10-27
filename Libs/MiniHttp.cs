@@ -642,15 +642,25 @@ namespace MiniHttp {
 		private async Task Handle(Ctx ctx, NextFn next) {
 			// TODO: Maybe a match scoring system?
 			//Console.WriteLine($"Matching request {ctx}");
+
+			Route bestMatch = null;
 			foreach (var route in routes) {
 				//Console.WriteLine($"To Route {route}");
-				if (route.method == "*" || route.method == ctx.HttpMethod) {
-					if (PathMatches(ctx, route)) {
-						await HttpServer.Handle(ctx, route.handlers);
+				bestMatch = route;
+				if (PathMatches(ctx, route)) {
+					if (route.method == "*" || route.method == ctx.HttpMethod) {
 						break;
 					}
 				}
 			}
+			if (bestMatch != null && bestMatch.method == ctx.HttpMethod) {
+				await HttpServer.Handle(ctx, bestMatch.handlers);
+			} else {
+				ctx.body = $"Cannot {ctx.HttpMethod} /{string.Join('/', ctx.pathSplit)}";
+				ctx.StatusCode = 405;
+				ctx.StatusDescription = "Method Not Allowed";
+			}
+
 		}
 
 		/// <summary> Function to use to test that a Request's <see cref="Ctx"/> matches a given <see cref="Route"/>, 

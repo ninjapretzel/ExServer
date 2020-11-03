@@ -659,6 +659,7 @@ namespace MiniHttp {
 				ctx.body = $"Cannot {ctx.HttpMethod} /{string.Join('/', ctx.pathSplit)}";
 				ctx.StatusCode = 405;
 				ctx.StatusDescription = "Method Not Allowed";
+				await next();
 			}
 
 		}
@@ -915,6 +916,7 @@ namespace MiniHttp {
 		public static readonly Middleware Inspect = async (ctx, next) => {
 			void print(string prefix) {
 				Console.WriteLine($"{prefix}: {ctx}");
+				Console.WriteLine($"Headers:\n{ctx.req.Headers}");
 				Console.WriteLine($"Query: {ctx.query}");
 				Console.WriteLine($"Params: {ctx.param}");
 				Console.WriteLine($"Raw body: {ctx.req.body}");

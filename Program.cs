@@ -192,7 +192,6 @@ namespace Ex {
 			List<Middleware> middleware = new List<Middleware>();
 			middleware.Add(Inspect);
 			middleware.Add(BodyParser);
-			// middleware.Add(Static("./public"));
 
 			Router r = new Router();
 			r.Use(MakeTrace(0));
@@ -200,6 +199,7 @@ namespace Ex {
 			r.Get("/yeet", Static("./public"));
 			r.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
 			r.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+			r.Post("/", (ctx, next) => { ctx.body = $"omg you sent \"{ctx.req.body}\" "; });
 
 			Router lower = new Router();
 			lower.Use(MakeTrace(1));
@@ -211,6 +211,7 @@ namespace Ex {
 			r.Any("/lower/:id/*", lower);
 			
 			middleware.Add(r.Routes);
+			middleware.Add(Static("./public"));
 
 			httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
 

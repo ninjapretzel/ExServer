@@ -190,24 +190,25 @@ namespace Ex {
 			}
 			return str;
 		}
+
 		private static string ForwardSlashPath(string path) { return path.Replace('\\', '/'); }
 		private static string FromLast(string str, string search) {
 			if (str.Contains(search) && !str.EndsWith(search)) {
 				int ind = str.LastIndexOf(search);
-
 				return str.Substring(ind + 1);
 			}
 			return "";
 		}
 
-
 		/// <summary> Reseeds the DB service, given it is connected, with instructions in a given directory. </summary>
-		/// <param name="dir"> Directory to reseed from </param>
-		public void Reseed(string dir) {
-			dir = ForwardSlashPath(dir);
-			if (!dir.EndsWith("/")) { dir += "/"; }
+		/// <param name="target"> Directory to reseed from </param>
+		public void Reseed(string target) {
+			target = ForwardSlashPath(target);
+			string dir = UpToLast(target, "/");
+			Log.Warning($"Be advised. Reseeding from {{{ target }}} / {{{ dir }}}");
+			// if (!target.EndsWith("/")) { target += "/"; }
 			try {
-				string json = File.ReadAllText(dir + "seed.json");
+				string json = File.ReadAllText(target);
 				JsonValue v = Json.Parse(json);
 				
 				if (v is JsonArray) {
@@ -217,7 +218,7 @@ namespace Ex {
 				}
 				
 			} catch (Exception e) {
-				Log.Error($"Error while seeding database from [{dir}]", e);
+				Log.Error($"Error while seeding database from {{{ target }}} / {{{ dir }}} ", e);
 			}
 		}
 

@@ -287,7 +287,10 @@ namespace Ex {
 				.UseDatabase(cfg["name"].stringVal);
 
 			if (cfg.Has<JsonString>("reload")) {
-				dbService.CleanDatabase().Reseed(cfg["reload"].stringVal);
+				dbService.CleanDatabase();
+			}
+			if (cfg.Has<JsonString>("reseed")) {
+				dbService.Reseed(cfg["reseed"].stringVal);
 			}
 
 			var sync = server.AddService<SyncService>(); {

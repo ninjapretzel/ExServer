@@ -185,10 +185,16 @@ namespace Ex {
 			Request.onError += (msg, err) => {
 				Log.Warning(msg, err);
 			};
-			
+
 
 			// ArtbreederAPI.GenerateNew("anime_portraits");
+			//ArtbreederAPI.GenerateNew("landscapes_sg2");
 			// ArtbreederAPI.GenerateChild("anime_portraits", "b80cf128f557327cd5a5");
+			//ArtbreederAPI.GenerateChild("landscapes_sg2", "ee8e488f375b0101510f");
+			//ArtbreederAPI.Breed("anime_portraits", "b80cf128f557327cd5a5", "1eb84726c8a532c763e3", .3f, .6f, .7f, .6f, .7f);
+			//ArtbreederAPI.GenerateChild("general", "56f1ddc716ac238b5ce6", .7, .4, .7);
+			//ArtbreederAPI.GenerateChild("general", "56f1ddc716ac238b5ce6", .7, .4, .7);
+			//ArtbreederAPI.GenerateChild("general", "61efecf69922913b499f", .7, .4, .7);
 
 			Console.ReadLine();
 			

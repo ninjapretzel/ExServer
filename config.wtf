@@ -3,7 +3,7 @@
 		host: "mongodb://localhost:27017",
 		name: "Test1",
 		reload: "db",
-		reseed: "db/seed.json",
+		reseed: "db/seed.wtf",
 	},
 	logLevel: "Info",
 	httpHost: "http://localhost:3000",

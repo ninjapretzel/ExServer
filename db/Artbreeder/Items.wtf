@@ -1,0 +1,39 @@
+{
+	Mushroom1: {
+		model: "general",
+		id: "56f1ddc716ac238b5ce6",
+		style: .7,
+		content: .4,
+		chaos: .7,
+	},
+	RedFruit1: {
+		model: "general",
+		id: "3db510d369909171390d",
+		style: .7,
+		content: .4,
+		chaos: .7,
+	},
+	GreenVeggie1: {
+		model: "general",
+		id: "d1e30e65ea261ff31ea6",
+		style: .7,
+		content: .4,
+		chaos: .7,
+	},
+	GreenVeggie2: {
+		model: "general",
+		id: "081024a07b94e2d58420",
+		style: .7,
+		content: .4,
+		chaos: .7,
+	},
+	YellowVeggie1: {
+		model: "general",
+		id: "9094ecd3272c58f3ffd7",
+		style: .7,
+		content: .4,
+		chaos: .7,
+	},
+	
+	
+}

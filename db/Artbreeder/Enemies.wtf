@@ -1,0 +1,25 @@
+{
+	
+	StrangeCreature1: {
+		model: "general",
+		id: "61efecf69922913b499f",
+		style: .5,
+		content: .5,
+		chaos: .5,
+	},
+	FurryCreature1: {
+		model: "general",
+		id: "8513eaaab03476c9e721",
+		style: .5,
+		content: .5,
+		chaos: .5,
+	},
+	
+	DarkCreature1: {
+		model: "general",
+		id: "c2e643b464933b72d4b3",
+		style: .5,
+		content: .5,
+		chaos: .5,
+	},
+}

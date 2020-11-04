@@ -14,5 +14,6 @@
 	{ insert: { database: "Content", collection: "Items", files: [ "Items/**", ], }, },
 	{ insert: { database: "Content", collection: "EntityInfo", files: [ "Entities/**", ], }, },
 	{ insert: { database: "Content", collection: "MapInfo", files: [ "Maps/**", ], }, },
+	{ insert: { database: "Content", collection: "Artbreeder", files: [ "Artbreeder/**", ], }, },
 	
 ]

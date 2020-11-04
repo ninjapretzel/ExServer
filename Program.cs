@@ -15,6 +15,7 @@ using System.Diagnostics;
 using MiniHttp;
 
 using static MiniHttp.ProvidedMiddleware;
+using Ex.Utils.Ext;
 
 namespace Ex {
 
@@ -38,16 +39,8 @@ namespace Ex {
 		/// <summary> The main entry point for the application. </summary>
 		static void Main() {
 			Console.Clear();
-		
-			string platform = System.Environment.OSVersion.Platform.ToString();
-			global["platform"] = platform;
-			Console.WriteLine($"Platform detected: ({platform})");
-			Console.WriteLine($"Is mono platform? {Unsafe.MonoRuntime}");
-			config = Json.Parse<JsonObject>(File.ReadAllText("./config.wtf"));
-			if (config.Has(platform)) {
-				config = config.CombineRecursively(config.Get<JsonObject>(platform));
-			}
-			
+
+			Config();
 
 			try {
 #if DEBUG
@@ -66,16 +59,16 @@ namespace Ex {
 				} catch (Exception) {
 					Console.WriteLine("Copying source files failed.");
 				}
-#endif	
+#endif
 				SetupLogger();
 				StaticSetup();
-			
-				
+
+
 				SelfTest();
 				ActualProgram();
-				
-				
-				
+
+
+
 				// Console.Read();
 
 			} catch (Exception e) {
@@ -83,6 +76,29 @@ namespace Ex {
 				//Console.Read();
 			}
 			running = false;
+		}
+
+		private static void Config() {
+			string platform = System.Environment.OSVersion.Platform.ToString();
+			
+			global["platform"] = platform;
+			Console.WriteLine($"Platform detected: ({platform})");
+			Console.WriteLine($"Is mono platform? {Unsafe.MonoRuntime}");
+			config = Json.Parse<JsonObject>(File.ReadAllText("./config.wtf"));
+			
+			if (File.Exists("./sensitive.wtf")) {
+				JsonObject sensitive = Json.Parse<JsonObject>(File.ReadAllText("./sensitive.wtf"));
+				config.SetRecursively(sensitive);
+			}
+
+			if (config.Has(platform)) {
+				config = config.CombineRecursively(config.Get<JsonObject>(platform));
+			}
+
+			if (config.Has("artbreeder")) {
+				ArtbreederAPI.cookie = config["artbreeder"]["cookie"].stringVal;
+				Console.WriteLine("artbreeder cookie " + ArtbreederAPI.cookie);
+			}
 		}
 
 		static void StaticSetup() {
@@ -135,13 +151,47 @@ namespace Ex {
 |                     Press \rENTER \wat any time to exit                       |
 +===========================================================================+";
 			Log.Info(str);
+
+			/*
+			char[] paths = Path.GetInvalidPathChars();
+			char[] files = Path.GetInvalidFileNameChars();
+			Dictionary<char, string> mapped = new Dictionary<char, string>() {
+				{ '\n', "NEWLINE" },
+				{ '\r', "CARRIGERETURN" },
+				{ '\t', "TAB" },
+				{ ' ', "SPACE" },
+			};
+			StringBuilder bstr = "";
+			StringBuilder codes = "";
+			StringBuilder chars = "";
+			void printc(char c) {
+				string s = mapped.ContainsKey(c) ? mapped[c] : ""+c;
+				codes += ((short)c).Hex() + " ";
+				chars += s;
+				//bstr += $"{{{{ code={ ((byte)c).Hex() } char=\'{s}\' }}}}";
+			}
+			codes += "Invalid Path chars - \n";
+			chars += "Invalid Path chars - \n";
+			foreach (char c in paths) { printc(c); }
+			codes += "\n\nInvalid File chars - \n";
+			chars += "\n\nInvalid File chars - \n";
+			foreach (char c in files) { printc(c); }
 			
+			bstr += codes + "\n\n" + chars;
+			Log.Info(bstr);
+			*/
+			Log.Info(FileCache.LocalPathOf("https://s3.amazonaws.com/artbreederpublic-shortlived/1d/imgs/d46f45d1ccde075265d7.jpeg"));
+
+			Request.onError += (msg, err) => {
+				Log.Warning(msg, err);
+			};
 			
+
+			// ArtbreederAPI.GenerateNew("anime_portraits");
+			// ArtbreederAPI.GenerateChild("anime_portraits", "b80cf128f557327cd5a5");
+
 			Console.ReadLine();
 			
-			
-
-
 			Console.WriteLine("\n\n\nTerminating server.\n\n\n");
 			//admin.server.Stop();
 			server.Stop();

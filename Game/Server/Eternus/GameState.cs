@@ -32,6 +32,7 @@ namespace Eternus {
 		public JsonObject flags { get { return data.Get<JsonObject>(MemberName()); } }	
 		public JsonObject levels { get { return data.Get<JsonObject>(MemberName()); } }	
 		public JsonObject exp { get { return data.Get<JsonObject>(MemberName()); } }
+		public JsonObject wallet { get { return data.Get<JsonObject>(MemberName()); } }
 
 		
 	}

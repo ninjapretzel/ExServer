@@ -33,7 +33,10 @@ public static class Server_Tests {
 	}
 	private class TestUserEntityInfo : DefaultUserEntityInfo { }
 
-	private static TestData DefaultSetup(string testDbName = "Testing", string testDb = "db", int port = 12345, float tick = 50) {
+	private static TestData DefaultSetup(params Type[] clientServices) {
+		return Setup("Testing", "db", 12345, 50, clientServices);
+	}
+	private static TestData Setup(string testDbName = "Testing", string testDb = "db", int port = 12345, float tick = 50, Type[] clientServices = null) {
 		Server server = new Server(port, tick);
 		var debug = server.AddService<DebugService>();
 		var login = server.AddService<LoginService>();
@@ -89,14 +92,26 @@ public static class Server_Tests {
 		admin.AddService<LoginService>();
 		admin.AddService<EntityService>();
 		admin.AddService<MapService>();
+		if (clientServices != null) {
+			object[] EMPTY = new object[0];
+			Func<Service> addService = admin.AddService<DebugService>;
+			// addService =
+			foreach (var serviceType in clientServices) {
+				addService.Method.GetGenericMethodDefinition().MakeGenericMethod(new Type[] { serviceType }).Invoke(admin, EMPTY);
+			}
+		}
 		var adminSync = admin.AddService<SyncService>();
 		
 		try {
 			admin.ConnectSlave();
+			// Sending network messages, you can either use the Members<> template to access the member method you want to call...
 			admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
+			// Or if you have an instance, you can use that to grab the member function out of there.
+			admin.Call(debug.PingN, 5);
+			// Only the name of the function and the service class it is defined in are actually used.
 
 			adminSync.Context("debug").SubscribeTo("gameState");
-			Thread.Sleep(50);
+			
 		} catch (Exception e) {
 			
 			Log.Error("Error starting test server", e);
@@ -108,20 +123,32 @@ public static class Server_Tests {
 	}
 
 	private static void CleanUp(TestData data) {
-		Log.Info("Waiting...");
-		Thread.Sleep(300);
+		
 		Log.Info("Cleaning Up NOW.");
 		data.admin.server.Stop();
 		data.server.Stop();
 	}
 
 	public static void TestSetup() {
-
-		var testData = DefaultSetup();
+		TestService tester = new TestService();
+		var testData = DefaultSetup(typeof(TestService));
 		// defer CleanUp(testData);
+		var testService = testData.admin.GetService<TestService>();
 		try {
-
 			
+			var sync = testData.admin.GetService<SyncService>();
+			testData.admin.Call(sync.Subscribe, "debug");
+			var context = sync.Context("debug");
+			
+			while (!testService.sawLogin) {
+				Thread.Sleep(5);	
+			}
+			Log.Info("Testing client Logged in!");
+			while (!testService.sawPingFinish) {
+				Thread.Sleep(5);
+			}
+			Log.Info("Testing client Ping finished !");
+
 
 		} finally {
 
@@ -130,7 +157,46 @@ public static class Server_Tests {
 		
 
 	}
-	
+
+	/// <summary> Service template class. Intended for copy/pasting to create a new service. </summary>
+	public class TestService : Service {
+		/// <summary> Callback when the Service is added to a Servcer </summary>
+		public override void OnEnable() { }
+		/// <summary> Callback when the Service is removed from the server </summary>
+		public override void OnDisable() { }
+
+
+
+		public volatile bool login = false;
+		public volatile bool sawLogin = false;
+		public void On(LoginService.LoginSuccess_Client e) { login = sawLogin = true; }
+		public void On(LoginService.LoginFailure_Client e) { login = false; sawLogin = true; }
+
+		public volatile bool sawPingFinish = false;
+		public void On(DebugService.PingNEvent e) { if (e.val == 0) { sawPingFinish = true; } }
+
+		/// <summary> Callback every global server tick </summary>
+		/// <param name="delta"> Delta between last tick and 'now' </param>
+		public override void OnTick(float delta) { }
+
+		/// <summary> Callback with a client, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>
+		/// <param name="client"> Client who has connected. </param>
+		public override void OnBeganConnected(Client client) { }
+
+		/// <summary> CallCallbacked with a client when that client has connected. </summary>
+		/// <param name="client"> Client who has connected. </param>
+		public override void OnConnected(Client client) { }
+
+		/// <summary> Callback with a client when that client has disconnected. </summary>
+		/// <param name="client"> Client that has disconnected. </param>
+		public override void OnDisconnected(Client client) { }
+
+		/// <summary> Callback with a client, called after all <see cref="OnDisconnected(Client)"/> calls have finished. </summary>
+		/// <param name="client"> Client that has disconnected. </param>
+		public override void OnFinishedDisconnected(Client client) { }
+	}
+
+
 }
 #endif
 #endif

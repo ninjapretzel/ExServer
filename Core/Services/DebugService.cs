@@ -47,19 +47,34 @@ namespace Ex {
 			Log.Info($"Ping'd by {msg.sender.identity}");
 
 			// Since we are an instance, we can reference the Pong method directly. 
-			if (msg.wasUDP) {
-				msg.sender.Hurl(Pong);
-			} else {
-				msg.sender.Call(Pong);
-			}
-
+			msg.Reply(Pong);
+			
 			// If accessing another service's methods, this will help keep references during refactoring:
 			// sender.Call(Members<DebugService>.i.Pong);
-
 		}
+
 		public void Pong(RPCMessage msg) {
 
 			Log.Info($"Pong'd by {msg.sender.identity}");
+
+		}
+		public struct PingNEvent { public int val; }
+
+		public void PingN(RPCMessage msg) {
+			if (msg.numArgs < 1) {
+				Log.Info($"No arg passed to PingN.");
+			}
+			int val;
+			if (int.TryParse(msg[0], out val)) {
+				Log.Info($"Ping'd by {msg.sender.identity} @ {msg.sentAt}->{msg.recievedAt} #{val}");
+				if (val > 0) { 
+					msg.Reply(PingN, val-1);
+				}
+				server.On(new PingNEvent() { val = val });
+
+			} else {
+				Log.Warning($"PingN failed to parse number from {msg[0]}");
+			}
 
 		}
 

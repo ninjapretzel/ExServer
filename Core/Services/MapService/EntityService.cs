@@ -69,7 +69,19 @@ namespace Ex {
 			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
 			string color4 { get; set; }
 		}
-		
+
+		/// <summary> Base class which implements <see cref="UserEntityInfo"/> with <see cref="DBData"/>. </summary>
+		public class DefaultUserEntityInfo : DBData, UserEntityInfo {
+			public string map { get; set; }
+			public Vector3 position { get; set; }
+			public Vector3 rotation { get; set; }
+			[BsonIgnoreIfNull] public string color { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+			[BsonIgnoreIfNull] public string color2 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+			[BsonIgnoreIfNull] public string color3 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+			[BsonIgnoreIfNull] public string color4 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+			[BsonIgnoreIfNull] public string skin { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
+		}
+
 		/// <summary> Connected DBService </summary>
 		DBService db;
 		/// <summary> Connected MapService </summary>

@@ -39,6 +39,7 @@ public static class CopySourceMacro {
 		return filepath.UpToLast("/");
 	}
 
+	private static string ForwardSlashPath(this string path) { return path.Replace('\\', '/'); }
 	private static string UpToLast(this string str, string search) {
 		if (str.Contains(search)) {
 			int ind = str.LastIndexOf(search);
@@ -46,12 +47,11 @@ public static class CopySourceMacro {
 		}
 		return str;
 	}
-	private static string ForwardSlashPath(this string path) { return path.Replace('\\', '/'); }
 	private static string FromLast(this string str, string search) {
 		if (str.Contains(search) && !str.EndsWith(search)) {
 			int ind = str.LastIndexOf(search);
 
-			return str.Substring(ind + 1);
+			return str.Substring(ind + search.Length);
 		}
 		return "";
 	}

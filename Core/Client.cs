@@ -35,6 +35,8 @@ namespace Ex {
 		public Socket udp { get; private set; }
 		/// <summary> Underlying stream used to communicate with connected client </summary>
 		public NetworkStream tcpStream { get { return tcp?.GetStream(); } }
+		/// <summary> Socket connection to client </summary>
+		public Socket tcpSocket { get; private set; }
 
 		/// <summary> Server object </summary>
 		public Server server { get; private set; }
@@ -101,16 +103,39 @@ namespace Ex {
 		internal Crypt dec = (b) => b;
 		#endregion
 
-		public Client(TcpClient tcpClient, Server server = null) {
+		public Client(Socket socket, Server server = null) {
+			this.tcpSocket = socket;
+			this.tcp = null;
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
-			this.id = Guid.NewGuid();
+
+			var remoteEndPoint = tcpSocket.RemoteEndPoint;
+			var localEndPoint = tcpSocket.LocalEndPoint;
+			Initialize(remoteEndPoint, localEndPoint);
+		}
+
+
+		public Client(TcpClient tcpClient, Server server = null) {
 			this.tcp = tcpClient;
-			tcpReadState.Initialize();
-			udpReadState.Initialize();
+			this.tcpSocket = null;
+			if (server == null) { server = Server.NullInstance; }
+			this.server = server;
+
 
 			var remoteEndPoint = tcpClient.Client.RemoteEndPoint;
 			var localEndpoint = tcpClient.Client.LocalEndPoint;
+			Initialize(remoteEndPoint, localEndpoint);
+		}
+
+		private void Initialize(EndPoint remoteEndPoint, EndPoint localEndpoint) {
+			this.id = Guid.NewGuid();
+			tcpReadState.Initialize();
+			udpReadState.Initialize();
+
+			remoteIP = "????";
+			remotePort = -1;
+			localIP = "????";
+			localPort = -1;
 
 			Log.Info($"\\eClient \\y {identity}\\e connected from \\y {localEndpoint} -> {remoteEndPoint}");
 			if (remoteEndPoint is IPEndPoint && localEndpoint is IPEndPoint) {
@@ -120,12 +145,12 @@ namespace Ex {
 				remotePort = remoteIpep.Port;
 				localIP = localIpep.Address.ToString();
 				localPort = localIpep.Port;
-				
+
 				int localUdpPort = localPort + 1;
 				int remoteUdpPort = remotePort + 1;
 				localUdpHost = new IPEndPoint(remoteIpep.Address, localUdpPort);
 				remoteUdpHost = new IPEndPoint(remoteIpep.Address, remoteUdpPort);
-				
+
 				if (attemptUdp) {
 					try {
 						udp = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
@@ -142,17 +167,15 @@ namespace Ex {
 					}
 				}
 				udp = null;
-				
+
 			} else {
-				remoteIP = "????";
-				remotePort = -1;
-				localIP = "????";
-				localPort = -1;
-				Log.Info($"{identity} UDP Unconnected.");
+				Log.Info($"{identity} UDP connection requires IP.");
 			}
-			tcpStream.ReadTimeout = DEFAULT_READWRITE_TIMEOUT;
-			tcpStream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
-			
+			if (tcp != null) {
+				tcpStream.ReadTimeout = DEFAULT_READWRITE_TIMEOUT;
+				tcpStream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
+			}
+
 			tcpOutgoing = new ConcurrentQueue<string>();
 			udpOutgoing = new ConcurrentQueue<string>();
 
@@ -164,7 +187,6 @@ namespace Ex {
 				//enc = e;
 				//dec = d;
 			}
-			
 		}
 
 		/// <summary> If a slave, this client connects to the server. </summary>
@@ -180,6 +202,7 @@ namespace Ex {
 			if (isSlave) {
 				server.Stop();
 				if (tcp != null) { tcp.Dispose(); }
+				else { tcpSocket.Dispose(); }
 				if (udp != null) { udp.Dispose(); }
 			}
 		}
@@ -247,7 +270,12 @@ namespace Ex {
 				closed = true;
 
 				try { 
-					tcp.Close();
+					if (tcp != null) {
+						tcp.Close();
+					} else {
+						tcpSocket.Close();
+					}
+
 					Log.Verbose($"Client {identity} closed.");
 				} catch (Exception e) {
 					Log.Error("Failed to close connection", e);

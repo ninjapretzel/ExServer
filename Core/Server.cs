@@ -124,6 +124,9 @@ namespace Ex {
 		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
 		public Server(int port = 32055, float tick = 50) {
+			if (!BitConverter.IsLittleEndian) {
+				throw new Exception("System is using incorrect Endianness. Please use a different computer.");
+			}
 			if (port == ushort.MaxValue-2 || (port >= 0 && port < 1024)) {
 				throw new ArgumentException($"Cannot use a port of {port}. Please avoid system ports or ports with neighbors that are in use, or near the max port number.");
 			}
@@ -456,13 +459,11 @@ namespace Ex {
 						Log.Verbose($"Client {client.identity} yeeted message {msg} : {ret}");
 
 					}
-					if (!client.closed) {
-					
-					}
 				} catch (Exception e) {
 					Log.Warning($"Server.SendData(Client): Error during UDP send: {e.GetType()}. Will defer to TCP closure to disconnect.", e);
 				}
 			}
+
 
 			try {
 				while (!client.closed && client.tcpOutgoing.TryDequeue(out msg)) {
@@ -472,8 +473,14 @@ namespace Ex {
 					byte[] message = msg.ToBytesUTF8();
 					message = client.enc(message);
 					
-					client.tcpStream.Write(message, 0, message.Length);
+					if (client.tcp != null) {
+						client.tcpStream.Write(message, 0, message.Length);
+					} else {
+						client.tcpSocket.Send(message, message.Length, SocketFlags.None);
+					}
 				}
+				
+					
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.SendData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
 				Close(client);
@@ -521,6 +528,7 @@ namespace Ex {
 				return state;
 			}
 
+
 			if (client.udp != null) {
 				try {
 
@@ -541,14 +549,17 @@ namespace Ex {
 
 			}
 					
-
 			try {
-				
-				client.tcpReadState.bytesRead = !client.closed && client.tcpStream.CanRead && client.tcpStream.DataAvailable
-					? client.tcpStream.Read(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length)
-					: -1;
+				if (client.tcp != null) {
+					client.tcpReadState.bytesRead = !client.closed && client.tcpStream.CanRead && client.tcpStream.DataAvailable
+						? client.tcpStream.Read(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length)
+						: -1;
+				} else {
+					client.tcpReadState.bytesRead = !client.closed && (client.tcpSocket.Available > 0)
+						? client.tcpSocket.Receive(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length, SocketFlags.None)
+						: -1;
+				}
 				client.tcpReadState = read(client.tcpReadState, TCP);
-
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.RecieveData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);
 				Close(client);
@@ -564,6 +575,8 @@ namespace Ex {
 			} catch (Exception e) {
 				Log.Warning($"Server.RecieveData(Client): ", e);
 			}
+
+			
 		}
 
 		private void HandleMessage(RPCMessage msg) {

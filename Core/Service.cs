@@ -161,7 +161,7 @@ namespace Ex {
 	/// <typeparam name="T">Generic type </typeparam>
 	/// <remarks> This is simply a convinience class to access instance OnMessage callbacks. </remarks>
 	public sealed class Members<T> {
-		/// <summary> Generic instance. Do not expect this instance to be valid to operate on. </summary>
+		/// <summary> Empty instance. Do not ever expect this instance to be valid to operate on. </summary>
 		public static readonly T i = Activator.CreateInstance<T>();
 	}
 

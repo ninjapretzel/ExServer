@@ -113,6 +113,9 @@ namespace Ex {
 
 		/// <summary> TCP listener </summary>
 		private TcpListener listener;
+		/// <summary> Socket listener. </summary>
+		private Socket listenSocket;
+		private bool useTcpListener;
 
 		/// <summary> UTC Timestamp of last tick </summary>
 		private DateTime lastTick;
@@ -123,13 +126,14 @@ namespace Ex {
 		public Client localClient { get { return isSlave ? _localClient : null; } }
 		
 		/// <summary> Creates a Server with the given port and tickrate. </summary>
-		public Server(int port = 32055, float tick = 50) {
+		public Server(int port = 32055, float tick = 50, bool useTcpListener = false) {
 			if (!BitConverter.IsLittleEndian) {
 				throw new Exception("System is using incorrect Endianness. Please use a different computer.");
 			}
 			if (port == ushort.MaxValue-2 || (port >= 0 && port < 1024)) {
 				throw new ArgumentException($"Cannot use a port of {port}. Please avoid system ports or ports with neighbors that are in use, or near the max port number.");
 			}
+			this.useTcpListener = useTcpListener;
 			sendCheckQueue = new ConcurrentQueue<Client>();
 			recrCheckQueue = new ConcurrentQueue<Client>();
 			incoming = new ConcurrentQueue<RPCMessage>();
@@ -173,8 +177,10 @@ namespace Ex {
 			Stopping = true;
 			Thread.MemoryBarrier();
 			
-			/// Wait for threads to finish their work
 			listener?.Stop();
+			listenSocket?.Close();
+
+			/// Wait for threads to finish their work
 			globalUpdateThread?.Join();
 			listenThread?.Join();
 			mainSendThread?.Join();
@@ -298,14 +304,32 @@ namespace Ex {
 		private void Listen() {
 			while (Running) {
 				try {
-					listener = new TcpListener(IPAddress.Any, port);
-					listener.Start();
+					if (useTcpListener) {
+						listener = new TcpListener(IPAddress.Any, port);
+						listener.Start();
+
+					} else {
+						IPEndPoint localEndPoint = new IPEndPoint(IPAddress.Any, port);
+						listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+						listenSocket.Bind(localEndPoint);
+						listenSocket.Listen(32);
+					}
+
+
 					Log.Info("\\eListening for clients...");
 					
 					while (true) {
-						TcpClient tcpClient = listener.AcceptTcpClient();
-						Client client = new Client(tcpClient, this);
-						OnConnected(client);
+						if (useTcpListener) {
+							TcpClient tcpClient = listener.AcceptTcpClient();
+							Client client = new Client(tcpClient, this);
+							OnConnected(client);
+
+						} else {
+							Socket sock = listenSocket.Accept();
+							Client client = new Client(sock, this);
+							OnConnected(client);
+
+						}
 					}
 					
 				}

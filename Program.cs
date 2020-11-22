@@ -1,4 +1,4 @@
-using Learnings;
+﻿using Learnings;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -180,8 +180,6 @@ namespace Ex {
 			bstr += codes + "\n\n" + chars;
 			Log.Info(bstr);
 			*/
-			Log.Info(FileCache.LocalPathOf("https://s3.amazonaws.com/artbreederpublic-shortlived/1d/imgs/d46f45d1ccde075265d7.jpeg"));
-
 			Request.onError += (msg, err) => {
 				Log.Warning(msg, err);
 			};

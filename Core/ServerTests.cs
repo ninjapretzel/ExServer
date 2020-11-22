@@ -92,6 +92,7 @@ public static class Server_Tests {
 		admin.AddService<LoginService>();
 		admin.AddService<EntityService>();
 		admin.AddService<MapService>();
+		var adminSync = admin.AddService<SyncService>();
 		if (clientServices != null) {
 			object[] EMPTY = new object[0];
 			Func<Service> addService = admin.AddService<DebugService>;
@@ -100,12 +101,14 @@ public static class Server_Tests {
 				addService.Method.GetGenericMethodDefinition().MakeGenericMethod(new Type[] { serviceType }).Invoke(admin, EMPTY);
 			}
 		}
-		var adminSync = admin.AddService<SyncService>();
 		
 		try {
 			admin.ConnectSlave();
+			admin.GetService<LoginService>().RequestLogin("admin", "admin");
+			// Internally, the above does something like the following:
 			// Sending network messages, you can either use the Members<> template to access the member method you want to call...
-			admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
+			// admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
+
 			// Or if you have an instance, you can use that to grab the member function out of there.
 			admin.Call(debug.PingN, 5);
 			// Only the name of the function and the service class it is defined in are actually used.
@@ -117,16 +120,32 @@ public static class Server_Tests {
 			Log.Error("Error starting test server", e);
 		
 		}
-
 		
 		return new TestData(server, admin);
 	}
 
 	private static void CleanUp(TestData data) {
-		
 		Log.Info("Cleaning Up NOW.");
 		data.admin.server.Stop();
 		data.server.Stop();
+	}
+
+	/// <summary> Waits up to <paramref name="maxWaitMs"/> for the given bool-returning 
+	/// <paramref name="sampler"/> function to return a true value. </summary>
+	/// <param name="sampler"> Function to sample for `true`</param>
+	/// <param name="maxWaitMs"> maximum time to wait, in milliseconds. </param>
+	/// <returns> True, if the sampler returned true to stop the wait, false otherwise. </returns>
+	public static bool WaitFor(Func<bool> sampler, int maxWaitMs = 1000) {
+		DateTime start = DateTime.UtcNow;
+		
+		while (!sampler()) {
+			DateTime now = DateTime.UtcNow;
+			if ((now-start).TotalMilliseconds > maxWaitMs) {
+				return false;
+			}
+			Thread.Sleep(1);
+		}
+		return true;
 	}
 
 	public static void TestSetup() {
@@ -134,21 +153,17 @@ public static class Server_Tests {
 		var testData = DefaultSetup(typeof(TestService));
 		// defer CleanUp(testData);
 		var testService = testData.admin.GetService<TestService>();
+		var sync = testData.admin.GetService<SyncService>();
 		try {
 			
-			var sync = testData.admin.GetService<SyncService>();
-			testData.admin.Call(sync.Subscribe, "debug");
-			var context = sync.Context("debug");
-			
-			while (!testService.sawLogin) {
-				Thread.Sleep(5);	
+			// Logging in lights up lots of code paths. Need to wait ~2 seconds for it to finish.
+			if (!WaitFor(testService.LoggedIn, 2500)) { 
+				throw new Exception("Test Failed: Test service did not log in!");
 			}
-			Log.Info("Testing client Logged in!");
-			while (!testService.sawPingFinish) {
-				Thread.Sleep(5);
-			}
-			Log.Info("Testing client Ping finished !");
 
+			if (!WaitFor(testService.PingFinished)) {
+				throw new Exception("Test Failed: Test service did not finish pinging!");
+			}
 
 		} finally {
 
@@ -167,12 +182,21 @@ public static class Server_Tests {
 
 
 
-		public volatile bool login = false;
-		public volatile bool sawLogin = false;
-		public void On(LoginService.LoginSuccess_Client e) { login = sawLogin = true; }
-		public void On(LoginService.LoginFailure_Client e) { login = false; sawLogin = true; }
+		public bool login = false;
+		public bool sawLogin = false;
+		public bool LoggedIn() { return sawLogin && login; }
+		public void On(LoginService.LoginSuccess_Client e) { 
+			//Log.Info($"TestService Saw LoginSuccess: {e.credentials.token}");
+			login = sawLogin = true; 
+		}
+		public void On(LoginService.LoginFailure_Client e) { 
+			//Log.Info($"TestService Saw LoginFailure: {e.reason}");
+			login = false; 
+			sawLogin = true; 
+		}
 
-		public volatile bool sawPingFinish = false;
+		public bool sawPingFinish = false;
+		public bool PingFinished() { return sawLogin; }
 		public void On(DebugService.PingNEvent e) { if (e.val == 0) { sawPingFinish = true; } }
 
 		/// <summary> Callback every global server tick </summary>

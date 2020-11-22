@@ -267,7 +267,7 @@ namespace Ex {
 		/// <param name="user"> Username </param>
 		/// <param name="pass"> Password </param>
 		/// <returns> True, if the login is propagated to the server, false otherwise. (Login already in progress, already logged in, or called on a server instance) </returns>
-		public bool Login_Slave(string user, string pass) {
+		public bool RequestLogin(string user, string pass) {
 			if (!isSlave) { return false; }
 
 			if (localLogin != null) { return false; }

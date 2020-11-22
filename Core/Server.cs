@@ -115,6 +115,7 @@ namespace Ex {
 		private TcpListener listener;
 		/// <summary> Socket listener. </summary>
 		private Socket listenSocket;
+		/// <summary> Listen using <see cref="TcpListener"/> or raw <see cref="Socket"/>? </summary>
 		private bool useTcpListener;
 
 		/// <summary> UTC Timestamp of last tick </summary>
@@ -328,7 +329,7 @@ namespace Ex {
 							Socket sock = listenSocket.Accept();
 							Client client = new Client(sock, this);
 							OnConnected(client);
-
+							
 						}
 					}
 					

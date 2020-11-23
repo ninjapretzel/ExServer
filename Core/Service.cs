@@ -8,58 +8,58 @@ using System.Threading.Tasks;
 
 namespace Ex {
 
-	/// <summary> Type used to add custom services to a Server </summary>
+	/// <summary> Type used to add custom services to a <see cref="Server"/> </summary>
 	public abstract class Service {
 
 		/// <summary> Debugging flag to allow services to log any method called on them when skipped. </summary>
 		public bool LogSkippedMethods = false;
 
-		/// <summary> Owner that this Service belongs to </summary>
+		/// <summary> Owner that this <see cref="Service"/> belongs to </summary>
 		public Server server { get; private set; }
 
-		/// <summary> Is the service enabled (active) ? </summary>
+		/// <summary> Is the <see cref="Service"/> enabled (active) ? </summary>
 		public bool enabled { get; private set; }
-		/// <summary> Is this service running on a master server? </summary>
+		/// <summary> Is this <see cref="Service"/> running on a authoritative server? </summary>
 		public bool isMaster { get { return server.isMaster; } }
-		/// <summary> Is this service running on a slave/client server? </summary>
+		/// <summary> Is this <see cref="Service"/> running on a client server? </summary>
 		public bool isSlave { get { return server.isSlave; } }
 
 
-		/// <summary> Called when the server is started. </summary>
+		/// <summary> Called when the <see cref="Server"/> is started. </summary>
 		internal void Started() { OnStart(); }
-		/// <summary> Called within AddService() to enable the service </summary>
+		/// <summary> Called within <see cref="Server.AddService{T}"/> to enable the service </summary>
 		internal void Enable() { OnEnable(); enabled = true; }
-		/// <summary> Called within RemoveService() to disable the service </summary>
+		/// <summary> Called within <see cref="Server.RemoveService{T}"/> to disable the service </summary>
 		internal void Disable() { enabled = false; OnDisable(); }
-		
-		/// <summary> Callback when the server is started. Does not get called if the server is already running. </summary>
+
+		/// <summary> Callback when the <see cref="Server"/> is started. Does not get called if the <see cref="Server"/> is already running. </summary>
 		public virtual void OnStart() { }
-		/// <summary> Callback when the Service is added to a Servcer </summary>
+		/// <summary> Callback when the <see cref="Service"/> is added to a <see cref="Server"/> </summary>
 		public virtual void OnEnable() { }
-		/// <summary> Callback when the Service is removed from the server </summary>
+		/// <summary> Callback when the <see cref="Service"/> is removed from the <see cref="Server"/> </summary>
 		public virtual void OnDisable() { }
 		
-		/// <summary> Callback every global server tick </summary>
+		/// <summary> Callback every global <see cref="Server"/> tick </summary>
 		/// <param name="delta"> Delta between last tick and 'now' </param>
 		public virtual void OnTick(float delta) { }
 
-		/// <summary> Callback with a client, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>
+		/// <summary> Callback with a <see cref="Client"/>, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>
 		/// <param name="client"> Client who has connected. </param>
 		public virtual void OnBeganConnected(Client client) { }
 
-		/// <summary> CallCallbacked with a client when that client has connected. </summary>
+		/// <summary> Callback with a <see cref="Client"/> when they have connected. </summary>
 		/// <param name="client"> Client who has connected. </param>
 		public virtual void OnConnected(Client client) { }
 
-		/// <summary> Callback with a client when that client has disconnected. </summary>
+		/// <summary> Callback with a <see cref="Client"/> when they have disconnected. </summary>
 		/// <param name="client"> Client that has disconnected. </param>
 		public virtual void OnDisconnected(Client client) { }
 		
-		/// <summary> Callback with a client, called after all <see cref="OnDisconnected(Client)"/> calls have finished. </summary>
+		/// <summary> Callback with a <see cref="Client"/>, called after all <see cref="OnDisconnected(Client)"/> calls have finished. </summary>
 		/// <param name="client"> Client that has disconnected. </param>
 		public virtual void OnFinishedDisconnected(Client client) { }
 
-		/// <summary> Cache of discovered <see cref="OnD"/> Delegates, with their type casted away for easier storage. </summary>
+		/// <summary> Cache of discovered <see cref="OnD"/> <see cref="Delegate"/>s, with their type casted away for easier storage. </summary>
 		private Dictionary<Type, Delegate> onTs = new Dictionary<Type, Delegate>();
 
 		/// <summary> Delegate type to ease Delegates into a cache </summary>
@@ -94,7 +94,7 @@ namespace Ex {
 			
 		}
 		
-		/// <summary> Register method for type of T if it exists, otherwise register null </summary>
+		/// <summary> Register method for type of <typeparamref name="T"/> if it exists, otherwise register null </summary>
 		/// <typeparam name="T"> Generic type  </typeparam>
 		/// <param name="val"> Parameter for type consistency </param>
 		private void RegisterOnType<T>(T val) {
@@ -124,9 +124,9 @@ namespace Ex {
 			}
 		}
 
-		/// <summary> Get a list of all types that T inherits from </summary>
-		/// <param name="t"> Type to iterate </param>
-		/// <returns> List of all types, in order, that T inherits from (including T itself) </returns>
+		/// <summary> Get a list of all types that <paramref name="t"/> inherits from </summary>
+		/// <param name="t"> <see cref="Type"/> to iterate </param>
+		/// <returns> List of all types, in order, that <paramref name="t"/> inherits from (including itself) </returns>
 		private static List<Type> TypeChain(Type t) {
 			List<Type> types = new List<Type>();
 			types.Add(t);
@@ -140,56 +140,51 @@ namespace Ex {
 			return types;
 		}
 
-		/// <summary> Adds service of type <typeparamref name="T"/>. </summary>
-		/// <typeparam name="T"> Type of service to add. </typeparam>
-		/// <returns> Service that was added. </returns>
+		/// <summary> Adds <see cref="Service"/> of type <typeparamref name="T"/>. </summary>
+		/// <typeparam name="T"> Type of <see cref="Service"/> to add. </typeparam>
+		/// <returns> <see cref="Service"/> that was added. </returns>
 		/// <exception cref="Exception"> if any service with conflicting type or name exists. </exception>
 		public T AddService<T>() where T : Service { return server.AddService<T>(); }
 
-		/// <summary> Removes service of type <typeparamref name="T"/>. </summary>
-		/// <typeparam name="T"> Type of service to remove </typeparam>
+		/// <summary> Removes <see cref="Service"/> of type <typeparamref name="T"/>. </summary>
+		/// <typeparam name="T"> Type of <see cref="Service"/> to remove </typeparam>
 		/// <returns> True if removed, false otherwise. </returns>
 		public bool RemoveService<T>() where T : Service { return server.RemoveService<T>(); }
 
-		/// <summary> Gets a service with type <typeparamref name="T"/> </summary>
-		/// <typeparam name="T"> Type of service to get </typeparam>
-		/// <returns> Service of type <typeparamref name="T"/> if present, otherwise null. </returns>
+		/// <summary> Gets a <see cref="Service"/> with type <typeparamref name="T"/> </summary>
+		/// <typeparam name="T"> Type of <see cref="Service"/> to get </typeparam>
+		/// <returns> <see cref="Service"/> of type <typeparamref name="T"/> if present, otherwise null. </returns>
 		public T GetService<T>() where T : Service { return server.GetService<T>(); }
 	}	
 
-	/// <summary> Holds a way to access instance members of a type without needing to explicitly create instances. </summary>
+	/// <summary> Holds a way to access instance members of a the given <typeparamref name="T"/> type without needing to explicitly create instances. </summary>
 	/// <typeparam name="T">Generic type </typeparam>
-	/// <remarks> This is simply a convinience class to access instance OnMessage callbacks. </remarks>
+	/// <remarks> This is simply a convinience class to access instance <see cref="RPCMessage.Handler"/> callbacks when using <see cref="Client.Call(RPCMessage.Handler, object[])"/>. </remarks>
 	public sealed class Members<T> {
 		/// <summary> Empty instance. Do not ever expect this instance to be valid to operate on. </summary>
 		public static readonly T i = Activator.CreateInstance<T>();
 	}
 
-	/// <summary> Service template class. Intended for copy/pasting to create a new service. </summary>
+	/// <summary> <see cref="Service"/> template class. Intended for copy/pasting to create a new <see cref="Service"/>. </summary>
 	public class ServiceTemplate : Service {
-		/// <summary> Callback when the Service is added to a Servcer </summary>
+		/// <inheritdoc/>
 		public override void OnEnable() { }
-		/// <summary> Callback when the Service is removed from the server </summary>
+		/// <inheritdoc/>
 		public override void OnDisable() { }
 
-		/// <summary> Callback every global server tick </summary>
-		/// <param name="delta"> Delta between last tick and 'now' </param>
+		/// <inheritdoc/>
 		public override void OnTick(float delta) { }
 
-		/// <summary> Callback with a client, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>
-		/// <param name="client"> Client who has connected. </param>
+		/// <inheritdoc/>
 		public override void OnBeganConnected(Client client) { }
 
-		/// <summary> CallCallbacked with a client when that client has connected. </summary>
-		/// <param name="client"> Client who has connected. </param>
+		/// <inheritdoc/>
 		public override void OnConnected(Client client) { }
 
-		/// <summary> Callback with a client when that client has disconnected. </summary>
-		/// <param name="client"> Client that has disconnected. </param>
+		/// <inheritdoc/>
 		public override void OnDisconnected(Client client) { }
 
-		/// <summary> Callback with a client, called after all <see cref="OnDisconnected(Client)"/> calls have finished. </summary>
-		/// <param name="client"> Client that has disconnected. </param>
+		/// <inheritdoc/>
 		public override void OnFinishedDisconnected(Client client) { }
 	}
 }

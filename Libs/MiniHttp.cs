@@ -667,10 +667,12 @@ namespace MiniHttp {
 
 			if (bestMatch != null && (bestMatch.method == ctx.HttpMethod || bestMatch.method == "*")) {
 				await HttpServer.Handle(ctx, bestMatch.handlers);
-			} else {
+			} else if (bestMatch != null) {
 				ctx.body = $"Cannot {ctx.HttpMethod} /{string.Join('/', ctx.pathSplit)}";
 				ctx.StatusCode = 405;
 				ctx.StatusDescription = "Method Not Allowed";
+				await next();
+			} else {
 				await next();
 			}
 

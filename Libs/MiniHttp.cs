@@ -449,6 +449,7 @@ namespace MiniHttp {
 				Console.WriteLine($"HttpServer.Handle: Internal error in context: {ctx}\n{e}");
 				ctx.StatusCode = 500;
 				ctx.StatusDescription = $"Internal Server Error";
+				ctx.ContentType = "text/plain; charset=utf8";
 				ctx.body = $"500 Internal Server Error {e.GetType()} / {e.Message} \nStack Trace:\n{e.StackTrace}";
 			}
 
@@ -459,6 +460,7 @@ namespace MiniHttp {
 		/// <returns> <see cref="Task"/> that completes when the <paramref name="ctx"/> has been finished</returns>
 		private static async Task Finish(Ctx ctx) {
 			ctx.res.Headers["Server"] = "MiniHttp/0.0.1 +";
+
 			if (ctx.body == null) {
 				ctx.StatusCode = 404;
 				ctx.StatusDescription = "Not Found";
@@ -466,13 +468,19 @@ namespace MiniHttp {
 			}
 			byte[] data = ctx.body as byte[];
 			if (ctx.body is JsonObject || ctx.body is JsonArray) { 
-				ctx.ContentType = "application/json";
+				ctx.ContentType = "application/json;charset=utf8";
+				ctx.ContentEncoding = Encoding.UTF8;
 				ctx.body = ctx.body.ToString(); 
 			}
 			if (ctx.body is string) {
+				if (ctx.ContentType == null) {
+					ctx.ContentEncoding = Encoding.UTF8;
+					ctx.ContentType = "text/plain;charset=utf8";
+				} 
 				data = ctx.ContentEncoding.GetBytes(ctx.body as string);
-			} 
+			}
 			if (data == null) {
+				ctx.ContentType = "text/plain;charset=utf8";
 				data = ctx.ContentEncoding.GetBytes("");
 			}
 
@@ -876,7 +884,7 @@ namespace MiniHttp {
 
 			return async(ctx, next) => {
 				int start = ctx.midData.Pull("pathMatchedTo", 0);
-				Console.WriteLine($"Starting check at {start}");
+				Console.WriteLine($"Starting static file check at {start}");
 				string[] requestPath = ctx.pathSplit;
 				List<string> remaining = new List<string>();
 				for (int i = start; i < requestPath.Length; i++) {
@@ -893,7 +901,7 @@ namespace MiniHttp {
 					string ext = HttpServerHelpers.FromLast(ctx.pathSplit[ctx.pathSplit.Length-1], ".");
 					res.body = File.ReadAllBytes(localPath);
 					res.StatusCode = 200;
-					res.StatusDescription = "Found";
+					res.StatusDescription = "Ok, Found";
 					res.ContentType = contentTypes.ContainsKey(ext) ? contentTypes[ext] : "?/?";
 
 				} else {
@@ -904,12 +912,12 @@ namespace MiniHttp {
 							string ext = HttpServerHelpers.FromLast(doc, ".");
 							res.body = File.ReadAllBytes(checkPath);
 							res.StatusCode = 200;
-							res.StatusDescription = "Found";
+							res.StatusDescription = "Ok, Found";
 							res.ContentType = contentTypes.ContainsKey(ext) ? contentTypes[ext] : "?/?";
 							return;
 						}
 					}
-						
+					
 
 					Console.WriteLine("Not found, using next middleware.");
 					await next();

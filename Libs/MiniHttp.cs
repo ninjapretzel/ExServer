@@ -646,14 +646,18 @@ namespace MiniHttp {
 			Route bestMatch = null;
 			foreach (var route in routes) {
 				//Console.WriteLine($"To Route {route}");
-				bestMatch = route;
 				if (PathMatches(ctx, route)) {
+					bestMatch = route;
 					if (route.method == "*" || route.method == ctx.HttpMethod) {
+						//Console.WriteLine($"Matched route {route} and method {ctx.HttpMethod}");
 						break;
+					} else {
+						//Console.WriteLine($"Matched route {route} but not method {ctx.HttpMethod}");
 					}
 				}
 			}
-			if (bestMatch != null && bestMatch.method == ctx.HttpMethod) {
+
+			if (bestMatch != null && (bestMatch.method == ctx.HttpMethod || bestMatch.method == "*")) {
 				await HttpServer.Handle(ctx, bestMatch.handlers);
 			} else {
 				ctx.body = $"Cannot {ctx.HttpMethod} /{string.Join('/', ctx.pathSplit)}";
@@ -678,7 +682,7 @@ namespace MiniHttp {
 			int matchedTo = start;
 			bool maybeMatch(bool match) {
 				if (match) {
-					Console.WriteLine($"Router matched {matchedTo} sections of path");
+					//Console.WriteLine($"Router matched {matchedTo} sections of path");
 					ctx.midData["pathMatchedTo"] = matchedTo;
 					ctx.param.Set(vars);
 				}
@@ -692,11 +696,13 @@ namespace MiniHttp {
 			for (int i = 0; i < n; i++) {
 				string routePart = routePath[i];
 				if (start + i >= requestPath.Length) {
+					//Console.WriteLine($"Matched up to {routePart}");
 					matchedTo = i;
+					
 					return maybeMatch(i == n-1 && routePart == "*");
 				}
 				string requestPart = requestPath[start+i];
-				Console.WriteLine($"Matching part {routePart} to {requestPart}");
+				//Console.WriteLine($"Matching part {routePart} to {requestPart}");
 				
 				if (routePart.StartsWith(":")) {
 					vars[routePart.Substring(1)] = requestPart;
@@ -705,6 +711,9 @@ namespace MiniHttp {
 				} else if (routePart == "*") {
 					matchedTo = i;
 					lastMatchedPart = "*";
+					//Console.WriteLine($"Router matched wildcard route: {route}");
+					return maybeMatch(true);
+
 					break;
 				} else if (routePart != requestPart) {
 					return false;
@@ -718,7 +727,7 @@ namespace MiniHttp {
 				return false;
 			}
 			
-			Console.WriteLine($"Router matched {route}");
+			//Console.WriteLine($"Router matched {route}");
 			return maybeMatch(true);
 		}
 	}

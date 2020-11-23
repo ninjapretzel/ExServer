@@ -11,6 +11,8 @@ using System.Net.WebSockets;
 using System.Collections.Generic;
 using static MiniHttp.HttpServerHelpers;
 using static MiniHttp.ProvidedMiddleware;
+using Ex;
+using System.Threading;
 
 /////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -353,6 +355,58 @@ namespace MiniHttp {
 		/// <summary> Default restart timer of 1 second. </summary>
 		public static readonly int DEFAULT_RESTART_DELAY = 1000;
 
+		/// <summary> Array of prefixes for the <see cref="HttpListener"/> to accept </summary>
+		public string[] prefixes { get; private set; }
+		/// <summary> Time in milliseconds between attempted restarts </summary>
+		public int restartDelay { get; private set; }
+		/// <summary> <see cref="Middleware"/> to use when handling requests </summary>
+		private Middleware[] middleware { get; set; }
+		/// <summary> Is this listener currently running? </summary>
+		public bool running { get; private set; }
+		/// <summary> <see cref="Task{TResult}"/> running the listener </summary>
+		public Task<int> serverTask { get; private set; }
+		/// <summary> <see cref="HttpListener"/>. </summary>
+		private HttpListener listener { get; set; }
+
+		public HttpServer(string prefix, params Middleware[] middleware) {
+			this.prefixes = new string[] { prefix };
+			this.restartDelay = DEFAULT_RESTART_DELAY;
+			this.middleware = middleware;
+			Initialize();
+		}
+		public HttpServer(string[] prefixes, params Middleware[] middleware) {
+			this.prefixes = prefixes;
+			this.restartDelay = DEFAULT_RESTART_DELAY;
+			this.middleware = middleware;
+			Initialize();
+		}
+		public HttpServer(string prefix, int restartDelay, params Middleware[] middleware) {
+			this.prefixes = new string[] { prefix };
+			this.restartDelay = restartDelay;
+			this.middleware = middleware;
+			Initialize();
+		}
+		public HttpServer(string[] prefixes, int restartDelay, params Middleware[] middleware) {
+			this.prefixes = prefixes;
+			this.restartDelay = restartDelay;
+			this.middleware = middleware;
+			Initialize();
+		}
+
+		private void Initialize() {
+			prefixes = prefixes.Select(it => (it.EndsWith("/") ? it : it + "/")).ToArray();
+			running = true;
+			listener = new HttpListener();
+			foreach (var prefix in prefixes) { listener.Prefixes.Add(prefix); }
+
+			serverTask = Listen(listener, ()=>running, middleware);
+		}
+
+		public void Stop() {
+			listener.Abort();
+			running = false;
+		}
+
 		/// <summary> Continuously retries hosting an HTTP server </summary>
 		/// <param name="prefixes"> List of hostnames/ports to accept. </param>
 		/// <param name="stayOpen"> Delegate that provides a <see cref="bool"/> value. True while the server should stay open. </param>
@@ -399,24 +453,31 @@ namespace MiniHttp {
 		
 			if (prefixes == null || prefixes.Length == 0) { return -1; }
 			using (HttpListener listener = new HttpListener()) {
-				try {
-					foreach (var prefix in prefixes) { listener.Prefixes.Add(prefix); }
-					listener.Start();
-				
-					while (stayOpen()) {
-						Ctx ctx = new Ctx(await listener.GetContextAsync());
-						// Toss into other task and resume listening.
-						var _ = Task.Run(async ()=>{ 
-							await Handle(ctx, middleware);
-							await Finish(ctx);
-						});
+				foreach (var prefix in prefixes) { listener.Prefixes.Add(prefix); }
+				return await Listen(listener, stayOpen, middleware);
+			}
+		}
 
-					}
-
-				} catch (Exception e) {
-					Console.WriteLine("HttpServer.Serve: Internal Error - " + e);
-					return -1;
+		/// <summary> Listen for requests </summary>
+		/// <param name="listener"> <see cref="HttpListener"/> to use to listen with </param>
+		/// <param name="stayOpen"> <see cref="Func{TResult}"/> to use to stay open </param>
+		/// <param name="middleware"> <see cref="Middleware[]"/> to use when handling requests </param>
+		/// <returns> Task that completes once the server stops listening (via stayOpen becoming false or otherwise aborting the listener) </returns>
+		private static async Task<int> Listen(HttpListener listener, Func<bool> stayOpen, Middleware[] middleware) {
+			try {
+				listener.Start();
+				while (stayOpen()) {
+					Ctx ctx = new Ctx(await listener.GetContextAsync());
+					// Toss into other task and resume listening.
+					var _ = Task.Run(async () => {
+						await Handle(ctx, middleware);
+						await Finish(ctx);
+					});
 				}
+			} catch (Exception e) {
+				if (e is HttpListenerException && (e as HttpListenerException).ErrorCode == 995 ) { return 0; }
+				Console.WriteLine("HttpServer.Listen: Internal Error - " + e);
+				return -1;
 			}
 			return 0;
 		}
@@ -449,7 +510,7 @@ namespace MiniHttp {
 				Console.WriteLine($"HttpServer.Handle: Internal error in context: {ctx}\n{e}");
 				ctx.StatusCode = 500;
 				ctx.StatusDescription = $"Internal Server Error";
-				ctx.ContentType = "text/plain; charset=utf8";
+				ctx.ContentType = "text/plain; charset=utf-8";
 				ctx.body = $"500 Internal Server Error {e.GetType()} / {e.Message} \nStack Trace:\n{e.StackTrace}";
 			}
 
@@ -468,19 +529,19 @@ namespace MiniHttp {
 			}
 			byte[] data = ctx.body as byte[];
 			if (ctx.body is JsonObject || ctx.body is JsonArray) { 
-				ctx.ContentType = "application/json;charset=utf8";
+				ctx.ContentType = "application/json;charset=utf-8";
 				ctx.ContentEncoding = Encoding.UTF8;
 				ctx.body = ctx.body.ToString(); 
 			}
 			if (ctx.body is string) {
 				if (ctx.ContentType == null) {
 					ctx.ContentEncoding = Encoding.UTF8;
-					ctx.ContentType = "text/plain;charset=utf8";
+					ctx.ContentType = "text/plain;charset=utf-8";
 				} 
 				data = ctx.ContentEncoding.GetBytes(ctx.body as string);
 			}
 			if (data == null) {
-				ctx.ContentType = "text/plain;charset=utf8";
+				ctx.ContentType = "text/plain;charset=utf-8";
 				data = ctx.ContentEncoding.GetBytes("");
 			}
 
@@ -1017,6 +1078,75 @@ namespace MiniHttp {
 		/// <returns> Precompleted <see cref="Task"/> </returns>
 		public static Middleware SyncWrap(SyncMiddleware middleware) {
 			return (ctx, next) => { middleware(ctx, next); return Task.CompletedTask; };
+		}
+	}
+	public class MiniHttp_Tests {
+	
+		public static void TestBasic() {
+			bool running = true;
+			List<Middleware> middleware = new List<Middleware>();
+			//middleware.Add(Inspect);
+			middleware.Add(BodyParser);
+
+			Router r = new Router();
+			r.Get("/", (ctx, next) => { ctx.body = "Aww yeet"; });
+			r.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
+			r.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+			r.Post("/", (ctx, next) => { ctx.body = $"omg you sent \"{ctx.req.body}\" "; });
+
+			Router lower = new Router();
+			lower.Get("/ayy", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Ayy"; });
+			lower.Get("/bee", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Bee"; });
+			lower.Get("/cee", (ctx, next) => { ctx.body = new JsonObject("id", ctx.param["id"], "test", 5); });
+			lower.Get("/", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Homepage"; });
+
+			r.Any("/lower/:id/*", lower);
+
+			middleware.Add(r);
+			middleware.Add(Static("./public"));
+			string baseUrl = "http://localhost:3001";
+
+			var server = new HttpServer(baseUrl, middleware.ToArray());
+
+			List<Task<string>> tasks = new List<Task<string>>();
+			void testGet(string path, string expected) {
+				tasks.Add(Request.Get(baseUrl + path, (result)=> {
+					if (result != expected) { throw new Exception($"Did not recieve expected result \"{result}\"."); }
+				}));
+			}
+			void testPost(string path, string payload, string expected) {
+				tasks.Add(Request.Post(baseUrl + path, payload, (result) => {
+					if (result != expected) { throw new Exception($"Did not recieve expected result \"{result}\"."); }
+				}));
+			}
+			Action<string, Exception> onError = (s, e) => {
+				Console.WriteLine($"{s}: {e.InfoString()}");
+			};
+			Request.onError += onError;
+
+			testGet("/", "Aww yeet");
+			testGet("/what", "lolwhat");
+			testGet("/what/12345", "lolwhat #12345");
+			
+			testPost("/", "boat", "omg you sent \"boat\" ");
+
+			testGet("/lower/123", "123's Homepage");
+			testGet("/lower/123/ayy", "123's Ayy");
+			testGet("/lower/123/bee", "123's Bee");
+			testGet("/lower/123/cee", "{\"id\":\"123\",\"test\":5}");
+
+			foreach (var t in tasks) {
+				t.Wait();
+				if (t.Exception != null) { throw t.Exception; }
+			}
+			
+			running = false;
+			Request.onError -= onError;
+
+			testGet(baseUrl, null);
+			server.Stop();
+			server.serverTask.Wait();
+
 		}
 	}
 }

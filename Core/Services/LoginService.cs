@@ -99,7 +99,6 @@ namespace Ex {
 		public struct LoginFailure_Server {
 			public string ip;
 			public string reason;
-			public int sequence;
 		}
 		#endregion
 
@@ -366,19 +365,19 @@ namespace Ex {
 				outcome = Login(user, pass, msg.sender.remoteIP, version);
 			}
 			Credentials creds = outcome.creds;
-			string reason = outcome.reason;
-			LoginResult result = outcome.result;
-			UserLoginInfo userInfo = outcome.userInfo;
 			if (creds == null) {
+				string reason = outcome.reason;
 				msg.sender.Call(LoginResponse, "fail", reason);
 
 				Log.Info($"Client {msg.sender.identity} Failed to login.");
 
 				server.On(new LoginFailure_Server() {
-					ip = msg.sender.remoteIP
+					ip = msg.sender.remoteIP,
+					reason = reason
 				});
 
 			} else {
+				UserLoginInfo userInfo = outcome.userInfo;
 				var session = new Session(msg.sender, creds);
 				loginsByClient[msg.sender] = session;
 				loginsByUserId[creds.userId] = session;
@@ -525,6 +524,7 @@ namespace Ex {
 					time = DateTime.UtcNow
 				});
 
+
 			} catch (Exception e) {
 				Log.Error($"Error initializing user {user} / {userId} ", e);
 				return null;
@@ -546,6 +546,64 @@ namespace Ex {
 		/// <returns> True if password matches hash, false otherwise. </returns>
 		/// <remarks> Wraps <see cref="Argon2.Verify(string, string)"/> </remarks>
 		public static bool DefaultVerify(string hash, string pass) { return Argon2.Verify(hash, pass); }
+
+		private Router _router;
+		public Router router {
+			get {
+				if (_router == null) { 
+					_router = new Router();
+					_router.Get("/publicKey", (ctx, next)=> { ctx.body = new JsonObject("publicKey",kp.publicKey); });
+					_router.Post("/login", (ctx, next) => {
+						JsonObject result = new JsonObject();
+						ctx.body = result;
+						
+						string remoteIP = ctx.RemoteEndPoint.Address.ToString();
+						void Fail(string reason) { 
+							result["success"] = false; 
+							result["reason"] = reason;
+							server.On(new LoginFailure_Server() { ip = remoteIP, reason = reason});
+						}
+
+						try {
+							JsonObject data = ctx.req.bodyObj;
+							string user = data.Get<string>("user");
+							string pass = data.Get<string>("pass");
+							string version = data.Get<string>("version");
+							if (user == null || pass == null || version == null) {
+								Fail("Missing Information");
+								return;
+							}
+							try { pass = DecryptPassword(pass); }
+							catch (Exception) { Fail("Incorrectly encrypted password"); return; }
+
+							LoginOutcome outcome = Login(user, pass, remoteIP, version);
+							Credentials creds = outcome.creds;
+							if (creds == null) { Fail(outcome.reason); return; }
+
+							UserLoginInfo userInfo = outcome.userInfo;
+							userInfo.lastLogin = DateTime.UtcNow;
+							dbService.Save(userInfo);
+
+							result["success"] = true;
+							result["username"] = creds.username;
+							result["userId"] = creds.userId.ToString();
+							result["token"] = creds.token;
+							server.On(new LoginSuccess_Server());
+
+						} catch (Exception e) {
+							Fail("Server Error");
+							Log.Warning("LoginService.Router/login: Error during login", e);
+							ctx.res.StatusCode = 500;
+						}
+
+					});
+				}
+				
+				return _router;
+			}
+
+		}
+
 
 #endif
 

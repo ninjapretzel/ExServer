@@ -39,7 +39,8 @@ namespace Ex {
 		/// <summary> The main entry point for the application. </summary>
 		static void Main() {
 			Console.Clear();
-
+			// This is disgusting, but the only way I can be sure any `\r\n` get replaced with `\n`.
+			CopySourceMacro.FixFiles(SourceFileDirectory());
 			Config();
 
 			try {
@@ -247,8 +248,11 @@ namespace Ex {
 			middleware.Add(Inspect);
 			middleware.Add(BodyParser);
 
-			middleware.Add(Static("./public"));
+			Router router = new Router();
+			router.Any("/api/auth/*", server.GetService<LoginService>().router);
+			middleware.Add(router);
 
+			middleware.Add(Static("./public"));
 			httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
 
 			Console.WriteLine($"HTTP Listening at {hostname}");

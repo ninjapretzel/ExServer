@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 public static class CopySourceMacro {
 #if DEBUG
@@ -25,10 +26,22 @@ public static class CopySourceMacro {
 				Directory.CreateDirectory(folder);
 			}
 			string text = File.ReadAllText(file);
-			text = text.Replace("\r\n", "\n").Replace("\n\r", "\n").Replace("\r", "\n");
 			File.WriteAllText(destination, text);
 
 			//File.Copy(file, destination, true);
+		}
+	}
+
+	public static void FixFiles(string inDirectory) {
+		var files = GetAllFiles(inDirectory.ForwardSlashPath()).Select(s => s.ForwardSlashPath())
+			.Where(it => it.EndsWith(".cs"));
+		Console.WriteLine($"Checking {files.Count()} files in tree:\n{inDirectory}");
+		foreach (var file in files) {
+			string text = File.ReadAllText(file);
+			if (text.Contains("\r\n")) {
+				text = text.Replace("\r\n", "\n").Replace("\n\r", "\n").Replace("\r", "\n");
+				File.WriteAllText(file, text, Encoding.UTF8);
+			}
 		}
 	}
 

@@ -61,6 +61,7 @@ namespace Eternus {
 		}
 
 		public void On(LoginService.LoginSuccess_Server succ) {
+			if (succ.client == null) { return; }
 			Log.Info("EternusGame.On(LoginSuccess_Server)");
 			//Client client = succ.client;
 			//var user = GetService<LoginService>().GetLogin(client);

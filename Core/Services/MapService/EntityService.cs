@@ -112,6 +112,7 @@ namespace Ex {
 		/// <summary> Called when a login occurs. </summary>
 		/// <param name="succ"></param>
 		public void On(LoginService.LoginSuccess_Server succ) {
+			if (succ.client == null) { return; }
 			if (!isMaster) { return; }
 			// Log.Info("EntityService.On(LoginSuccess_Server)");
 			if (FindUser == null && GenerateUser == null) {

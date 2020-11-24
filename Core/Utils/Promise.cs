@@ -1,4 +1,4 @@
-﻿using BakaTest;
+using BakaTest;
 using System;
 using System.Collections.Generic;
 using System.Text;

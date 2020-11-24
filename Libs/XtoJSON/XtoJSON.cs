@@ -2572,7 +2572,9 @@ public class JsonDeserializeFailedException : Exception {
 	public int line { get { return state.line; } }
 	/// <summary> Current number of characters read on line </summary>
 	public int col { get { return state.col; } }
-	public JsonDeserializeFailedException(string msg, JsonDeserializer state) : base(msg + $" @{state.line}:{state.col}") {
+	public JsonDeserializeFailedException(string msg, JsonDeserializer state) 
+			: base(msg + $" @{state.line}:{state.col} cur='{state.cur}', in\n{state.json}") 
+	{
 		this.state = state;
 	}
 }
@@ -2582,7 +2584,7 @@ public class JsonDeserializeFailedException : Exception {
 public class JsonDeserializer {
 
 	/// <summary> Json text that is being parsed </summary>
-	private string json;
+	public string json { get; private set; }
 	/// <summary> Internal index. Do not modify outside of <see cref="index"/>.set </summary>
 	private int __index;
 	/// <summary> Current position. </summary>
@@ -2610,7 +2612,7 @@ public class JsonDeserializer {
 	public int col { get; private set; }
 
 	/// <summary> quick access to the current character </summary>
-	private char cur { get { return json[index]; } }
+	public char cur { get { return json[index]; } }
 
 	/// <summary> quick access to the previous character, or a nullchar </summary>
 	private char prev { get { return index > 0 ? json[index-1] : '\0'; } }
@@ -2874,11 +2876,14 @@ public class JsonDeserializer {
 				Skip();
 				if (cur != ':') { throw new JsonDeserializeFailedException("Strict Json requires ':' after object key", this); }
 				index++;
+				Skip();
 				JsonValue value = LintValue();
 				obj.Add(key, value);
 				Skip();
 				if (cur == '}') { index++; break; }
 				if (cur != ',') { throw new JsonDeserializeFailedException("Strict Json requires ',' separating object pairs", this); }
+				index++;
+				Skip();
 			}
 			return obj;
 		}

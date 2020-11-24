@@ -51,8 +51,8 @@ namespace Ex {
 
 			instance.GenerateKey(publicStream, privateStream, username, password, strength, certainty);
 
-			string publicKey = Encoding.UTF8.GetString(publicStream.ToArray());
-			string privateKey = Encoding.UTF8.GetString(privateStream.ToArray());
+			string publicKey = Encoding.UTF8.GetString(publicStream.ToArray()).Replace("\r\n", "\n");
+			string privateKey = Encoding.UTF8.GetString(privateStream.ToArray()).Replace("\r\n", "\n");
 
 			return new KeyPair(publicKey, privateKey);
 		}
@@ -68,7 +68,7 @@ namespace Ex {
 
 			instance.EncryptStream(ins, outs, keys, true, true);
 			
-			return Encoding.UTF8.GetString(outs.ToArray());
+			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Encrypt the given <paramref name="payload"/> with the given <paramref name="keyPair"/>. </summary>
 		/// <param name="payload"> Payload to encrypt </param>
@@ -89,7 +89,7 @@ namespace Ex {
 
 			instance.SignStream(ins, outs, keys, password, true, true);
 
-			return Encoding.UTF8.GetString(outs.ToArray());
+			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Sign the given <paramref name="payload"/> with the given <paramref name="keyPair"/>. </summary>
 		/// <param name="payload"> Payload to sign </param>
@@ -113,7 +113,7 @@ namespace Ex {
 
 			instance.EncryptStreamAndSign(ins, outs, publicKeys, privateKeys, password, true, true);
 
-			return Encoding.UTF8.GetString(outs.ToArray());
+			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Decrypt the given <paramref name="encrypted"/> payload with the given <paramref name="privateKey"/>. </summary>
 		/// <param name="payload"> Payload to decrypt </param>
@@ -126,7 +126,7 @@ namespace Ex {
 
 			instance.DecryptStream(ins, outs, keys, password);
 
-			return Encoding.UTF8.GetString(outs.ToArray());
+			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Decrypt the given <paramref name="encrypted"/> payload with the given <paramref name="keyPair"/>. </summary>
 		/// <param name="payload"> Payload to decrypt </param>
@@ -171,7 +171,7 @@ namespace Ex {
 
 			try {
 				instance.DecryptStreamAndVerify(ins, outs, publicKeys, privateKeys, password);
-				result = Encoding.UTF8.GetString(outs.ToArray());
+				result = Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 				return true;
 			} catch (Exception) {
 				result = null;

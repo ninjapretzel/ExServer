@@ -834,7 +834,7 @@ namespace MiniHttp {
 
 				byte[] final = stream.ToArray();
 				if (ctx.req.ContentEncoding != null) {
-					ctx.req.body = ctx.req.ContentEncoding.GetString(final);
+					ctx.req.body = ctx.req.ContentEncoding.GetString(final).Replace("\r\n", "\n");
 					try {
 						JsonValue result = Json.ParseStrict(ctx.req.body);
 						if (result is JsonObject) { ctx.req.bodyObj = result as JsonObject; }
@@ -1088,11 +1088,11 @@ namespace MiniHttp {
 			//middleware.Add(Inspect);
 			middleware.Add(BodyParser);
 
-			Router r = new Router();
-			r.Get("/", (ctx, next) => { ctx.body = "Aww yeet"; });
-			r.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
-			r.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
-			r.Post("/", (ctx, next) => { ctx.body = $"omg you sent \"{ctx.req.body}\" "; });
+			Router router = new Router();
+			router.Get("/", (ctx, next) => { ctx.body = "Aww yeet"; });
+			router.Get("/what", (ctx, next) => { ctx.body = "lolwhat"; });
+			router.Get("/what/:id", (ctx, next) => { ctx.body = "lolwhat #" + ctx.param["id"].stringVal; });
+			router.Post("/", (ctx, next) => { ctx.body = $"omg you sent \"{ctx.req.body}\" "; });
 
 			Router lower = new Router();
 			lower.Get("/ayy", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Ayy"; });
@@ -1100,9 +1100,9 @@ namespace MiniHttp {
 			lower.Get("/cee", (ctx, next) => { ctx.body = new JsonObject("id", ctx.param["id"], "test", 5); });
 			lower.Get("/", (ctx, next) => { ctx.body = $"{ctx.param["id"].stringVal}'s Homepage"; });
 
-			r.Any("/lower/:id/*", lower);
+			router.Any("/lower/:id/*", lower);
 
-			middleware.Add(r);
+			middleware.Add(router);
 			middleware.Add(Static("./public"));
 			string baseUrl = "http://localhost:3001";
 

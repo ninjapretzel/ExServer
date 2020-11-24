@@ -85,7 +85,7 @@ public static class Server_Tests {
 		Thread.Sleep(50);
 
 		Socket sock = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-		sock.Connect(IPAddress.Parse("127.0.0.1"), port);
+		sock.Connect("127.0.0.1", port);
 		Client admin = new Client(sock);
 		// Client admin = new Client(new TcpClient("localhost", port));
 		admin.AddService<DebugService>();
@@ -104,7 +104,6 @@ public static class Server_Tests {
 		
 		try {
 			admin.ConnectSlave();
-			admin.GetService<LoginService>().RequestLogin("admin", "admin");
 			// Internally, the above does something like the following:
 			// Sending network messages, you can either use the Members<> template to access the member method you want to call...
 			// admin.Call(Members<LoginService>.i.Login, "admin", "admin", VersionInfo.VERSION);
@@ -153,10 +152,17 @@ public static class Server_Tests {
 		var testData = DefaultSetup(typeof(TestService));
 		// defer CleanUp(testData);
 		var testService = testData.admin.GetService<TestService>();
+		var loginService = testData.admin.GetService<LoginService>();
 		var sync = testData.admin.GetService<SyncService>();
 		try {
-			
+
 			// Logging in lights up lots of code paths. Need to wait ~2 seconds for it to finish.
+			if (!WaitFor(()=> loginService.serverPublic != null, 2500)) {
+				throw new Exception("Test failed: Test service did not recieve public key!");
+			}
+			
+			testData.admin.GetService<LoginService>().RequestLogin("admin", "admin");
+
 			if (!WaitFor(testService.LoggedIn, 2500)) { 
 				throw new Exception("Test Failed: Test service did not log in!");
 			}

@@ -73,6 +73,14 @@ namespace Ex {
 	/// <param name="secret"> Secret password to use </param>
 	/// <returns> true if JWT is valid, false otherwise.  </returns>
 	public delegate bool DecodeJWTFn<T>(string token, out T result, string secret);
+	/// <summary> Delegate for encrypting </summary>
+	/// <param name="payload"> Payload to encrypt </param>
+	/// <returns> Encrypted string </returns>
+	public delegate string EncryptFn(string payload);
+	/// <summary> Delegate for decrypting </summary>
+	/// <param name="encrypted"> Encrypted payload to decrypt </param>
+	/// <returns> Decrypted string or null if Decryption fails </returns>
+	public delegate string DecryptFn(string encrypted);
 
 	public class LoginService : Service {
 
@@ -201,6 +209,13 @@ namespace Ex {
 		}
 
 #endif
+		string _VERSION_MISMATCH = null;
+		string VERSION_MISMATCH {
+			get {
+				if (_VERSION_MISMATCH != null) { return _VERSION_MISMATCH; }
+				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
+			}
+		}
 
 		/// <summary> Reference to login information that a local client can use. passhash of this is always "local" if it exists. </summary>
 		public Credentials localLogin { get; private set; } = null;
@@ -214,6 +229,19 @@ namespace Ex {
 		public Func<string, bool> usernameValidator = DefaultValidateUsername;
 		/// <summary> Function used to check for valid passwords. </summary>
 		public Func<string, bool> passwordValidator = DefaultValidatePassword;
+		
+		/// <summary> Local keypair for encryption usages. </summary>
+		public Pgp.KeyPair kp = Pgp.GenerateKey();
+		/// <summary> Server's public key, or null if not yet sent. </summary>
+		public string serverPublic = null;
+		/// <summary> Current function to encrypt sensitive information with </summary>
+		public EncryptFn EncryptPassword;
+		/// <summary> Current function to decrypt sensitive information with </summary>
+		public DecryptFn DecryptPassword;
+		/// <summary> Default function to encrypt sensitive information with </summary>
+		public string DefaultEncrypt(string pass) { return Pgp.Encrypt(pass, serverPublic); }
+		/// <summary> Default function to decrypt sensitive information with </summary>
+		public string DefaultDecrypt(string encoded) { return Pgp.Decrypt(encoded, kp); }
 #if !UNITY
 		/// <summary> Hash function. Defaults to <see cref="Isopoh.Cryptography.Argon2.Argon2.Hash"/> with a default configuration </summary>
 		public HashFn Hash = DefaultHash;
@@ -237,6 +265,9 @@ namespace Ex {
 		public override void OnEnable() {
 			loginsByClient = new Dictionary<Client, Session>();
 			loginsByUserId = new Dictionary<Guid, Session>();
+			EncryptPassword = DefaultEncrypt;
+			DecryptPassword = DefaultDecrypt;
+
 		}
 
 		public override void OnDisable() {
@@ -245,6 +276,9 @@ namespace Ex {
 		}
 
 		public override void OnConnected(Client client) {
+			if (isMaster) {
+				client.Call(SetServerPublicKey, kp.publicKey);
+			}
 			
 		}
 		
@@ -257,6 +291,11 @@ namespace Ex {
 				loginsByUserId.Remove(guid);
 			}
 			
+		}
+#else
+		public override void OnEnable() {
+			EncryptPassword = DefaultEncrypt;
+			DecryptPassword = DefaultDecrypt;
 		}
 #endif
 
@@ -275,7 +314,7 @@ namespace Ex {
 			if (Interlocked.CompareExchange(ref _isAttemptingLogin, 1, 0) != 0) { return false; }
 			
 			loginName = user;
-			server.localClient.Call(Login, user, pass, VersionInfo.VERSION);
+			server.localClient.Call(Login, user, EncryptPassword(pass), VersionInfo.VERSION);
 			return true;
 		}
 
@@ -298,19 +337,21 @@ namespace Ex {
 			}	
 		}
 
-		string _VERSION_MISMATCH = null;
-		string VERSION_MISMATCH {
-			get {
-				if (_VERSION_MISMATCH != null) { return _VERSION_MISMATCH; }
-				return (_VERSION_MISMATCH = $"Version Mismatch\nPlease update to version [{versionCode}]");
+		/// <summary> Server -> Client RPC. Sets <see cref="serverPublic"/> with the given parameter. </summary>
+		/// <param name="msg"> RPC Info. </param>
+		public void SetServerPublicKey(RPCMessage msg) {
+			if (isSlave) {
+				serverPublic = msg[0];
+				Log.Info($"Got server public key {serverPublic}");
 			}
 		}
+
 		/// <summary> Client -> Server RPC. Checks user and credentials to validate login, responds with <see cref="LoginResponse(RPCMessage)"/></summary>
 		/// <param name="msg"> RPC Info. </param>
 		public void Login(RPCMessage msg) {
 #if !UNITY
 			string user = msg[0];
-			string pass = msg[1];
+			string pass = DecryptPassword(msg[1]);
 			string version = msg.numArgs >= 3 ? msg[2] : "[[Version Not Set]]";
 
 			LoginOutcome outcome; 

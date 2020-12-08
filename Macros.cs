@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-public static class CopySourceMacro {
+public static class Macros {
 #if DEBUG
-	public static void CopyAllFiles(string fromDirectory, string toDirectory) {
+	public static void CopySourceFiles(string fromDirectory, string toDirectory) {
 		var files = GetAllFiles(fromDirectory.ForwardSlashPath()).Select(s => s.ForwardSlashPath());
 		Console.WriteLine($"Copying {files.Count()} files in tree \n\tFrom: {fromDirectory}\n\tTo  : {toDirectory}");
 		if (Directory.Exists(toDirectory)) {
@@ -32,7 +32,7 @@ public static class CopySourceMacro {
 		}
 	}
 
-	public static void FixFiles(string inDirectory) {
+	public static void FixSourceFiles(string inDirectory) {
 		var files = GetAllFiles(inDirectory.ForwardSlashPath()).Select(s => s.ForwardSlashPath())
 			.Where(it => it.EndsWith(".cs"));
 		Console.WriteLine($"Checking {files.Count()} files in tree:\n{inDirectory}");

@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
 #if UNITY_EDITOR
@@ -44,6 +44,8 @@ namespace BakaTest {
 #else
 namespace BakaTest {
 	public static class BakaTestHook {
+		public static Action<string> logger;
+
 		public static void RunTests() {
 			DateTime start = DateTime.UtcNow;
 
@@ -51,21 +53,21 @@ namespace BakaTest {
 			var testTypes = testAssembly.DefinedTypes
 				.Where(t => t.Name.EndsWith("_Tests"));
 
-			Console.WriteLine($"Found {testTypes.Count()} test classes to run");
+			logger?.Invoke($"Found {testTypes.Count()} test classes to run");
 			
 			foreach (var type in testTypes) {
 				try {
-					Console.WriteLine(BakaTests.RunTests(type));
+					var result = BakaTests.RunTests(type);
+					logger?.Invoke(result.logstr);
 				} catch (Exception e) {
-					Console.WriteLine($"Failed to run tests for type {type}");
-					Console.WriteLine(e);
+					logger?.Invoke($"Failed to run tests for type {type}\nException occurred: {e}");
 				}
 			}
 
 			DateTime ended = DateTime.UtcNow;
 			TimeSpan elapsed = ended - start;
 
-			Console.WriteLine($"Finished Testing.\n\tRan {testTypes.Count() } test types in {elapsed.TotalMilliseconds}ms");
+			logger?.Invoke($"Finished Testing.\n\tRan {testTypes.Count() } test types in {elapsed.TotalMilliseconds}ms");
 
 		}
 	}
@@ -333,10 +335,14 @@ namespace BakaTest {
 #if !UNITY // Note: Unity has control over this symbol, so this function shouldn't be marked Conditional in some cases when unity uses DEBUG
 		[Conditional("DEBUG")]
 #endif
-		public static void Log(object message) {
+		public static void Log(object message, bool newline = true) {
 #if DEBUG
 			if (Out != null) {
-				Out.WriteLine(message);
+				if (newline) {
+					Out.WriteLine(message);
+				} else { 
+					Out.Write(message); 
+				}
 			}
 #endif
 		}
@@ -392,21 +398,71 @@ namespace BakaTest {
 		}
 		#endregion
 
-		/// <summary> Runs all of the tests, and returns a string containing information about tests passing/failing. </summary>
-		/// <returns> A log of information about the results of the tests. </returns>
-		public static string RunTests(params Type[] types) {
-			StringBuilder str = "";
-			foreach (var type in types) {
-				str += RunTests(type);
-			}
 
-			return str.ToString();
+		public static bool useColors = true;
+		public static string RED { get { return useColors ? "\\r" : ""; } }
+		public static string GREEN { get { return useColors ? "\\g" : ""; } }
+		public static string YELLOW { get { return useColors ? "\\y" : ""; } }
+		public static string ORANGE { get { return useColors ? "\\e" : ""; } }
+		public static string WHITE { get { return useColors ? "\\w" : ""; } }
+		public static string BLUE { get { return useColors ? "\\b" : ""; } }
+		public static string PURPLE { get { return useColors ? "\\v" : ""; } }
+		public static string GRAY { get { return useColors ? "\\h" : ""; } }
+		public static string DARKGRAY { get { return useColors ? "\\d" : ""; } }
+
+		public class TestResult {
+			public string logstr;
+			public DateTime start;
+			public DateTime end;
+			public int tests;
+			public int success;
+			public int failure;
 		}
 
-		public static string RunTests(Type testType) {
+		/// <summary> Runs all of the tests, and returns a string containing information about tests passing/failing. </summary>
+		/// <returns> A log of information about the results of the tests. </returns>
+		public static List<TestResult> RunTests(params Type[] types) {
+			StringBuilder str = "";
+			List<TestResult> results = new List<TestResult>();
+			foreach (var type in types) {
+				results.Add(RunTests(type));
+				// str += RunTests(type);
+			}
+
+			return results;
+		}
+
+		public static TestResult RunTests(Type testType) {
 			DateTime start = DateTime.UtcNow;
 			var tests = testType.GetTestMethods();
 			var cleanup = testType.GetCleanupMethod();
+
+			string leftpad(string str, int width, char pad = ' ') {
+				if (str.Length > width) { return str; }
+				char[] s = new char[width];
+				int off = width - str.Length;
+				for (int i = 0; i < width; i++) {
+					if (i < off) {
+						s[i] = pad;
+					} else {
+						s[i] = str[i - off];
+					}
+				}
+				return new string(s);
+			}
+			string rightpad(string str, int width, char pad = ' ') {
+				if (str.Length > width) { return str; }
+				char[] s = new char[width];
+				int off = width - str.Length;
+				for (int i = 0; i < width; i++) {
+					if (i < str.Length) {
+						s[i] = str[i];
+					} else {
+						s[i] = pad;
+					}
+				}
+				return new string(s);
+			}
 
 			Action doCleanup = () => {
 				if (cleanup != null) {
@@ -415,7 +471,7 @@ namespace BakaTest {
 						UnityEngine.Debug.LogError("Error during cleanup");
 						UnityEngine.Debug.LogError(e);
 						#else
-						Log($"Error during cleanup for {testType}: ");
+						Log($"{RED}Error during cleanup for {testType}: ");
 						Log(e);
 						#endif
 
@@ -431,22 +487,21 @@ namespace BakaTest {
 			int success = 0;
 			int failure = 0;
 			Out = logWriter;
-			Log($"Testing for type {testType}");
-			Log("Testing Log Follows:");
+			Log($"{WHITE}Testing log for type {PURPLE}{testType}{WHITE} follows:");
 
 			try { testType.GetBeforeAll()?.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
-				Log($"Failed to invoke BEFORE on {testType}: ");
+				Log($"{RED}Failed to invoke BEFORE on {testType}: ");
 				Log(e);
 			}
 
 			foreach (var test in tests) {
-				Log("Running (" + test.Name + ")");
+				Log($"{WHITE}Running {rightpad(test.Name, 64, ' ')}", false);
 
 				doCleanup();
 
 				try {
 					test.Invoke(null, empty);
-					Log("\tSuccess!");
+					Log($"\t{GREEN}Success!");
 					success++;
 
 				} catch (TargetInvocationException e) {
@@ -456,21 +511,21 @@ namespace BakaTest {
 							AssertFailed fail = ex as AssertFailed;
 							string type = fail.type;
 							if (type == null) { type = "Assertion"; }
-							Log("\tFailure, " + type + " Failed:\n" + fail.description);
+							Log($"{RED}\tFailure, {type} Failed:\n{fail.description}");
 						} else {
-							Log("\tFailure, Exception Generated: " + ex.GetType().Name);
-							Log("\t\t" + ex.Message);
+							Log($"{RED}\tFailure, Exception Generated: {ex.GetType().Name}");
+							Log($"\t\t{ex.Message}");
 
 						}
-						Log("\tLocation: " + ex.StackTrace);
-						Log("\tInner: " + ex.InnerException);
+						Log($"\tLocation: {ex.StackTrace}");
+						Log($"\tInner: {ex.InnerException}");
 
 					}
 					failure++;
 					Log("\n");
 				} catch (Exception e) {
-					Log("Unexpected Exception:\n\t" + e.GetType().Name);
-					Log("\tFull Trace: " + e.StackTrace);
+					Log($"{RED}Unexpected Exception:\n\t" + e.GetType().Name);
+					Log($"\t{WHITE}Full Trace: " + e.StackTrace);
 					failure++;
 					Log("\n");
 				}
@@ -478,7 +533,7 @@ namespace BakaTest {
 			}
 
 			try { testType.GetAfterAll()?.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
-				Console.WriteLine($"Failed to invoke AFTER on {testType}: ");
+				Console.WriteLine($"{RED}Failed to invoke AFTER on {testType}: ");
 				Console.WriteLine(e);
 			}
 
@@ -488,15 +543,27 @@ namespace BakaTest {
 			DateTime finished = DateTime.UtcNow;
 			TimeSpan elapsed = finished - start;
 			StringBuilder strb = new StringBuilder();
-			string summary = $"\nSummary: Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms. {success} success, {failure} failure. \n";
+			string c = failure > 0 ? RED : GREEN;
+			string summary = $"{RED}Summary: {WHITE}Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms. {c} {success} success, {failure} failure.";
 			strb.Append(summary);
+			strb.Append("\n");
 			strb.Append(encoding.GetString(logStream.ToArray()));
 			strb.Append(summary);
 			
 
 			doCleanup();
 
-			return strb.ToString();
+			TestResult result = new TestResult();
+			result.logstr = strb;
+			result.start = start;
+			result.end = finished;
+			result.failure = failure;
+			result.success = success;
+			result.tests = tests.Count;
+
+
+
+			return result;
 		}
 
 

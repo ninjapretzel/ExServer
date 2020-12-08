@@ -40,7 +40,7 @@ namespace Ex {
 		static void Main() {
 			Console.Clear();
 			// This is disgusting, but the only way I can be sure any `\r\n` get replaced with `\n`.
-			CopySourceMacro.FixFiles(SourceFileDirectory());
+			Macros.FixSourceFiles(SourceFileDirectory());
 			Config();
 
 			try {
@@ -55,8 +55,8 @@ namespace Ex {
 					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
-					CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-					CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 				} catch (Exception) {
 					Console.WriteLine("Copying source files failed.");
 				}
@@ -103,6 +103,7 @@ namespace Ex {
 		}
 
 		static void StaticSetup() {
+			BakaTest.BakaTestHook.logger = (str) => { Log.Info(str, "Tests"); };
 
 			//JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
 			try {
@@ -194,6 +195,8 @@ namespace Ex {
 			//ArtbreederAPI.GenerateChild("general", "56f1ddc716ac238b5ce6", .7, .4, .7);
 			//ArtbreederAPI.GenerateChild("general", "56f1ddc716ac238b5ce6", .7, .4, .7);
 			//ArtbreederAPI.GenerateChild("general", "61efecf69922913b499f", .7, .4, .7);
+
+
 
 			Console.ReadLine();
 			

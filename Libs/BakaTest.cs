@@ -46,28 +46,14 @@ namespace BakaTest {
 	public static class BakaTestHook {
 		public static Action<string> logger;
 
-		public static void RunTests() {
+		public static List<BakaTests.TestResult> RunTests() {
 			DateTime start = DateTime.UtcNow;
 
 			var testAssembly = Assembly.GetAssembly(typeof(BakaTests));
 			var testTypes = testAssembly.DefinedTypes
 				.Where(t => t.Name.EndsWith("_Tests"));
 
-			logger?.Invoke($"Found {testTypes.Count()} test classes to run");
-			
-			foreach (var type in testTypes) {
-				try {
-					var result = BakaTests.RunTests(type);
-					logger?.Invoke(result.logstr);
-				} catch (Exception e) {
-					logger?.Invoke($"Failed to run tests for type {type}\nException occurred: {e}");
-				}
-			}
-
-			DateTime ended = DateTime.UtcNow;
-			TimeSpan elapsed = ended - start;
-
-			logger?.Invoke($"Finished Testing.\n\tRan {testTypes.Count() } test types in {elapsed.TotalMilliseconds}ms");
+			return BakaTests.RunTests(logger, testTypes);
 
 		}
 	}
@@ -402,6 +388,7 @@ namespace BakaTest {
 		public static bool useColors = true;
 		public static string RED { get { return useColors ? "\\r" : ""; } }
 		public static string GREEN { get { return useColors ? "\\g" : ""; } }
+		public static string CYAN { get { return useColors ? "\\c" : ""; } }
 		public static string YELLOW { get { return useColors ? "\\y" : ""; } }
 		public static string ORANGE { get { return useColors ? "\\e" : ""; } }
 		public static string WHITE { get { return useColors ? "\\w" : ""; } }
@@ -421,48 +408,77 @@ namespace BakaTest {
 
 		/// <summary> Runs all of the tests, and returns a string containing information about tests passing/failing. </summary>
 		/// <returns> A log of information about the results of the tests. </returns>
-		public static List<TestResult> RunTests(params Type[] types) {
-			StringBuilder str = "";
+		public static List<TestResult> RunTests(Action<string> logger, params Type[] types) {
+			return RunTests(logger, new List<Type>(types));
+		}
+
+		public static List<TestResult> RunTests(Action<string> logger, IEnumerable<Type> types) {
+			StringBuilder str = (logger != null) ? new StringBuilder() : null;
+			
+			str?.Append($"{WHITE}Found {types.Count()} test classes to run");
 			List<TestResult> results = new List<TestResult>();
+			DateTime start = DateTime.UtcNow;
+
+			int tests = 0;
+			int success = 0;
+			int failure = 0;
 			foreach (var type in types) {
-				results.Add(RunTests(type));
-				// str += RunTests(type);
+				try {
+					var result = BakaTests.RunTests(type);
+					tests += result.tests;
+					success += result.success;
+					failure += result.failure;
+
+					str?.Append(result.logstr + "\n");
+				} catch (Exception e) {
+					str?.Append($"{RED}Failed to run tests for type {type}\nException occurred: {e}");
+				}
 			}
+
+			DateTime ended = DateTime.UtcNow;
+			TimeSpan elapsed = ended - start;
+			string c = failure > 0 ? RED : GREEN;
+			string s1 = rightpad($"Ran {tests} tests in {elapsed.TotalMilliseconds}ms", 45);
+			string s2 = leftpad($"{GREEN}{success}/{tests} success, {c}{failure} failure.", useColors ? 32 : 30);
+			str?.Append($"\n{WHITE}Finished Testing. Found {types.Count()} types." 
+				+ $"\n{CYAN}Final Summary: {WHITE}{s1}{s2}");
+			logger?.Invoke(str);
+
 
 			return results;
 		}
 
+		private static string leftpad(string str, int width, char pad = ' ') {
+			if (str.Length > width) { return str; }
+			char[] s = new char[width];
+			int off = width - str.Length;
+			for (int i = 0; i < width; i++) {
+				if (i < off) {
+					s[i] = pad;
+				} else {
+					s[i] = str[i - off];
+				}
+			}
+			return new string(s);
+		}
+		private static string rightpad(string str, int width, char pad = ' ') {
+			if (str.Length > width) { return str; }
+			char[] s = new char[width];
+			int off = width - str.Length;
+			for (int i = 0; i < width; i++) {
+				if (i < str.Length) {
+					s[i] = str[i];
+				} else {
+					s[i] = pad;
+				}
+			}
+			return new string(s);
+		}
 		public static TestResult RunTests(Type testType) {
 			DateTime start = DateTime.UtcNow;
 			var tests = testType.GetTestMethods();
 			var cleanup = testType.GetCleanupMethod();
 
-			string leftpad(string str, int width, char pad = ' ') {
-				if (str.Length > width) { return str; }
-				char[] s = new char[width];
-				int off = width - str.Length;
-				for (int i = 0; i < width; i++) {
-					if (i < off) {
-						s[i] = pad;
-					} else {
-						s[i] = str[i - off];
-					}
-				}
-				return new string(s);
-			}
-			string rightpad(string str, int width, char pad = ' ') {
-				if (str.Length > width) { return str; }
-				char[] s = new char[width];
-				int off = width - str.Length;
-				for (int i = 0; i < width; i++) {
-					if (i < str.Length) {
-						s[i] = str[i];
-					} else {
-						s[i] = pad;
-					}
-				}
-				return new string(s);
-			}
 
 			Action doCleanup = () => {
 				if (cleanup != null) {
@@ -495,13 +511,14 @@ namespace BakaTest {
 			}
 
 			foreach (var test in tests) {
-				Log($"{WHITE}Running {rightpad(test.Name, 64, ' ')}", false);
+				// 8 + 70 + 2 = 80
+				Log($"{WHITE}Running {rightpad(test.Name+"()", 70)}", false);
 
 				doCleanup();
 
 				try {
 					test.Invoke(null, empty);
-					Log($"\t{GREEN}Success!");
+					Log($"{GREEN}  Success!"); // + 10 = 90
 					success++;
 
 				} catch (TargetInvocationException e) {
@@ -511,9 +528,9 @@ namespace BakaTest {
 							AssertFailed fail = ex as AssertFailed;
 							string type = fail.type;
 							if (type == null) { type = "Assertion"; }
-							Log($"{RED}\tFailure, {type} Failed:\n{fail.description}");
+							Log($"{RED} Failure\n{type} Failed:\n{fail.description}");
 						} else {
-							Log($"{RED}\tFailure, Exception Generated: {ex.GetType().Name}");
+							Log($"{RED} Failure\nException Generated: {ex.GetType().Name}");
 							Log($"\t\t{ex.Message}");
 
 						}
@@ -544,7 +561,9 @@ namespace BakaTest {
 			TimeSpan elapsed = finished - start;
 			StringBuilder strb = new StringBuilder();
 			string c = failure > 0 ? RED : GREEN;
-			string summary = $"{RED}Summary: {WHITE}Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms. {c} {success} success, {failure} failure.";
+			string summary = rightpad($"{BLUE}Summary: {WHITE}Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms.", useColors ? 62 : 60) +
+				leftpad($"{GREEN}{success} success, {c}{failure} failure.", useColors ? 34 : 30);
+			strb.Append("\n");
 			strb.Append(summary);
 			strb.Append("\n");
 			strb.Append(encoding.GetString(logStream.ToArray()));

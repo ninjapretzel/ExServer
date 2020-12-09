@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,10 +19,12 @@ public static class Json_Tests {
 		prev = null;
 	}
 
+	// Test Code
+	
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	// Test Code
+	
 	public class TestReflecting {
 		private class PrimitivesModel {
 			public float value1 = 1;
@@ -117,7 +119,10 @@ public static class Json_Tests {
 		}
 	}
 
-	/// <summary> Test holding JsonObject test functions </summary>
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	
 	public class TestJsonObject {
 		public static void TestObjectAdd() {
 			{
@@ -407,7 +412,11 @@ public static class Json_Tests {
 
 		}
 	}
-	/// <summary> Test holding JsonArray test functions </summary>
+
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
 	public static class TestJsonArray {
 		public static void TestArrayGeneral() {
 			{
@@ -660,7 +669,10 @@ public static class Json_Tests {
 		}
 	}
 
-	/// <summary> Tests for non-standard json features, other than comments. </summary>
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
 	public static class TestJsonExt {
 
 		public static void TestObjectSetParse() {
@@ -740,7 +752,10 @@ public static class Json_Tests {
 		}
 	}
 
-	/// <summary> Test holding General JsonValue test functions </summary>
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
+
 	public static class TestGeneral {
 		public static void TestEscapes() {
 			{
@@ -987,6 +1002,7 @@ public static class Json_Tests {
 	////////////////////////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	
 	public static class TestExt {
 
 		public class NullableModel {
@@ -1035,6 +1051,9 @@ public static class Json_Tests {
 		}
 
 	}
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
 
 	public static class TestComments {
 		public static void TestObjects(string[] jsonLits, JsonObject expected) {
@@ -1227,7 +1246,120 @@ thing//
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
+	public static class TestStrict {
+		public static void TestStrictObjectParse() {
+			string goodInput = 
+@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", "");
 
+			string[] badInputs = new string[] {
+@"{'name':'bob' 'str':7,'dex':8,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", ""),
+
+@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false,'cool':true,}".Replace('\'', '\"').Replace("\n", ""),
+
+@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion'3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", ""),
+
+@"{'name':'bob','str':7,'dex':8,,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", ""),
+
+@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
+'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
+'awesome':false}'cool':true}".Replace('\'', '\"').Replace("\n", "")
+
+			};
+
+			JsonObject expected = new JsonObject();
+			expected["name"] = "bob";
+			expected["str"] = 7;
+			expected["dex"] = 8;
+			expected["vit"] = 5;
+			expected["agi"] = 6;
+			expected["bag"] = new JsonObject("potion", 20, "hi-potion", 3);
+			expected["wallet"] = new JsonObject("gil", 230, "shards", 23);
+			expected["awesome"] = false;
+			expected["cool"] = true;
+
+			JsonObject parsed = Json.ParseStrict<JsonObject>(goodInput);
+			parsed.ShouldEqual(expected);
+			string toStringed = parsed.ToString();
+			string prettyPrinted = parsed.PrettyPrint();
+			JsonObject reparsed1 = Json.ParseStrict<JsonObject>(toStringed);
+			JsonObject reparsed2 = Json.ParseStrict<JsonObject>(prettyPrinted);
+
+			reparsed1.ShouldEqual(expected);
+			reparsed2.ShouldEqual(expected);
+
+			foreach (var bad in badInputs) {
+				Exception e = null;
+				try {
+					JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
+				} catch (Exception ex) {
+					e = ex;
+				}
+				e.ShouldNotBe(null);
+
+			}
+
+
+		}
+
+		public static void TestStrictArrayParse() {
+			string goodInput =
+@"[1,2,3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", "");
+
+			string[] badInputs = new string[] {
+@"[1,2 3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3 'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3,'a','b','c' [123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3,'a','b','c',[123,456,789,0,],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3,'a','b','c',[123,456,789,0] {'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3,'a','b','c',[123,456,789,0]],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
+@"[1,2,3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'},]".Replace('\'', '\"').Replace("\n", ""),
+
+
+			};
+
+			JsonArray expected = new JsonArray(1,2,3,"a","b","c",
+				new JsonArray(123,456,789,0),
+				new JsonObject("1",2,"3","a","b","c"));
+
+			JsonArray parsed = Json.ParseStrict<JsonArray>(goodInput);
+			parsed.ShouldEqual(expected);
+			string toStringed = parsed.ToString();
+			string prettyPrinted = parsed.PrettyPrint();
+
+			JsonArray reparsed1 = Json.ParseStrict<JsonArray>(toStringed);
+			JsonArray reparsed2 = Json.ParseStrict<JsonArray>(prettyPrinted);
+
+			reparsed1.ShouldEqual(expected);
+			reparsed2.ShouldEqual(expected);
+
+
+			foreach (var bad in badInputs) {
+				Exception e = null;
+				try {
+					JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
+				} catch (Exception ex) {
+					e = ex;
+				}
+				e.ShouldNotBe(null);
+			}
+
+		}
+
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
 
 
 }

@@ -1,4 +1,4 @@
-/*	XtoJSON
+﻿/*	XtoJSON
 	Lightweight JSON Library for C#
 	2015-2020  Jonathan Cohen
 	Contact: ninjapretzel@yahoo.com
@@ -2568,15 +2568,20 @@ public static class JsonReflector {
 public class JsonDeserializeFailedException : Exception {
 	/// <summary> Current parser state </summary>
 	public JsonDeserializer state { get; private set; }
+	/// <summary> Internal message </summary>
+	public string msg { get; private set; }
 	/// <summary> Current line number </summary>
 	public int line { get { return state.line; } }
 	/// <summary> Current number of characters read on line </summary>
 	public int col { get { return state.col; } }
 	public JsonDeserializeFailedException(string msg, JsonDeserializer state) 
-			: base(msg + $" @{state.line}:{state.col} cur='{state.cur}', in\n{state.json}") 
+			: base() 
 	{
+		this.msg = msg;
 		this.state = state;
 	}
+	/// <summary> Overrided to prevent doing a <see cref="JsonDeserializer.ToString"/> in the constructor. </summary>
+	public override string Message { get { return $"{msg}{state}"; } }
 }
 
 /// <summary> Class holding logic for parsing Json text into JsonValues 
@@ -2604,6 +2609,41 @@ public class JsonDeserializer {
 				else { col++; }
 			}
 		}
+	}
+
+	public override string ToString() {
+		char c = cur;
+		string s = ""+c;
+		if (c == ' ') { s = "SPACE"; }
+		if (c == '\n') { s = "\\n"; }
+		if (c == '\r') { s = "\\r"; }
+		if (c == '\t') { s = "\\t"; }
+		StringBuilder area = new StringBuilder();
+		string[] split = json.Split("\n");
+		//Console.WriteLine($"ToString at {line},{col} in\n{json}");
+		if (split.Length > 1) {
+			int from = line - 5; if (from < 0) { from = 0; }
+			int to = line + 5; if (to >= split.Length) { to = split.Length-1; }
+
+			for (int i = from; i <= to; i++) {
+				string si = "" + i;
+				int spaces = 5 - si.Length;
+				for (int k = 0; k < spaces; k++) { area.Append(' '); }
+				area.Append(si);
+				area.Append(':');
+				if (line == i) {
+					area.Append("->");
+				} else {
+					area.Append("  ");
+				}
+				//Console.WriteLine($"From {from} to {to} at {i} / {split.Length}");
+				area.Append(split[i]);
+				area.Append("\n");
+			}
+		} else {
+			area.Append(json);
+		}
+		return $"@{line}:{col} cur='{s}', in\n{area}";
 	}
 
 	/// <summary> Current line number </summary>
@@ -2840,7 +2880,7 @@ public class JsonDeserializer {
 			if (cur == '"') { return ProcessString().JsonUnescapeString(); }
 
 			int startIndex = index;
-			while (index < json.Length && !char.IsWhiteSpace(cur)) { index++; }
+			while (index < json.Length && cur != ',' && cur != '}' && cur != ']' && !char.IsWhiteSpace(cur)) { index++; }
 			string jval = json.Substring(startIndex, index - startIndex);
 			if (jval == "true") { return JsonBool.TRUE; }
 			if (jval == "false") { return JsonBool.FALSE; }
@@ -2858,9 +2898,12 @@ public class JsonDeserializer {
 			if (cur == ']') { index++; return arr; }
 			while (true) {
 				JsonValue val = LintValue();
+				arr.Add(val);
 				Skip();
 				if (cur == ']') { index++; break; }
 				if (cur != ',') { throw new JsonDeserializeFailedException("Strict Json requires ',' separating array values", this); }
+				index++;
+				Skip();
 			}
 			return arr;
 		}

@@ -438,8 +438,8 @@ namespace BakaTest {
 			DateTime ended = DateTime.UtcNow;
 			TimeSpan elapsed = ended - start;
 			string c = failure > 0 ? RED : GREEN;
-			string s1 = rightpad($"Ran {tests} tests in {elapsed.TotalMilliseconds}ms", 45);
-			string s2 = leftpad($"{GREEN}{success}/{tests} success, {c}{failure} failure.", useColors ? 32 : 30);
+			string s1 = Rightpad($"Ran {tests} tests in {elapsed.TotalMilliseconds}ms", 45);
+			string s2 = Leftpad($"{GREEN}{success}/{tests} success, {c}{failure} failure.", useColors ? 32 : 30);
 			str?.Append($"\n{WHITE}Finished Testing. Found {types.Count()} types." 
 				+ $"\n{CYAN}Final Summary: {WHITE}{s1}{s2}");
 			logger?.Invoke(str);
@@ -448,7 +448,8 @@ namespace BakaTest {
 			return results;
 		}
 
-		private static string leftpad(string str, int width, char pad = ' ') {
+		private static string ForwardSlashPath(this string path) { return path.Replace('\\', '/'); }
+		private static string Leftpad(string str, int width, char pad = ' ') {
 			if (str.Length > width) { return str; }
 			char[] s = new char[width];
 			int off = width - str.Length;
@@ -461,7 +462,7 @@ namespace BakaTest {
 			}
 			return new string(s);
 		}
-		private static string rightpad(string str, int width, char pad = ' ') {
+		private static string Rightpad(string str, int width, char pad = ' ') {
 			if (str.Length > width) { return str; }
 			char[] s = new char[width];
 			int off = width - str.Length;
@@ -512,7 +513,7 @@ namespace BakaTest {
 
 			foreach (var test in tests) {
 				// 8 + 70 + 2 = 80
-				Log($"{WHITE}Running {rightpad(test.Name+"()", 70)}", false);
+				Log($"{WHITE}Running {Rightpad(test.Name+"()", 70)}", false);
 
 				doCleanup();
 
@@ -528,21 +529,21 @@ namespace BakaTest {
 							AssertFailed fail = ex as AssertFailed;
 							string type = fail.type;
 							if (type == null) { type = "Assertion"; }
-							Log($"{RED} Failure\n{type} Failed:\n{fail.description}");
+							Log($"{RED}  Failure!\n{type} Failed:\n{fail.description}");
 						} else {
-							Log($"{RED} Failure\nException Generated: {ex.GetType().Name}");
+							Log($"{RED}  Failure!\nException Generated: {ex.GetType().Name}");
 							Log($"\t\t{ex.Message}");
 
 						}
-						Log($"\tLocation: {ex.StackTrace}");
-						Log($"\tInner: {ex.InnerException}");
+						Log($"\tStack Trace:\n{ex.StackTrace.ForwardSlashPath()}");
+						Log($"\tInner Exception: {ex.InnerException}");
 
 					}
 					failure++;
 					Log("\n");
 				} catch (Exception e) {
 					Log($"{RED}Unexpected Exception:\n\t" + e.GetType().Name);
-					Log($"\t{WHITE}Full Trace: " + e.StackTrace);
+					Log($"\t{WHITE}Full Trace: {e.StackTrace.ForwardSlashPath()}");
 					failure++;
 					Log("\n");
 				}
@@ -561,8 +562,8 @@ namespace BakaTest {
 			TimeSpan elapsed = finished - start;
 			StringBuilder strb = new StringBuilder();
 			string c = failure > 0 ? RED : GREEN;
-			string summary = rightpad($"{BLUE}Summary: {WHITE}Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms.", useColors ? 62 : 60) +
-				leftpad($"{GREEN}{success} success, {c}{failure} failure.", useColors ? 34 : 30);
+			string summary = Rightpad($"{BLUE}Summary: {WHITE}Ran {tests.Count} tests in {elapsed.TotalMilliseconds}ms.", useColors ? 62 : 60) +
+				Leftpad($"{GREEN}{success} success, {c}{failure} failure.", useColors ? 34 : 30);
 			strb.Append("\n");
 			strb.Append(summary);
 			strb.Append("\n");

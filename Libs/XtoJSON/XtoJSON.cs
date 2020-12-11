@@ -99,7 +99,7 @@ public static class Json {
 	/// <summary> Minor version number </summary>
 	public const int MINOR = 5;
 	/// <summary> Sub-minor version Revision number </summary>
-	public const int REV = 0;
+	public const int REV = 1;
 
 	/// <summary> String representation of current version of library </summary>
 	public static string VERSION { get { return MAJOR + "." + MINOR + "." + REV; } }
@@ -2619,7 +2619,7 @@ public class JsonDeserializer {
 		if (c == '\r') { s = "\\r"; }
 		if (c == '\t') { s = "\\t"; }
 		StringBuilder area = new StringBuilder();
-		string[] split = json.Split("\n");
+		string[] split = json.Split('\n');
 		//Console.WriteLine($"ToString at {line},{col} in\n{json}");
 		if (split.Length > 1) {
 			int from = line - 5; if (from < 0) { from = 0; }
@@ -2699,7 +2699,6 @@ public class JsonDeserializer {
 		if (double.TryParse(jval, out dval)) { return dval; }
 
 		return jval;
-
 	}
 	
 	/// <summary> Logic for parsing content of a string </summary>
@@ -3338,6 +3337,10 @@ public static class JsonOperations {
 		return source;
 	}
 
+	/// <summary> Gets the <see cref="JsonValue"/> in <paramref name="src"/> at the given <paramref name="path"/>, or null. </summary>
+	/// <param name="src"> Source <see cref="JsonObject"/> or <see cref="JsonArray"/> to trace</param>
+	/// <param name="path"> Path to follow, names and/or indexes separated by '.' and/or '/'. </param>
+	/// <returns> Either the <see cref="JsonValue"/> at the given path, or null if the path cannot be traced. </returns>
 	public static JsonValue XPath(this JsonValue src, string path) {
 		if (src != null) {
 			JsonValue trace = src;
@@ -3354,6 +3357,11 @@ public static class JsonOperations {
 		return JsonNull.instance;
 	}
 
+	/// <summary> Gets the <typeparamref name="T"/> in <paramref name="src"/> at the given <paramref name="path"/>, or null. </summary>
+	/// <typeparam name="T"> Generic type to get </typeparam>
+	/// <param name="src"> Source <see cref="JsonObject"/> or <see cref="JsonArray"/> to trace</param>
+	/// <param name="path"> Path to follow, names and/or indexes separated by '.' and/or '/'. </param>
+	/// <returns> Either the <typeparamref name="T"/> at the given path, or null if the path cannot be traced. </returns>
 	public static T XPath<T>(this JsonValue src, string path) where T : JsonValue {
 		if (src != null) {
 			JsonValue trace = src;
@@ -3388,7 +3396,6 @@ namespace XtoJSON {
 			if (dataObj != null) {
 				Json.ReflectInto(dataObj, target);
 			}
-
 		}
 
 		/// <summary> More formal name for Parse() </summary>
@@ -3400,7 +3407,6 @@ namespace XtoJSON {
 		public static JsonValue ReflectJson(this object obj) { return Json.Reflect(obj); }
 		/// <summary> More formal name for Reflect() </summary>
 		public static JsonValue SerializeJson(this object obj) { return Json.Reflect(obj); }
-
 
 	}
 

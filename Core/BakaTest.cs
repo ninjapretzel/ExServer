@@ -3,6 +3,7 @@
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
+using LevelUpper.Markdown;
 #endif
 #endif
 
@@ -14,54 +15,57 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
+using Ex;
+using System.Threading.Tasks;
 
-#if UNITY_EDITOR
-namespace BakaTest {
-	public static class BakaTestUnityHook {
-
-		[MenuItem("&Baka/Test &t")]
-		public static void RunTests() {
-			var testAssembly = Assembly.GetAssembly(typeof(BakaTests));
-			var testTypes = testAssembly.DefinedTypes
-				.Where(t => t.Name.EndsWith("_Tests"));
-
-			UnityEngine.Debug.Log($"Found {testTypes.Count()} test classes to run");
-
-			foreach (var type in testTypes) {
-				try {
-					UnityEngine.Debug.Log(BakaTests.RunTests(type));
-				} catch (Exception e) {
-					UnityEngine.Debug.LogError($"Failed to run tests for type {type}");
-					UnityEngine.Debug.LogError(e);
-				}
-			}
-			
-		}
-
-	}
-
-}
-#else
 namespace BakaTest {
 	public static class BakaTestHook {
-		public static Action<string> logger;
 
-		public static List<BakaTests.TestResult> RunTests() {
-			DateTime start = DateTime.UtcNow;
+		public static Action<string> logger
+#if UNITY_EDITOR
+											= (str) => { UnityEngine.Debug.Log(str.ReplaceMarkdown()); };
+		public static LogLevel consoleLogLevel = LogLevel.Info;
+		public static LogLevel fileLogLevel = LogLevel.Debug;
+		public static string logfile = $"{DateTime.UtcNow.UnixTimestamp()}.log";
 
-			var testAssembly = Assembly.GetAssembly(typeof(BakaTests));
-			var testTypes = testAssembly.DefinedTypes
-				.Where(t => t.Name.EndsWith("_Tests"));
-
-			return BakaTests.RunTests(logger, testTypes);
-
+		public static void OnLog(LogInfo info) {
+			if (info.level <= consoleLogLevel) {
+				UnityEngine.Debug.unityLogger.Log(info.tag, info.message.ReplaceMarkdown());
+			}
+			if (info.level <= fileLogLevel) {
+				try {
+					File.AppendAllText(logfile, $"{info.tag}: {info.message}\n");
+				} catch (Exception) { }
+			}
 		}
+		
+		[MenuItem("&Baka/Test &t")]
+		public static void RunAllTests() {
+			Task.Run(async()=>{await RunTestsAsync();});
+		}
+
+#else
+		= null;
+#endif
+		private static IEnumerable<Type> GetTestTypes(Assembly testAssembly) {
+			if (testAssembly == null) {
+				testAssembly = Assembly.GetAssembly(typeof(BakaTests));
+			}
+			return testAssembly.DefinedTypes.Where(t => t.Name.EndsWith("_Tests"));
+		}
+
+		public static List<BakaTests.TestResult> RunTestsSync(Assembly testAssembly = null) {
+			return BakaTests.RunTests(logger, GetTestTypes(testAssembly)).Result;
+		}
+		public static async Task<List<BakaTests.TestResult>> RunTestsAsync(Assembly testAssembly = null) {
+			return await BakaTests.RunTests(logger, GetTestTypes(testAssembly));
+		}
+
 	}
-	
+
 }
 
 
-#endif
 
 namespace BakaTest {
 	public static class BakaTests {
@@ -326,8 +330,8 @@ namespace BakaTest {
 			if (Out != null) {
 				if (newline) {
 					Out.WriteLine(message);
-				} else { 
-					Out.Write(message); 
+				} else {
+					Out.Write(message);
 				}
 			}
 #endif
@@ -359,13 +363,13 @@ namespace BakaTest {
 			if (cleanup == null || cleanup.GetParameters().Length != 0) { return null; }
 			return cleanup;
 		}
-		
+
 		private static MethodInfo GetBeforeAll(this Type type) {
 			var before = type.GetMethod("BEFORE", ALL_STATIC);
 			if (before == null || before.GetParameters().Length != 0) { return null; }
 			return before;
 		}
-		
+
 		private static MethodInfo GetAfterAll(this Type type) {
 			var after = type.GetMethod("AFTER", ALL_STATIC);
 			if (after == null || after.GetParameters().Length != 0) { return null; }
@@ -408,14 +412,13 @@ namespace BakaTest {
 
 		/// <summary> Runs all of the tests, and returns a string containing information about tests passing/failing. </summary>
 		/// <returns> A log of information about the results of the tests. </returns>
-		public static List<TestResult> RunTests(Action<string> logger, params Type[] types) {
-			return RunTests(logger, new List<Type>(types));
+		public static async Task<List<TestResult>> RunTests(Action<string> logger, params Type[] types) {
+			return await RunTests(logger, new List<Type>(types));
 		}
 
-		public static List<TestResult> RunTests(Action<string> logger, IEnumerable<Type> types) {
-			StringBuilder str = (logger != null) ? new StringBuilder() : null;
-			
-			str?.Append($"{WHITE}Found {types.Count()} test classes to run");
+		public static async Task<List<TestResult>> RunTests(Action<string> logger, IEnumerable<Type> types) {
+			logger?.Invoke($"{WHITE}Found {types.Count()} test classes to run");
+
 			List<TestResult> results = new List<TestResult>();
 			DateTime start = DateTime.UtcNow;
 
@@ -424,14 +427,14 @@ namespace BakaTest {
 			int failure = 0;
 			foreach (var type in types) {
 				try {
-					var result = BakaTests.RunTests(type);
+					var result = await RunTests(type);
 					tests += result.tests;
 					success += result.success;
 					failure += result.failure;
 
-					str?.Append(result.logstr + "\n");
+					logger?.Invoke(result.logstr);
 				} catch (Exception e) {
-					str?.Append($"{RED}Failed to run tests for type {type}\nException occurred: {e}");
+					logger?.Invoke($"{RED}Failed to run tests for type {type}\nException occurred: {e}");
 				}
 			}
 
@@ -440,10 +443,8 @@ namespace BakaTest {
 			string c = failure > 0 ? RED : GREEN;
 			string s1 = Rightpad($"Ran {tests} tests in {elapsed.TotalMilliseconds}ms", 45);
 			string s2 = Leftpad($"{GREEN}{success}/{tests} success, {c}{failure} failure.", useColors ? 32 : 30);
-			str?.Append($"\n{WHITE}Finished Testing. Found {types.Count()} types." 
+			logger?.Invoke($"\n{WHITE}Finished Testing. Found {types.Count()} types."
 				+ $"\n{CYAN}Final Summary: {WHITE}{s1}{s2}");
-			logger?.Invoke(str);
-
 
 			return results;
 		}
@@ -475,7 +476,9 @@ namespace BakaTest {
 			}
 			return new string(s);
 		}
-		public static TestResult RunTests(Type testType) {
+		
+
+		public static async Task<TestResult> RunTests(Type testType) {
 			DateTime start = DateTime.UtcNow;
 			var tests = testType.GetTestMethods();
 			var cleanup = testType.GetCleanupMethod();
@@ -484,18 +487,14 @@ namespace BakaTest {
 			Action doCleanup = () => {
 				if (cleanup != null) {
 					try { cleanup.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
-						#if UNITY_EDITOR
-						UnityEngine.Debug.LogError("Error during cleanup");
-						UnityEngine.Debug.LogError(e);
-						#else
+
 						Log($"{RED}Error during cleanup for {testType}: ");
 						Log(e);
-						#endif
 
 					}
 				}
 			};
-		
+
 			var empty = new object[0];
 			MemoryStream logStream = new MemoryStream();
 			Encoding encoding = Encoding.ASCII;
@@ -513,12 +512,16 @@ namespace BakaTest {
 
 			foreach (var test in tests) {
 				// 8 + 70 + 2 = 80
-				Log($"{WHITE}Running {Rightpad(test.Name+"()", 70)}", false);
+				Log($"{WHITE}Running {Rightpad(test.Name + "()", 70)}", false);
 
 				doCleanup();
 
 				try {
-					test.Invoke(null, empty);
+					object ret = test.Invoke(null, empty);
+					if (ret != null && ret is Task) {
+						await (Task)ret;
+					}
+
 					Log($"{GREEN}  Success!"); // + 10 = 90
 					success++;
 
@@ -547,12 +550,12 @@ namespace BakaTest {
 					failure++;
 					Log("\n");
 				}
-				
+
 			}
 
 			try { testType.GetAfterAll()?.Invoke(null, EMPTY_PARAMS); } catch (Exception e) {
-				Console.WriteLine($"{RED}Failed to invoke AFTER on {testType}: ");
-				Console.WriteLine(e);
+				Log($"{RED}Failed to invoke AFTER on {testType}: ");
+				Log(e);
 			}
 
 			logWriter.Flush();
@@ -569,7 +572,7 @@ namespace BakaTest {
 			strb.Append("\n");
 			strb.Append(encoding.GetString(logStream.ToArray()));
 			strb.Append(summary);
-			
+
 
 			doCleanup();
 

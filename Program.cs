@@ -64,8 +64,10 @@ namespace Ex {
 				SetupLogger();
 				StaticSetup();
 
+				//Self Test:
+				BakaTest.BakaTestHook.logger = (str) => { Log.Info(str, "Tests"); };
+				BakaTest.BakaTestHook.RunTestsSync();
 
-				SelfTest();
 				ActualProgram();
 
 
@@ -103,8 +105,6 @@ namespace Ex {
 		}
 
 		static void StaticSetup() {
-			BakaTest.BakaTestHook.logger = (str) => { Log.Info(str, "Tests"); };
-
 			//JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
 			try {
 				DBService.RegisterSerializers();
@@ -319,25 +319,7 @@ namespace Ex {
 
 		}
 
-		static void SelfTest() {
-			BakaTest.BakaTestHook.RunTests();
-		}
-/*
-		private static void TestColors(string testStr) {
-			var msgs = testStr.Rich();
 
-			Console.WriteLine($"Input: [{testStr}]");
-
-			foreach (var msg in msgs) {
-				string str = msg.color.HasValue
-					? $"{msg.color.Value.HexString()} => {msg.message}"
-					: msg.message;
-
-				Console.WriteLine($"\t{str}");
-			}
-		}
-
-*/
 	}
 
 }

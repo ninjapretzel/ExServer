@@ -947,7 +947,7 @@ namespace MiniHttp {
 
 			return async(ctx, next) => {
 				int start = ctx.midData.Pull("pathMatchedTo", 0);
-				Console.WriteLine($"Starting static file check at {start}");
+				// Console.WriteLine($"Starting static file check at {start}");
 				string[] requestPath = ctx.pathSplit;
 				List<string> remaining = new List<string>();
 				for (int i = start; i < requestPath.Length; i++) {
@@ -955,11 +955,11 @@ namespace MiniHttp {
 				}
 				string remainingPath = string.Join('/', remaining);
 				string localPath = path + remainingPath;
-				Console.WriteLine($"Looking for static file matching {{{remainingPath}}} at {{{localPath}}}");
+				// Console.WriteLine($"Looking for static file matching {{{remainingPath}}} at {{{localPath}}}");
 				var res = ctx.res;
 
 				if (File.Exists(localPath)) {
-					Console.WriteLine("Found file.");
+					//Console.WriteLine("Found file.");
 
 					string ext = HttpServerHelpers.FromLast(ctx.pathSplit[ctx.pathSplit.Length-1], ".");
 					res.body = File.ReadAllBytes(localPath);
@@ -971,7 +971,7 @@ namespace MiniHttp {
 					foreach (var doc in defaultDocuments) {
 						string checkPath = localPath + "/" + doc;
 						if (File.Exists(checkPath)) {
-							Console.WriteLine($"Found default document matching {{{doc}}}");
+							//Console.WriteLine($"Found default document matching {{{doc}}}");
 							string ext = HttpServerHelpers.FromLast(doc, ".");
 							res.body = File.ReadAllBytes(checkPath);
 							res.StatusCode = 200;
@@ -982,7 +982,7 @@ namespace MiniHttp {
 					}
 					
 
-					Console.WriteLine("Not found, using next middleware.");
+					//Console.WriteLine("Not found, using next middleware.");
 					await next();
 				}
 				

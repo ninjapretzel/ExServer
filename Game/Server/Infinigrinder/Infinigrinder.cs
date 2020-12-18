@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Eternus.Generation;
+using Infinigrinder.Generation;
 using Ex;
 using Ex.Utils;
 using Ex.Utils.Ext;
@@ -11,10 +11,10 @@ using MongoDB.Driver;
 
 using Random = System.Random;
 
-namespace Eternus {
+namespace Infinigrinder {
 	
 	/// <summary> Server side logic for the Eternus game </summary>
-	public class EternusGame : Ex.Service {
+	public class Infinigrinder : Ex.Service {
 		DBService db;
 		LoginService logins;
 		SyncService sync;
@@ -39,8 +39,6 @@ namespace Eternus {
 				"recHealth", 1.5,
 				"what", 123123
 			);
-
-
 
 			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
 			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
@@ -83,20 +81,16 @@ namespace Eternus {
 				it.map = "Limbo";
 				it.position = new Vector3(0, 0, 0);
 				it.rotation = new Vector3(0, 0, 0);
-
-				it.skin = "Mech";
-
+				it.skin = "Default";
 				it.flags["test"] = true;
 				it.levels["primary"] = 1;
 				it.exp["primary"] = 0;
-
-
-
 				it.color = new Vector4(1, .5f, .5f, 1).Hex();
-
+				it.wallet["gold"] = 100;
+				it.wallet["plat"] = 0;
+				it.wallet["crys"] = 10;
 			});
-			var resources = db.Initialize<UserResources>(guid, it => {
-
+			var resources = db.Initialize<Inventory>(guid, it => {
 			});
 			var stats = db.Initialize<UnitStats>(guid, it => {
 				it.owner = userId;

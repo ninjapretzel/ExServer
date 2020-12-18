@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using Random = System.Random;
 
-namespace Eternus.Generation {
+namespace Infinigrinder.Generation {
 	
 	public static class GenerationExt {
 		public static Guid NextGuid(this Random random) {

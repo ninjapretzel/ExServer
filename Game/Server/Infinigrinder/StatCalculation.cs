@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Eternus {
+namespace Infinigrinder {
 	[BsonIgnoreExtraElements]
 	public class StatCalc : DBData {
 		// Basically a bunch of auto members.

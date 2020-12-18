@@ -55,8 +55,8 @@ namespace Ex {
 					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Core");
 					// CopySourceMacro.CopyAllFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Dev/Unity/Projects/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 
-					Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-					Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "C:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 				} catch (Exception) {
 					Console.WriteLine("Copying source files failed.");
 				}
@@ -248,7 +248,7 @@ namespace Ex {
 		private static void SetupHttpServer(Server server) {
 			string hostname = config["httpHost"].stringVal;
 			List<Middleware> middleware = new List<Middleware>();
-			middleware.Add(Inspect);
+			//middleware.Add(Inspect);
 			middleware.Add(BodyParser);
 
 			Router router = new Router();
@@ -265,7 +265,7 @@ namespace Ex {
 			server = new Server(32055, 100);
 
 			// server.AddService<Poly.PolyGame>();
-			server.AddService<Eternus.EternusGame>();
+			server.AddService<Infinigrinder.Infinigrinder>();
 			server.AddService<DebugService>();
 
 			JsonObject cfg = config["database"] as JsonObject;

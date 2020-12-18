@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Eternus {
+namespace Infinigrinder {
 	
 	/// <summary> Database object for the primary user save data. </summary>
 	[BsonIgnoreExtraElements]
@@ -41,7 +41,7 @@ namespace Eternus {
 	/// These would be kept and modifed primarily in memory, 
 	/// but have changes journaled every few seconds. </summary>
 	[BsonIgnoreExtraElements]
-	public class UserResources : DBData { }
+	public class Inventory : DBData { }
 
 	/// <summary> Database object to store player stats. </summary>
 	[BsonIgnoreExtraElements]

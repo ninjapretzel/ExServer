@@ -33,7 +33,7 @@ namespace Infinigrinder {
 		public JsonObject ExpStatRates { get { return data.Get<JsonObject>(MemberName()); } }
 		public JsonObject CombatStatCalc { get { return data.Get<JsonObject>(MemberName()); } }
 
-		public void FullRecalc(UnitStats unit) {
+		public void FullRecalc(UnitRecord unit) {
 			unit.data.Set(unit.baseStats);
 			Log.Info($"Starting with base stats: {unit.baseStats.PrettyPrint()}");
 

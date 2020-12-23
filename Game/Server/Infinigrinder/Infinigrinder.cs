@@ -92,7 +92,7 @@ namespace Infinigrinder {
 			});
 			var resources = db.Initialize<Inventory>(guid, it => {
 			});
-			var stats = db.Initialize<UnitStats>(guid, it => {
+			var stats = db.Initialize<UnitRecord>(guid, it => {
 				it.owner = userId;
 
 				foreach (var pair in statCalc.BaseStats) {

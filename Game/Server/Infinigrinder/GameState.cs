@@ -43,15 +43,16 @@ namespace Infinigrinder {
 	[BsonIgnoreExtraElements]
 	public class Inventory : DBData { }
 
-	/// <summary> Database object to store player stats. </summary>
+	/// <summary> Database object to store unit stat data, for both saved units, and mob information. </summary>
 	[BsonIgnoreExtraElements]
-	public class UnitStats : DBData { 
+	public class UnitRecord : DBData { 
 		public Guid owner;
 		
-		public UnitStats() : base() { 
+		public UnitRecord() : base() { 
 			data["baseStats"] = new JsonObject();
 			data["combatStats"] = new JsonObject();
 		}
+		/// <summary> Base stat values </summary>
 		public JsonObject baseStats { get { return data.Get<JsonObject>(MemberName()); } }
 		public JsonObject combatStats { get { return data.Get<JsonObject>(MemberName()); } }
 	}

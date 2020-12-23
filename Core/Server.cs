@@ -259,6 +259,7 @@ namespace Ex {
 		/// <param name="client"> Slave client to connect. </param>
 		public void Close(Client client) {
 			if (!client.closed) {
+				client.Close();
 				
 				foreach (var service in services.Values) {
 					try {
@@ -271,7 +272,6 @@ namespace Ex {
 					} catch (Exception e) { Log.Error($"Error in OnFinishedDisconnected for {service.GetType()}", e); }
 				}
 
-				client.Close();
 			}
 		}
 

@@ -276,7 +276,7 @@ namespace Ex {
 						tcpSocket.Close();
 					}
 
-					Log.Verbose($"Client {identity} closed.");
+					Log.Debug($"Client {identity} closed.");
 				} catch (Exception e) {
 					Log.Error("Failed to close connection", e);
 				}

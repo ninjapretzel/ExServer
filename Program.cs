@@ -138,7 +138,7 @@ namespace Ex {
 			logColors();
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
-			Log.Info($"Working Directory: {Directory.GetCurrentDirectory()}");
+			Log.Info($"Working Directory: {Directory.GetCurrentDirectory().Replace('\\', '/') }");
 			SetupExServer();
 			server.Start();
 
@@ -152,34 +152,6 @@ namespace Ex {
 +===========================================================================+";
 			Log.Info(str);
 
-			/*
-			char[] paths = Path.GetInvalidPathChars();
-			char[] files = Path.GetInvalidFileNameChars();
-			Dictionary<char, string> mapped = new Dictionary<char, string>() {
-				{ '\n', "NEWLINE" },
-				{ '\r', "CARRIGERETURN" },
-				{ '\t', "TAB" },
-				{ ' ', "SPACE" },
-			};
-			StringBuilder bstr = "";
-			StringBuilder codes = "";
-			StringBuilder chars = "";
-			void printc(char c) {
-				string s = mapped.ContainsKey(c) ? mapped[c] : ""+c;
-				codes += ((short)c).Hex() + " ";
-				chars += s;
-				//bstr += $"{{{{ code={ ((byte)c).Hex() } char=\'{s}\' }}}}";
-			}
-			codes += "Invalid Path chars - \n";
-			chars += "Invalid Path chars - \n";
-			foreach (char c in paths) { printc(c); }
-			codes += "\n\nInvalid File chars - \n";
-			chars += "\n\nInvalid File chars - \n";
-			foreach (char c in files) { printc(c); }
-			
-			bstr += codes + "\n\n" + chars;
-			Log.Info(bstr);
-			*/
 			Request.onError += (msg, err) => {
 				Log.Warning(msg, err);
 			};
@@ -244,19 +216,30 @@ namespace Ex {
 		}
 
 		private static void SetupHttpServer(Server server) {
-			string hostname = config["httpHost"].stringVal;
 			List<Middleware> middleware = new List<Middleware>();
 			//middleware.Add(Inspect);
 			middleware.Add(BodyParser);
-
 			Router router = new Router();
 			router.Any("/api/auth/*", server.GetService<LoginService>().router);
 			middleware.Add(router);
 
 			middleware.Add(Static("./public"));
-			httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
+			if (config.Has<JsonArray>("httpHost")) {
+				string[] hostnames = config.Get<string[]>("httpHost");
+				Console.WriteLine($"HTTP Listening at: ");
+				foreach (var host in hostnames) {
+					Console.WriteLine($"\t{host}");
+				}
+				httpTask = HttpServer.Watch(hostnames, ()=>running, 1000, middleware.ToArray());
 
-			Console.WriteLine($"HTTP Listening at {hostname}");
+			} else {
+				string hostname = config["httpHost"].stringVal;
+
+				httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
+
+				Console.WriteLine($"HTTP Listening at {hostname}");
+			}
+
 		}
 
 		private static void SetupExServer() {
@@ -293,7 +276,7 @@ namespace Ex {
 			}
 
 
-			if (config.Has<JsonString>("httpHost")) { SetupHttpServer(server); }
+			if (config.Has<JsonString>("httpHost") || config.Has<JsonArray>("httpHost")) { SetupHttpServer(server); }
 		}
 
 		

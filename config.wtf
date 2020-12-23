@@ -6,7 +6,10 @@
 		reseed: "db/seed.wtf",
 	},
 	logLevel: "Debug",
-	httpHost: "http://localhost:3000",
+	httpHost: [
+		"http://localhost:3000",
+		"http://*:3000",
+	],
 	// Platforms:
 	//Unix: {
 	//	database: {

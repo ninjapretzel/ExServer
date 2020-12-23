@@ -28,6 +28,7 @@ namespace Ex {
 
 		public static string TopSourceFileDirectory() { return SourceFileDirectory(); }
 
+		public static string platform;
 		public static Server server;
 		public static Client admin;
 		public static JsonObject global = new JsonObject();
@@ -79,7 +80,7 @@ namespace Ex {
 		}
 
 		private static void Config() {
-			string platform = System.Environment.OSVersion.Platform.ToString();
+			platform = System.Environment.OSVersion.Platform.ToString();
 			
 			global["platform"] = platform;
 			Console.WriteLine($"Platform detected: ({platform})");

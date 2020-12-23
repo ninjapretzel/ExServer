@@ -201,6 +201,7 @@ namespace Ex {
 
 				/// @Todo: Cleanup master by sending packet to all clients: server is closed
 				List<Client> toClose = connections.Values.ToList();
+				Log.Debug($"Closing {toClose.Count} clients...");
 				foreach (var client in toClose) {
 					Close(client);
 				}

@@ -157,17 +157,17 @@ public static class Server_Tests {
 		try {
 
 			// Logging in lights up lots of code paths. Need to wait ~2 seconds for it to finish.
-			if (!WaitFor(()=> loginService.serverPublic != null, 2500)) {
+			if (!WaitFor(()=> loginService.serverPublic != null, 25000)) {
 				throw new Exception("Test failed: Test service did not recieve public key!");
 			}
 			
 			testData.admin.GetService<LoginService>().RequestLogin("admin", "admin");
 
-			if (!WaitFor(testService.LoggedIn, 2500)) { 
+			if (!WaitFor(testService.LoggedIn, 25000)) { 
 				throw new Exception("Test Failed: Test service did not log in!");
 			}
 
-			if (!WaitFor(testService.PingFinished)) {
+			if (!WaitFor(testService.PingFinished, 10000)) {
 				throw new Exception("Test Failed: Test service did not finish pinging!");
 			}
 

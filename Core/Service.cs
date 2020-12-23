@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
@@ -168,7 +168,11 @@ namespace Ex {
 	/// <summary> <see cref="Service"/> template class. Intended for copy/pasting to create a new <see cref="Service"/>. </summary>
 	public class ServiceTemplate : Service {
 		/// <inheritdoc/>
+		public override void OnStart() { }
+
+		/// <inheritdoc/>
 		public override void OnEnable() { }
+
 		/// <inheritdoc/>
 		public override void OnDisable() { }
 
@@ -186,5 +190,6 @@ namespace Ex {
 
 		/// <inheritdoc/>
 		public override void OnFinishedDisconnected(Client client) { }
+		
 	}
 }

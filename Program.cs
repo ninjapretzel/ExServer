@@ -138,7 +138,7 @@ namespace Ex {
 			logColors();
 			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
-			Log.Info($"Working Directory: Directory.GetCurrentDirectory()");
+			Log.Info($"Working Directory: {Directory.GetCurrentDirectory()}");
 			SetupExServer();
 			server.Start();
 
@@ -265,6 +265,9 @@ namespace Ex {
 			// server.AddService<Poly.PolyGame>();
 			server.AddService<Infinigrinder.Infinigrinder>();
 			server.AddService<DebugService>();
+			server.AddService<LoginService>();
+			server.AddService<EntityService>();
+			server.AddService<MapService>();
 
 			JsonObject cfg = config["database"] as JsonObject;
 			var dbService = server.AddService<DBService>()
@@ -289,9 +292,6 @@ namespace Ex {
 				debugSync.DefaultSubs("Test", "Data");
 			}
 
-			server.AddService<LoginService>();
-			server.AddService<EntityService>();
-			server.AddService<MapService>();
 
 			if (config.Has<JsonString>("httpHost")) { SetupHttpServer(server); }
 		}

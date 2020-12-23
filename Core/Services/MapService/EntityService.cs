@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 
@@ -736,6 +736,11 @@ namespace Ex {
 				Log.Debug($"EntityService.OnDisconnected: \\oIsMaster: {isMaster} Cleaning up entity for client {client.identity}. ");
 				Entity entity = entities.ContainsKey(client.id) ? entities[client.id] : null;
 
+				if (entity == null) {
+					Log.Warning($"No Entity spawned for client {client.identity}");
+					return;
+				}
+
 				TRS trs = GetComponent<TRS>(entity);
 				OnMap onMap = GetComponent<OnMap>(entity);
 				
@@ -743,7 +748,7 @@ namespace Ex {
 				Credentials creds;
 				if (session.HasValue) {
 					creds = session.Value.credentials;
-					Log.Info($"EntityService.OnDisconnected: Getting entity for client {client.identity}, id={creds.userId}/{creds.username}");
+					Log.Info($"EntityService.OnDisconnected: Getting EntityInfo for client {client.identity}, id={creds.userId}/{creds.username}");
 
 					var info = FindUser(creds.userId);
 					if (info == null) {

@@ -743,6 +743,9 @@ namespace Ex {
 
 				TRS trs = GetComponent<TRS>(entity);
 				OnMap onMap = GetComponent<OnMap>(entity);
+				if (trs == null) { Log.Warning($"No TRS on entity for client {client.identity}"); }
+				if (onMap == null) { Log.Warning($"No OnMap on entity for client {client.identity}"); }
+				if (onMap == null || trs == null) { return; }
 				
 				LoginService.Session? session = loginService.GetLogin(client);
 				Credentials creds;

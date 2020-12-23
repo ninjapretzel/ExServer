@@ -5,7 +5,7 @@
 		reload: "db",
 		reseed: "db/seed.wtf",
 	},
-	logLevel: "Info",
+	logLevel: "Debug",
 	httpHost: "http://localhost:3000",
 	// Platforms:
 	Unix: {

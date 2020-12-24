@@ -226,62 +226,7 @@ namespace Ex.Utils {
 	}
 
 
-
-	/// <summary> Helper class that caches information about <see cref="System.Enum"/>s </summary>
-	/// <typeparam name="T"> Generic <see cref="System.Enum"/> type. </typeparam>
-	public class Enum<T> where T : System.Enum {
-		/// <summary> Baked enum value dictionary </summary>
-		public static readonly Dictionary<T, string> values = Prepare(); // Get all static fields populated on class load.
-		/// <summary> Array of <typeparamref name="T"/> values </summary>
-		public static T[] items { get; private set; }
-		/// <summary> Dictionary of indexes of <typeparamref name="T"/> values in <see cref="items"/> </summary>
-		public static Dictionary<T, int> indexes { get; private set; }
-		/// <summary> Get the number of items in the enum </summary>
-		public static int Count { get { return items.Length; } }
-
-		/// <summary> Bakes enum value dictionary </summary>
-		private static Dictionary<T, string> Prepare() {
-			Dictionary<T, string> result = new Dictionary<T, string>();
-			indexes = new Dictionary<T, int>();
-			string[] names = Enum.GetNames(typeof(T));
-			items = (T[]) Enum.GetValues(typeof(T));
-
-			for (int i = 0; i < names.Length; i++) {
-				string name = names[i];
-				T value = items[i];
-				indexes[value] = i;
-				result[value] = name;
-			}
-			return result;
-		}
-
-	}
-	/// <summary> Class to hold extension helper methods </summary>
-	public static class EnumExt {
-		/// <summary> Gets the string name of an Enum </summary>
-		/// <typeparam name="T"> Generic <see cref="System.Enum"/> type </typeparam>
-		/// <param name="t"> Value to get name of </param>
-		/// <returns> String representation of <paramref name="t"/> </returns>
-		public static string Name<T>(this T t) where T : System.Enum {
-			return Enum<T>.values.ContainsKey(t) ? Enum<T>.values[t] : null;
-		}
-
-		/// <summary> Get if an Enum value is a valid value </summary>
-		/// <typeparam name="T"> Generic <see cref="System.Enum"/> type </typeparam>
-		/// <param name="t"> Value to see if is valid. </param>
-		/// <returns> True if the <paramref name="t"/> contains a value defined in the enum, otherwise false.</returns>
-		public static bool IsValid<T>(this T t) where T : System.Enum {
-			return Enum<T>.values.ContainsKey(t);
-		}
-		/// <summary> Get the successor to the given <paramref name="t"/> enum value </summary>
-		/// <typeparam name="T"> Generic <see cref="System.Enum"/> type (given it's valid) </typeparam>
-		/// <param name="t"> Value to get next of </param>
-		/// <returns> Next value defined in the enum. </returns>
-		public static T Next<T>(this T t) where T : System.Enum {
-			int ind = Enum<T>.indexes[t] + 1;
-			return (ind >= Enum<T>.Count) ? Enum<T>.items[0] : Enum<T>.items[ind];
-		}
-	}
+	
 
 
 }

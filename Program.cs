@@ -1,21 +1,17 @@
-﻿using Learnings;
+﻿
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-//using System.Windows.Forms;
-using Ex.Libs;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Net.Sockets;
-using System.Threading;
-using System.Collections.Concurrent;
-using Ex.Utils;
-using System.Diagnostics;
 using MiniHttp;
+using Ex.Utils;
+using Ex.Utils.Ext;
+using Ex.Libs;
 
 using static MiniHttp.ProvidedMiddleware;
-using Ex.Utils.Ext;
+using BakaDB;
 
 namespace Ex {
 
@@ -50,8 +46,8 @@ namespace Ex {
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				// Still more visible than doing some weird VS build command hook.
 				try {
-					//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-					//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+					Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 					
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
@@ -104,10 +100,7 @@ namespace Ex {
 
 		static void StaticSetup() {
 			//JsonObject.DictionaryGenerator = () => new ConcurrentDictionary<JsonString, JsonValue>();
-			try {
-				DBService.RegisterSerializers();
-			} catch (Exception e) { Log.Error("Error registering DB Serializers", e); }
-
+			VectorJsonConverter.RegisterSerializers();
 		}
 		
 		
@@ -145,6 +138,8 @@ namespace Ex {
 			// Thread.Sleep(1000);
 
 			// SetupAdminClient();
+			DB.Drop<LoginService.UserLoginInfo>();
+
 			string str = @"
 +===========================================================================+
 |                              SERVER STARTED                               |
@@ -246,23 +241,23 @@ namespace Ex {
 			server = new Server(32055, 100);
 
 			// server.AddService<Poly.PolyGame>();
-			server.AddService<Infinigrinder.Infinigrinder>();
+			server.AddService<Infinigrinder.Game>();
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
 			server.AddService<EntityService>();
 			server.AddService<MapService>();
 
-			JsonObject cfg = config["database"] as JsonObject;
-			var dbService = server.AddService<DBService>()
-				.Connect(cfg["host"].stringVal)
-				.UseDatabase(cfg["name"].stringVal);
-
-			if (cfg.Has<JsonString>("reload")) {
-				dbService.CleanDatabase();
-			}
-			if (cfg.Has<JsonString>("reseed")) {
-				dbService.Reseed(cfg["reseed"].stringVal);
-			}
+			// JsonObject cfg = config["database"] as JsonObject;
+			//var dbService = server.AddService<DBService>()
+			//	.Connect(cfg["host"].stringVal)
+			//	.UseDatabase(cfg["name"].stringVal);
+			//
+			//if (cfg.Has<JsonString>("reload")) {
+			//	dbService.CleanDatabase();
+			//}
+			//if (cfg.Has<JsonString>("reseed")) {
+			//	dbService.Reseed(cfg["reseed"].stringVal);
+			//}
 
 			var sync = server.AddService<SyncService>(); {
 				var debugSync = sync.Context("debug");

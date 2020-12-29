@@ -3,28 +3,30 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Infinigrinder.Generation;
+using BakaDB;
 using Ex;
 using Ex.Utils;
 using Ex.Utils.Ext;
-using MongoDB.Driver;
-
 using Random = System.Random;
 
 namespace Infinigrinder {
 	
 	/// <summary> Server side logic for the Eternus game </summary>
-	public class Infinigrinder : Ex.Service {
-		DBService db;
+	public class Game : Ex.Service {
 		LoginService logins;
 		SyncService sync;
 		EntityService entities;
 
 		StatCalc statCalc;
 
+		static LocalDB<GameState> gameStateDB = DB.Of<GameState>.db;
+		static LocalDB<UnitRecord> unitDB = DB.Of<UnitRecord>.db;
+		static LocalDB inventoryDB = DB.Local("Inventory");
+
+
 		/// <summary> Callback when all services are loaded on the server.</summary>
 		public override void OnStart() {
-			db = GetService<DBService>();
+			Log.Info("Infinigrinder.Game.OnStart()");
 			logins = GetService<LoginService>();
 			sync = GetService<SyncService>();
 			entities = GetService<EntityService>();
@@ -32,7 +34,11 @@ namespace Infinigrinder {
 			entities.RegisterUserEntityInfo<GameState>();
 			logins.userInitializer += Initialize;
 			
-			statCalc = db.Get<StatCalc>("Content", "filename", "StatCalc");
+			statCalc = DB.Local("Content").Get<StatCalc>("StatCalc");
+			DB.Drop<GameState>();
+			DB.Drop<UnitRecord>();
+			DB.Drop("Inventory");
+
 			JsonObject test = new JsonObject(
 				"str", 5, "dex", 12, 
 				"maxHealth", 200,
@@ -42,65 +48,53 @@ namespace Infinigrinder {
 
 			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
 			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
-			//Log.Info(result1);
-			//Log.Info(result2);
-
-			Guid rootGuid = Guid.Parse("00000000-0000-0000-0000-000000000000");
-			Root root = db.Initialize<Root>(rootGuid, it => {
-				Random rand = new Random(Generatable.GuidToSeed(rootGuid));
-				it.universeGuid = rand.NextGuid();
-			});
+			Log.Info(result1);
+			Log.Info(result2);
 			
-			UniverseSettings uniSettings = new UniverseSettings() { iteration = 1 };
-			Universe uni = Universe.Generate(db, root.universeGuid, root, uniSettings);
-
 
 			
 		}
 
 		public void On(LoginService.LoginSuccess_Server succ) {
 			if (succ.client == null) { return; }
-			Log.Info("EternusGame.On(LoginSuccess_Server)");
-			//Client client = succ.client;
-			//var user = GetService<LoginService>().GetLogin(client);
-			//Guid clientId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
-
-			//GameState gameState = db.Get<GameState>(clientId);
-			//if (gameState == null) {
-			//	Initialize(clientId);
-			//}
+			
 
 		}
 
 		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
 		public void Initialize(Guid guid) {
-			var userId = guid;
+			string id = $"{guid}";
 
-			var gameState = db.Initialize<GameState>(guid, it => { 
-				it.map = "Limbo";
-				it.position = new Vector3(0, 0, 0);
-				it.rotation = new Vector3(0, 0, 0);
-				it.skin = "Default";
-				it.flags["test"] = true;
-				it.levels["primary"] = 1;
-				it.exp["primary"] = 0;
-				it.color = new Vector4(1, .5f, .5f, 1).Hex();
-				it.wallet["gold"] = 100;
-				it.wallet["plat"] = 0;
-				it.wallet["crys"] = 10;
-			});
-			var resources = db.Initialize<Inventory>(guid, it => {
-			});
-			var stats = db.Initialize<UnitRecord>(guid, it => {
-				it.owner = userId;
+			Log.Info($"Initializing user {guid}...");
+			
+			GameState gs = new GameState();
 
-				foreach (var pair in statCalc.BaseStats) {
-					it.baseStats[pair.Key] = 5;
-				}
+			gs.map = "avalon";
+			gs.position = new Vector3(-160, -360, 0);
+			gs.rotation = Vector3.zero;
+			gs.skin = "Default";
+			gs.flags["test"] = true;
+			foreach (var kind in Enum<AccountLevels>.items) {
+				gs.levels[kind] = 1;
+				gs.exp[kind] = 0;
+			}
+			gs.color = new Vector4(1, .5f, .5f, 1).Hex();
+			gs.wallet[Currency.Gold] = 100;
+			gs.wallet[Currency.Plat] = 0;
+			gs.wallet[Currency.Crystal] = 10;
+			gameStateDB.Save(id, gs);
 
-				statCalc.FullRecalc(it);
-			});
+			JsonObject inv = new JsonObject();
+			inventoryDB.Save(id, inv);
+			
+			UnitRecord unit = new UnitRecord();
+			unit.owner = guid;
+			unit.stats.baseStats += 5;
+			
+			unitDB.Save(id, unit);
+
+
 			
 		}
 

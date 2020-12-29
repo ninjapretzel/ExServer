@@ -2,11 +2,7 @@
 #define UNITY
 #endif
 
-#if !UNITY
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Attributes;
-#else
+#if UNITY
 using UnityEngine;
 #endif
 
@@ -85,34 +81,6 @@ namespace Ex {
 		/// <typeparam name="T"> Generic type of Component to remove </typeparam>
 		/// <returns> True if a component was removed, otherwise false. </returns>
 		public bool RemoveComponent<T>() where T : Comp { return entity.RemoveComponent<T>(); }
-
-		#if !UNITY 
-		public static void LoadFromDB<T>(T t, BsonDocument bdoc) where T : Comp {
-			Type actualType = t.GetType();
-			FieldInfo[] fields = actualType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-			Log.Debug($"\\eLoading a {actualType} component from db. {fields.Length} fields.");
-
-			foreach (var field in fields) {
-				if (field.FieldType.IsValueType) {
-					try {
-						BsonValue bval;
-						if (bdoc.TryGetValue(field.Name, out bval)) {
-							object o = BsonSerializer.Deserialize(bval.ToJson(), field.FieldType);
-							Log.Verbose($"Setting Field {field.FieldType} {field.Name} on {actualType} to {o}");
-							field.SetValue(t, o);
-						}
-					} catch (Exception e) {
-						Log.Warning($"Comp.LoadFromDB<{actualType}>: Failed to reflect value {field.FieldType} {field.Name}", e);
-					}
-
-				}
-
-			}
-
-		}
-
-
-		#endif
 
 	}
 

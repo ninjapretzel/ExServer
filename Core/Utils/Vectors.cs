@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 // using UnityEngine; // This file basically becomes a no-op if inside of unity, as it defines equivelant vector structs.
 #else
@@ -22,8 +22,6 @@ using System.Text;
 using System.Threading.Tasks;
 #if !UNITY
 using static Ex.Utils.Mathf;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
 
 namespace Ex.Utils {
 	#region Mathf
@@ -3364,6 +3362,15 @@ namespace Ex.Utils {
 		public float o { get { return m23; } set { m23 = value; } }
 		/// <summary> Alternate naming scheme accessor. (<see cref="m33"/>) </summary>
 		public float p { get { return m33; } set { m33 = value; } }
+
+		/// <summary> Column vector accessor. </summary>
+		public Vector4 c0 { get { return new Vector4(m00, m10, m20, m30); } set { m00 = value.x; m10 = value.y; m20 = value.z; m30 = value.w; } }
+		/// <summary> Column vector accessor. </summary>
+		public Vector4 c1 { get { return new Vector4(m01, m11, m21, m31); } set { m01 = value.x; m11 = value.y; m21 = value.z; m31 = value.w; } }
+		/// <summary> Column vector accessor. </summary>
+		public Vector4 c2 { get { return new Vector4(m02, m12, m22, m32); } set { m02 = value.x; m12 = value.y; m22 = value.z; m32 = value.w; } }
+		/// <summary> Column vector accessor. </summary>
+		public Vector4 c3 { get { return new Vector4(m03, m13, m23, m33); } set { m03 = value.x; m13 = value.y; m23 = value.z; m33 = value.w; } }
 		
 		/// <summary> Construct a matrix from the given 16 components. </summary>
 		public Matrix4x4(	float a00, float a10, float a20, float a30, 
@@ -3397,7 +3404,7 @@ namespace Ex.Utils {
 					case  4: return m01; case  5: return m11; case  6: return m21; case  7: return m31;
 					case  8: return m02; case  9: return m12; case 10: return m22; case 11: return m32;
 					case 12: return m03; case 13: return m13; case 14: return m23; case 15: return m33;
-					default: throw new IndexOutOfRangeException($"Invalid matrix index {index}!");
+					default: throw new IndexOutOfRangeException($"Invalid Matrix4x4 index {index}!");
 				}
 			}
 			set {
@@ -3406,7 +3413,7 @@ namespace Ex.Utils {
 					case  4: m01 = value; break; case  5: m11 = value; break; case  6: m21 = value; break; case  7: m31 = value; break;
 					case  8: m02 = value; break; case  9: m12 = value; break; case 10: m22 = value; break; case 11: m32 = value; break;
 					case 12: m03 = value; break; case 13: m13 = value; break; case 14: m23 = value; break; case 15: m33 = value; break;
-					default: throw new IndexOutOfRangeException($"Invalid matrix index {index}!");
+					default: throw new IndexOutOfRangeException($"Invalid Matrix4x4 index {index}!");
 				}
 			}
 		}
@@ -3547,303 +3554,173 @@ namespace Ex.Utils {
 #endregion
 
 #region Serializers and Deserializers
-	/// <summary> Class to easily read/write small vectors of numbers for BSON serialization. Does not write begin/end constructs for tighter packing. </summary>
-	/// <remarks> This may make things more brittle, but should this should not matter, since each of these fundamental types shouldn't be used haphazardly. </remarks>
-	internal static class SerHelper {
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static int ReadInt(this BsonDeserializationContext ctx) {
-			return (int)ctx.Reader.ReadDouble();
-		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static long ReadLong(this BsonDeserializationContext ctx) {
-			return (long)ctx.Reader.ReadDouble();
+	public class VectorJsonConverter {
+		public static void RegisterSerializers() {
+			JsonReflector.RegisterConversions(ToVector2, FromVector2);
+			JsonReflector.RegisterConversions(ToVector2Int, FromVector2Int);
+			JsonReflector.RegisterConversions(ToVector3, FromVector3);
+			JsonReflector.RegisterConversions(ToVector3Int, FromVector3Int);
+			JsonReflector.RegisterConversions(ToVector4, FromVector4);
+			JsonReflector.RegisterConversions(ToRect, FromRect);
+			JsonReflector.RegisterConversions(ToRectInt, FromRectInt);
+
+			JsonReflector.RegisterConversions(ToBounds, FromBounds);
+			JsonReflector.RegisterConversions(ToBoundsInt, FromBoundsInt);
+			JsonReflector.RegisterConversions(ToMatrix4x4, FromMatrix4x4);
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static float ReadFloat(this BsonDeserializationContext ctx) {
-			return (float)ctx.Reader.ReadDouble();
+		public static JsonValue FromVector2(Vector2 v) { return new JsonArray().Add(v.x).Add(v.y);}
+		public static Vector2 ToVector2(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Vector2(obj.Pull("x", 0f), obj.Pull("y", 0f));
+			} else if (data is JsonArray arr) {
+				return new Vector2(arr.Pull(0, 0f), arr.Pull(1, 0f));
+			}
+			return new Vector2();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static double ReadDouble(this BsonDeserializationContext ctx) {
-			return ctx.Reader.ReadDouble();
+		public static JsonValue FromVector2Int(Vector2Int v) { return new JsonArray().Add(v.x).Add(v.y); }
+		public static Vector2Int ToVector2Int(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Vector2Int(obj.Pull("x", 0), obj.Pull("y", 0));
+			} else if (data is JsonArray arr) {
+				return new Vector2Int(arr.Pull(0, 0), arr.Pull(1, 0));
+			}
+			return new Vector2Int();
 		}
-
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector4 ReadV4(this BsonDeserializationContext ctx) {
-			float x = (float)ctx.Reader.ReadDouble();
-			float y = (float)ctx.Reader.ReadDouble();
-			float z = (float)ctx.Reader.ReadDouble();
-			float w = (float)ctx.Reader.ReadDouble();
-			return new Vector4(x, y, z, w);
+		public static JsonValue FromVector3(Vector3 v) { return new JsonArray().Add(v.x).Add(v.y).Add(v.z); }
+		public static Vector3 ToVector3(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Vector3(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("z", 0f));
+			} else if (data is JsonArray arr) {
+				return new Vector3(arr.Pull(0, 0f), arr.Pull(1, 0f), arr.Pull(2, 0f));
+			}
+			return new Vector3();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector3 ReadV3(this BsonDeserializationContext ctx) {
-			float x = (float) ctx.Reader.ReadDouble();
-			float y = (float) ctx.Reader.ReadDouble();
-			float z = (float) ctx.Reader.ReadDouble();
-			return new Vector3(x,y,z);
+		public static JsonValue FromVector3Int(Vector3Int v) { return new JsonArray().Add(v.x).Add(v.y).Add(v.z); }
+		public static Vector3Int ToVector3Int(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Vector3Int(obj.Pull("x", 0), obj.Pull("y", 0), obj.Pull("z", 0));
+			} else if (data is JsonArray arr) {
+				return new Vector3Int(arr.Pull(0, 0), arr.Pull(1, 0), arr.Pull(2, 0));
+			}
+			return new Vector3Int();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2 ReadV2(this BsonDeserializationContext ctx) {
-			float x = (float)ctx.Reader.ReadDouble();
-			float y = (float)ctx.Reader.ReadDouble();
-			return new Vector2(x, y);
+		public static JsonValue FromVector4(Vector4 v) { return new JsonArray().Add(v.x).Add(v.y).Add(v.z).Add(v.w); }
+		public static Vector4 ToVector4(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Vector4(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("z", 0f), obj.Pull("w", 0f));
+			} else if (data is JsonArray arr) {
+				return new Vector4(arr.Pull(0, 0f), arr.Pull(1, 0f), arr.Pull(2, 0f), arr.Pull(3, 0f));
+			}
+			return new Vector4();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector3Int ReadV3I(this BsonDeserializationContext ctx) {
-			int x = (int)ctx.Reader.ReadDouble();
-			int y = (int)ctx.Reader.ReadDouble();
-			int z = (int)ctx.Reader.ReadDouble();
-			return new Vector3Int(x, y, z);
+		public static JsonValue FromRect(Rect r) { return new JsonArray().Add(r.x).Add(r.y).Add(r.width).Add(r.height); }
+		public static Rect ToRect(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Rect(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("width", 0f), obj.Pull("height", 0f));
+			} else if (data is JsonArray arr) {
+				return new Rect(arr.Pull(0, 0f), arr.Pull(1, 0f), arr.Pull(2, 0f), arr.Pull(3, 0f));
+			}
+			return new Rect();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Vector2Int ReadV2I(this BsonDeserializationContext ctx) {
-			int x = (int)ctx.Reader.ReadDouble();
-			int y = (int)ctx.Reader.ReadDouble();
-			return new Vector2Int(x, y);
-		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static Rect ReadRect(this BsonDeserializationContext ctx) {
-			float x = (float)ctx.Reader.ReadDouble();
-			float y = (float)ctx.Reader.ReadDouble();
-			float width = (float)ctx.Reader.ReadDouble();
-			float height = (float)ctx.Reader.ReadDouble();
-			return new Rect(x, y, width, height);
-		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static RectInt ReadRectInt(this BsonDeserializationContext ctx) {
-			int x = (int)ctx.Reader.ReadDouble();
-			int y = (int)ctx.Reader.ReadDouble();
-			int width = (int)ctx.Reader.ReadDouble();
-			int height = (int)ctx.Reader.ReadDouble();
-			return new RectInt(x, y, width, height);
-		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void StartArray(this BsonDeserializationContext ctx) { ctx.Reader.ReadStartArray(); }
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void EndArray(this BsonDeserializationContext ctx) { ctx.Reader.ReadEndArray(); }
-		////////////////////////////////////////////////////////////////////////////////////////////////////
-		///////////////////////////////////////////////////////////////////////////////////////////////////
-		//////////////////////////////////////////////////////////////////////////////////////////////////
-		// Serialization
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteInt(this BsonSerializationContext ctx, int v) {
-			ctx.Writer.WriteDouble(v);
-		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteLong(this BsonSerializationContext ctx, long v) {
-			ctx.Writer.WriteDouble(v);
+		public static JsonValue FromRectInt(RectInt r) { return new JsonArray().Add(r.x).Add(r.y).Add(r.width).Add(r.height); }
+		public static RectInt ToRectInt(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new RectInt(obj.Pull("x", 0), obj.Pull("y", 0), obj.Pull("width", 0), obj.Pull("height", 0));
+			} else if (data is JsonArray arr) {
+				return new RectInt(arr.Pull(0, 0), arr.Pull(1, 0), arr.Pull(2, 0), arr.Pull(3, 0));
+			}
+			return new RectInt();
 		}
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteFloat(this BsonSerializationContext ctx, float v) {
-			ctx.Writer.WriteDouble(v);
+		public static JsonValue FromPlane(Plane p) { 
+			var n = p.normal;
+			return new JsonArray().Add(n.x).Add(n.y).Add(n.z).Add(p.distance); 
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteDouble(this BsonSerializationContext ctx, float v) {
-			ctx.Writer.WriteDouble(v);
+		public static Plane ToPlane(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Plane(ToVector3(obj["normal"]), obj.Pull("distance", 0f));
+			} else if (data is JsonArray arr) {
+				float nx = arr.Pull(0, 0f); float ny = arr.Pull(1, 0f); float nz = arr.Pull(2, 0f);
+				float d = arr.Pull(4, 0f);
+				return new Plane(new Vector3(nx, ny, nz), d);
+			}
+			return new Plane();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteV4(this BsonSerializationContext ctx, Vector4 v) {
-			ctx.Writer.WriteDouble(v.x);
-			ctx.Writer.WriteDouble(v.y);
-			ctx.Writer.WriteDouble(v.z);
-			ctx.Writer.WriteDouble(v.w);
+
+		public static JsonValue FromRay(Ray r) {
+			var o = r.origin; var d = r.dir;
+			return new JsonArray().Add(o.x).Add(o.y).Add(o.z).Add(d.x).Add(d.y).Add(d.z);
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteV3(this BsonSerializationContext ctx, Vector3 v) {
-			ctx.Writer.WriteDouble(v.x);
-			ctx.Writer.WriteDouble(v.y);
-			ctx.Writer.WriteDouble(v.z);
+		public static Ray ToRay(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Ray(ToVector3(obj["origin"]), ToVector3(obj["dir"]));
+			} else if (data is JsonArray arr) {
+				float ox = arr.Pull(0, 0f); float oy = arr.Pull(1, 0f); float oz = arr.Pull(2, 0f);
+				float dx = arr.Pull(3, 0f); float dy = arr.Pull(4, 0f); float dz = arr.Pull(5, 0f);
+				return new Ray(new Vector3(ox, oy, oz), new Vector3(dx, dy, dz));
+			}
+			return new Ray();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteV2(this BsonSerializationContext ctx, Vector2 v) {
-			ctx.Writer.WriteDouble(v.x);
-			ctx.Writer.WriteDouble(v.y);
+
+		public static JsonValue FromRay2D(Ray2D r) {
+			var o = r.origin; var d = r.dir;
+			return new JsonArray().Add(o.x).Add(o.y).Add(0).Add(d.x).Add(d.y).Add(0);
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteRect(this BsonSerializationContext ctx, Rect r) {
-			ctx.Writer.WriteDouble(r.x);
-			ctx.Writer.WriteDouble(r.y);
-			ctx.Writer.WriteDouble(r.width);
-			ctx.Writer.WriteDouble(r.height);
+		public static Ray2D ToRay2D(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Ray2D(ToVector3(obj["origin"]), ToVector3(obj["dir"]));
+			} else if (data is JsonArray arr) {
+				float ox = arr.Pull(0, 0f); float oy = arr.Pull(1, 0f);
+				float dx = arr.Pull(3, 0f); float dy = arr.Pull(4, 0f);
+				return new Ray2D(new Vector2(ox, oy), new Vector2(dx, dy));
+			}
+			return new Ray2D();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteV2I(this BsonSerializationContext ctx, Vector2Int v) {
-			ctx.Writer.WriteDouble(v.x);
-			ctx.Writer.WriteDouble(v.y);
+
+		public static JsonValue FromBounds(Bounds b) {
+			var c = b.center; var s = b.size;
+			return new JsonArray().Add(c.x).Add(c.y).Add(c.z).Add(s.x).Add(s.y).Add(s.z);
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteV3I(this BsonSerializationContext ctx, Vector3Int v) {
-			ctx.Writer.WriteDouble(v.x);
-			ctx.Writer.WriteDouble(v.y);
-			ctx.Writer.WriteDouble(v.z);
+		public static Bounds ToBounds(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new Bounds(ToVector3(obj["center"]), ToVector3(obj["size"]));
+			} else if (data is JsonArray arr) {
+				float cx = arr.Pull(0, 0f); float cy = arr.Pull(1, 0f); float cz = arr.Pull(2, 0f);
+				float sx = arr.Pull(3, 0f); float sy = arr.Pull(4, 0f); float sz = arr.Pull(5, 0f);
+				return new Bounds(new Vector3(cx, cy, cz), new Vector3(sx, sy, sz));
+			}
+			return new Bounds();
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void WriteRectInt(this BsonSerializationContext ctx, RectInt r) {
-			ctx.Writer.WriteDouble(r.x);
-			ctx.Writer.WriteDouble(r.y);
-			ctx.Writer.WriteDouble(r.width);
-			ctx.Writer.WriteDouble(r.height);
+
+		public static JsonValue FromBoundsInt(BoundsInt b) {
+			var c = b.center; var s = b.size;
+			return new JsonArray().Add(c.x).Add(c.y).Add(c.z).Add(s.x).Add(s.y).Add(s.z);
 		}
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void StartArray(this BsonSerializationContext ctx) { ctx.Writer.WriteStartArray(); }
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void EndArray(this BsonSerializationContext ctx) { ctx.Writer.WriteEndArray(); }
-	}
-	public class BoundsSerializer : SerializerBase<Bounds> {
-		public override Bounds Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector3 center = context.ReadV3();
-			Vector3 size = context.ReadV3();
-			context.EndArray();
-			return new Bounds(center, size);
+		public static BoundsInt ToBoundsInt(JsonValue data) {
+			if (data is JsonObject obj) {
+				return new BoundsInt(ToVector3Int(obj["center"]), ToVector3Int(obj["size"]));
+			} else if (data is JsonArray arr) {
+				int cx = arr.Pull(0, 0); int cy = arr.Pull(1, 0); int cz = arr.Pull(2, 0);
+				int sx = arr.Pull(3, 0); int sy = arr.Pull(4, 0); int sz = arr.Pull(5, 0);
+				return new BoundsInt(new Vector3Int(cx, cy, cz), new Vector3Int(sx, sy, sz));
+			}
+			return new BoundsInt();
 		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Bounds value) {
-			Vector3 center = value.center;
-			Vector3 size = value.size;
-			context.StartArray();
-			context.WriteV3(center);
-			context.WriteV3(size);
-			context.EndArray();
+
+		public static JsonValue FromMatrix4x4(Matrix4x4 m) {
+			return new JsonArray().Add(FromVector4(m.c0)).Add(FromVector4(m.c1)).Add(FromVector4(m.c2)).Add(FromVector4(m.c3));
 		}
-	}
-	public class PlaneSerializer : SerializerBase<Plane> {
-		public override Plane Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector3 normal = context.ReadV3();
-			float distance = context.ReadFloat();
-			context.EndArray();
-			return new Plane(normal, distance);
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Plane value) {
-			context.StartArray();
-			context.WriteV3(value.normal);
-			context.WriteFloat(value.distance);
-			context.EndArray();
-		}
-	}
-	public class RaySerializer : SerializerBase<Ray> {
-		public override Ray Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector3 origin = context.ReadV3();
-			Vector3 direction = context.ReadV3();
-			context.EndArray();
-			return new Ray(origin, direction);
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ray value) {
-			context.StartArray();
-			context.WriteV3(value.origin);
-			context.WriteV3(value.direction);
-			context.EndArray();
+		public static Matrix4x4 ToMatrix4x4(JsonValue data) { 
+			if (data is JsonObject obj) {
+				return new Matrix4x4(ToVector4(obj["c0"]), ToVector4(obj["c1"]), ToVector4(obj["c2"]), ToVector4(obj["c3"]));
+			} else if (data is JsonArray arr) {
+				return new Matrix4x4(ToVector4(arr[0]), ToVector4(arr[1]), ToVector4(arr[2]), ToVector4(arr[3]));
+			}
+			return new Matrix4x4();
 		}
 	}
-	public class Ray2DSerializer : SerializerBase<Ray2D> {
-		public override Ray2D Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector2 origin = context.ReadV2();
-			Vector2 dir = context.ReadV2();
-			context.EndArray();
-			return new Ray2D(origin, dir);
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Ray2D value) {
-			context.StartArray();
-			context.WriteV2(value.origin);
-			context.WriteV2(value.direction);
-			context.EndArray();
-		}
-	}
-	public class RectSerializer : SerializerBase<Rect> {
-		public override Rect Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Rect r = context.ReadRect();
-			context.EndArray();
-			return r;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Rect value) {
-			context.StartArray();
-			context.WriteRect(value);
-			context.EndArray();
-		}
-	}
-	public class RectIntSerializer : SerializerBase<RectInt> {
-		public override RectInt Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			RectInt r = context.ReadRectInt();
-			context.EndArray();
-			return r;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, RectInt value) {
-			context.StartArray();
-			context.WriteRectInt(value);
-			context.EndArray();
-		}
-	}
-	public class Vector4Serializer : SerializerBase<Vector4> {
-		public override Vector4 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector4 v = context.ReadV4();
-			context.EndArray();
-			return v;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector4 value) {
-			context.StartArray();
-			context.WriteV4(value);
-			context.EndArray();
-		}
-	}
-	public class Vector3Serializer : SerializerBase<Vector3> {
-		public override Vector3 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector3 v = context.ReadV3();
-			context.EndArray();
-			return v;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector3 value) {
-			context.StartArray();
-			context.WriteV3(value);
-			context.EndArray();
-		}
-	}
-	public class Vector2Serializer : SerializerBase<Vector2> {
-		public override Vector2 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector2 v = context.ReadV2();
-			context.EndArray();
-			return v;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector2 value) {
-			context.StartArray();
-			context.WriteV2(value);
-			context.EndArray();
-		}
-	}
-	public class Vector3IntSerializer : SerializerBase<Vector3Int> {
-		public override Vector3Int Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector3Int v = context.ReadV3I();
-			context.EndArray();
-			return v;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector3Int value) {
-			context.StartArray();
-			context.WriteV3I(value);
-			context.EndArray();
-		}
-	}
-	public class Vector2IntSerializer : SerializerBase<Vector2Int> {
-		public override Vector2Int Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			context.StartArray();
-			Vector2Int v = context.ReadV2I();
-			context.EndArray();
-			return v;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, Vector2Int value) {
-			context.StartArray();
-			context.WriteV2I(value);
-			context.EndArray();
-		}
-	}
+
 #endregion
 
 }

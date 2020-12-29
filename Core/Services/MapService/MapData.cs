@@ -1,13 +1,10 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 #if UNITY
 using UnityEngine;
 #else
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson;
 #endif
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -67,8 +64,7 @@ namespace Ex {
 
 #if !UNITY
 	/// <summary> DB info for data about a map, used to create and make decisions about a map instance </summary>
-	[BsonIgnoreExtraElements] 
-	public class MapInfo : DBEntry {
+	public class MapInfo {
 
 		/// <summary> Cached <see cref="MapSettings"/> </summary>
 		[NonSerialized] private MapSettings? _settings;
@@ -83,94 +79,74 @@ namespace Ex {
 				return _settings.Value;
 			}
 		}
-		
 
 		/// <summary> Display name </summary>
-		public string name { get; set; }
+		public string name = "UnnamedMap";
 
 		/// <summary> Is this map instanced? </summary>
-		[BsonDefaultValue(false)]
-		public bool instanced { get; set; }
+		public bool instanced = false;
 		/// <summary> Default number of instances to create, if this map is instanced. </summary>
-		[BsonDefaultValue(1)]
-		public int numInstances { get; set; }
+		public int numInstances = 1;
 		
 		/// <summary> Is this map 3d? </summary>
-		[BsonDefaultValue(false)]
-		public bool is3d { get; set; }
+		public bool is3d = false;
 		/// <summary> Does this map show other players's entities? </summary>
-		[BsonDefaultValue(false)]
-		public bool solo { get; set; }
+		public bool solo = false;
 		/// <summary> Does this map destroy cells (and entities) when not viewed by a client? </summary>
-		[BsonDefaultValue(true)]
-		public bool sparse { get; set; }
+		public bool sparse = true;
 		
 		/// <summary> Axes of map to use if 2d. </summary>
-		[BsonDefaultValue(Axes.XZ)]
-		public Axes axes { get; set; }
+		public Axes axes = Axes.XZ;
 		/// <summary> Size of cells in arbitrary units. </summary>
-		[BsonDefaultValue(10)]
-		public float cellSize { get; set; }
+		public float cellSize = 10.0f;
 		/// <summary> Radius of visible surrounding cells in arbitrary units. </summary>
-		[BsonDefaultValue(2)]
-		public int cellDist { get; set; }
+		public int cellDist = 2;
 		/// <summary> Size of a "Region" in the map. Regions are used to circumvent floating point precision loss. </summary>
-		[BsonDefaultValue(2048f)]
-		public float regionSize { get; set; }
+		public float regionSize = 2048f;
 		
 		/// <summary> Bounds of map space in arbitrary units. If bounds is zero'd, map is infinite. </summary>
-		[BsonIgnoreIfNull]
-		public Bounds bounds { get; set; }
+		public Bounds bounds;
 		/// <summary> Shape of bounds to use for edge of map </summary>
-		[BsonIgnoreIfNull]
-		public BoundsShape boundsShape { get; set; }
+		public BoundsShape boundsShape = BoundsShape.Box;
 
 		/// <summary> Entities in the map </summary>
-		[BsonIgnoreIfNull]
-		public EntityInstanceInfo[] entities { get; set; }
-
-
+		public EntityInstanceInfo[] entities = EMPTY;
+		private static readonly EntityInstanceInfo[] EMPTY = new EntityInstanceInfo[0];
 	}
 	
 	/// <summary> Entity information. </summary>
-	[BsonIgnoreExtraElements]
-	public class EntityInfo : DBEntry {
+	public class EntityInfo {
 		/// <summary> Kind of entity </summary>
-		public string type { get; set; }
-		/// <summary> Source filename. </summary>
-		[BsonIgnoreIfNull]
-		public string filename{ get; set; } = "";
+		public string type;
 		/// <summary> Is this a global (map-wide) entity? </summary>
-		[BsonIgnoreIfNull] 
-		public bool global { get; set; } = false;
+		public bool global = false;
 		/// <summary> Information about <see cref="Comp"/>s attached to entity </summary>
 		public ComponentInfo[] components;
+		private static readonly ComponentInfo[] EMPTY = new ComponentInfo[0];
+
 	}
 
 	/// <summary> Information about <see cref="Comp"/>s attached to an entity </summary>
-	[BsonIgnoreExtraElements]
 	public class ComponentInfo {
 		/// <summary> name of type of component </summary>
-		public string type { get; set; }
+		public string type;
 		/// <summary> Arbitrary Data to merge into component </summary>
-		public BsonDocument data { get; set; }
+		public JsonObject data;
 	}
 
 	/// <summary> <see cref="MapInfo"/> embedded entity information. 
 	/// These are spawned into entities when the map starts. </summary>
-	[BsonIgnoreExtraElements]
 	public class EntityInstanceInfo {
 		/// <summary> Location of Entity </summary>
-		public Vector3 position { get; set; }
+		public Vector3 position;
 		/// <summary> Map "region", used to circumvent floating point precision loss</summary>
-		[BsonIgnoreIfNull]
-		public Vector3Int region { get; set; }
+		public Vector3Int region;
 		/// <summary> Rotation of Entity </summary>
-		public Vector3 rotation { get; set; }
+		public Vector3 rotation;
 		/// <summary> Scale of Entity </summary>
-		public Vector3 scale { get; set; }
+		public Vector3 scale;
 		/// <summary> ID of entity <see cref="EntityInfo"/> object in database </summary>
-		public string type { get; set; }
+		public string type;
 	}
 	
 	

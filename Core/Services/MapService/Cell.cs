@@ -3,8 +3,6 @@
 #endif
 #if UNITY
 using UnityEngine;
-#else
-using MongoDB.Bson.Serialization.Attributes;
 #endif
 
 using System;

@@ -1,13 +1,10 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 #if UNITY
 using UnityEngine;
 using static UnityEngine.Mathf;
 #else
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Bson.Serialization;
 using static Ex.Utils.Mathf;
 #endif
 using System;
@@ -19,9 +16,6 @@ using Ex.Utils;
 
 namespace Ex.Data {
 	/// <summary> Modified C# port of https://github.com/SRombauts/SimplexNoise/blob/master/src/SimplexNoise.cpp for unity </summary>
-	#if !UNITY
-	[BsonIgnoreExtraElements]
-	#endif
 	[System.Serializable]
 	public struct SimplexNoise {
 		/// <summary> 
@@ -593,47 +587,43 @@ namespace Ex.Data {
 			return 32.0f * (n0 + n1 + n2 + n3);
 		}
 
+		public JsonValue ToJson() {
+			return new JsonArray()
+				.Add(octaves)
+				.Add(persistence).Add(scale).Add(octaveScale)
+				.Add(noiseOffset.x).Add(noiseOffset.y).Add(noiseOffset.z);
+		}
+		public static SimplexNoise FromJson(JsonValue value) {
+			SimplexNoise noise = new SimplexNoise();
+			var DS = Defaults;
+			if (value is JsonObject obj) {
+				noise.octaves = obj.Pull("octaves", DS.octaves);
+
+				noise.persistence = obj.Pull("persistence", DS.persistence);
+				noise.scale = obj.Pull("scale", DS.scale);
+				noise.octaveScale = obj.Pull("octaveScale", DS.octaveScale);
+
+				noise.noiseOffset = obj.Pull("noiseOffset", DS.noiseOffset);
+			} else if (value is JsonArray arr) {
+				noise.octaves = arr.Pull(0, DS.octaves);
+
+				noise.persistence = arr.Pull(1, DS.persistence);
+				noise.scale = arr.Pull(2, DS.scale);
+				noise.octaveScale = arr.Pull(3, DS.octaveScale);
+				
+				noise.noiseOffset.x = arr.Pull(4, DS.noiseOffset.x);
+				noise.noiseOffset.y = arr.Pull(5, DS.noiseOffset.y);
+				noise.noiseOffset.z = arr.Pull(6, DS.noiseOffset.z);
+			}
+			return noise;
+		}
+
 	}
+
+
 	#if UNITY
 	public delegate float HeightFn(Vector3 position);
 	public delegate Color SplatFn(Vector3 position);
 	#endif
-
-	#if !UNITY
-	public class SimplexNoiseSerializer : SerializerBase<SimplexNoise> {
-		public override SimplexNoise Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			SimplexNoise noise;
-			context.StartArray();
-
-			noise.octaves = context.ReadFloat();
-
-			noise.persistence = context.ReadFloat();
-			noise.scale = context.ReadFloat();
-			noise.octaveScale = context.ReadFloat();
-
-			noise.noiseOffset.x = context.ReadFloat();
-			noise.noiseOffset.y = context.ReadFloat();
-			noise.noiseOffset.z = context.ReadFloat();
-
-			context.EndArray();
-			return noise;
-		}
-
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, SimplexNoise value) {
-			context.StartArray();
-
-			context.WriteFloat(value.octaves);
-
-			context.WriteFloat(value.persistence);
-			context.WriteFloat(value.scale);
-			context.WriteFloat(value.octaveScale);
-
-			context.WriteFloat(value.noiseOffset.x);
-			context.WriteFloat(value.noiseOffset.y);
-			context.WriteFloat(value.noiseOffset.z);
-
-			context.EndArray();
-		}
-	}
-	#endif
+	
 }

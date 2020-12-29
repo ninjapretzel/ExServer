@@ -1,21 +1,15 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 #if UNITY
 using UnityEngine;
 #else
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.Serialization.Serializers;
 using Ex.Utils;
 #endif
 
 
 namespace Ex.Data {
 	
-	#if !UNITY
-	[BsonIgnoreExtraElements]
-	#endif
 	[System.Serializable]
 	public struct UberData {
 
@@ -78,55 +72,51 @@ namespace Ex.Data {
 
 		}
 
-	}
+		public JsonValue ToJson() {
+			return new JsonArray()
+				.Add(octaves)
+				.Add(perturb).Add(sharpness).Add(amplify)
+				.Add(altitudeErosion).Add(ridgeErosion).Add(slopeErosion)
+				.Add(lacunarity).Add(gain).Add(startAmplitude).Add(scale);
+		}
+		public static UberData FromJson(JsonValue value) {
+			UberData noise = new UberData();
+			UberData DS = Defaults;
+			if (value is JsonObject obj) {
+				noise.octaves = obj.Pull("octaves", DS.octaves);
 
+				noise.perturb = obj.Pull("perturb", DS.perturb);
+				noise.sharpness = obj.Pull("sharpness", DS.sharpness);
+				noise.amplify = obj.Pull("amplify", DS.amplify);
 
-#if !UNITY
-	public class UberDataSerializer : SerializerBase<UberData> {
-		public override UberData Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			UberData noise;
-			context.StartArray();
+				noise.altitudeErosion = obj.Pull("altitudeErosion", DS.altitudeErosion);
+				noise.ridgeErosion = obj.Pull("ridgeErosion", DS.ridgeErosion);
+				noise.slopeErosion = obj.Pull("slopeErosion", DS.slopeErosion);
 
-			noise.octaves = context.ReadFloat();
+				noise.lacunarity = obj.Pull("lacunarity", DS.lacunarity);
+				noise.gain = obj.Pull("gain", DS.gain);
+				noise.startAmplitude = obj.Pull("startAmplitude", DS.startAmplitude);
+				noise.scale = obj.Pull("scale", DS.scale);
+			} else if (value is JsonArray arr) {
+				noise.octaves = arr.Pull(0, DS.octaves);
 
-			noise.perturb = context.ReadFloat();
-			noise.sharpness = context.ReadFloat();
-			noise.amplify = context.ReadFloat();
+				noise.perturb = arr.Pull(1, DS.perturb);
+				noise.sharpness = arr.Pull(2, DS.sharpness);
+				noise.amplify = arr.Pull(3, DS.amplify);
 
-			noise.altitudeErosion = context.ReadFloat();
-			noise.ridgeErosion = context.ReadFloat();
-			noise.slopeErosion = context.ReadFloat();
+				noise.altitudeErosion = arr.Pull(4, DS.altitudeErosion);
+				noise.ridgeErosion = arr.Pull(5, DS.ridgeErosion);
+				noise.slopeErosion = arr.Pull(6, DS.slopeErosion);
 
-			noise.lacunarity = context.ReadFloat();
-			noise.gain = context.ReadFloat();
-			noise.startAmplitude = context.ReadFloat();
-			noise.scale = context.ReadFloat();
+				noise.lacunarity = arr.Pull(7, DS.lacunarity);
+				noise.gain = arr.Pull(8, DS.gain);
+				noise.startAmplitude = arr.Pull(9 , DS.startAmplitude);
+				noise.scale = arr.Pull(10, DS.scale);
+			}
+			
 
-			context.EndArray();
 			return noise;
 		}
-
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, UberData value) {
-			context.StartArray();
-
-			context.WriteFloat(value.octaves);
-
-			context.WriteFloat(value.perturb);
-			context.WriteFloat(value.sharpness);
-			context.WriteFloat(value.amplify);
-
-			context.WriteFloat(value.altitudeErosion);
-			context.WriteFloat(value.ridgeErosion);
-			context.WriteFloat(value.slopeErosion);
-
-			context.WriteFloat(value.lacunarity);
-			context.WriteFloat(value.gain);
-			context.WriteFloat(value.startAmplitude);
-			context.WriteFloat(value.scale);
-			
-			context.EndArray();
-		}
 	}
-
-#endif
+	
 }

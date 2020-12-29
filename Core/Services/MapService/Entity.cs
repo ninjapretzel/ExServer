@@ -2,9 +2,7 @@
 #define UNITY
 #endif
 
-#if !UNITY
-using MongoDB.Bson.Serialization.Attributes;
-#else
+#if UNITY
 using UnityEngine;
 #endif
 

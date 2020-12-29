@@ -4,6 +4,7 @@ using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 using LevelUpper.Markdown;
+using Ex;
 #endif
 #endif
 
@@ -15,7 +16,6 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Text;
-using Ex;
 using System.Threading.Tasks;
 
 namespace BakaTest {

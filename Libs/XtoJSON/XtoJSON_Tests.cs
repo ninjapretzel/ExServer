@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using BakaTest;
+
 using static BakaTest.BakaTests;
 
 public static class Json_Tests {
@@ -19,367 +20,570 @@ public static class Json_Tests {
 		prev = null;
 	}
 
-	// Test Code
-	
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	
-	public class TestReflecting {
-		private class PrimitivesModel {
-			public float value1 = 1;
-			public float value2 = 2;
-			public double dvalue = 55;
-			public string str = "defaultString";
-			public bool flag1 = false;
-			public bool flag2 = true;
-			public override bool Equals(object obj) {
-				if (!(obj is PrimitivesModel)) { return false; }
-				var o = obj as PrimitivesModel;
-				return value1 == o.value1 && value2 == o.value2 && dvalue == o.dvalue && str == o.str && flag1 == o.flag1 && flag2 == o.flag2;
+	public class Container {
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////
+		// Test Code
+		public class TestReflecting {
+			private class PrimitivesModel {
+				public float value1 = 1;
+				public float value2 = 2;
+				public double dvalue = 55;
+				public string str = "defaultString";
+				public bool flag1 = false;
+				public bool flag2 = true;
+				public override bool Equals(object obj) {
+					if (!(obj is PrimitivesModel)) { return false; }
+					var o = obj as PrimitivesModel;
+					return value1 == o.value1 && value2 == o.value2 && dvalue == o.dvalue && str == o.str && flag1 == o.flag1 && flag2 == o.flag2;
+				}
+				public override int GetHashCode() { return -1; }
 			}
-			public override int GetHashCode() { return -1; }
+			public static void TestObjectParse1() {
+				{
+					PrimitivesModel model = new PrimitivesModel();
+					PrimitivesModel fromEmpty = Json.GetValue<PrimitivesModel>(new JsonObject());
+					model.ShouldEqual(fromEmpty);
+				}
+
+				{
+					PrimitivesModel model = new PrimitivesModel();
+					model.str = "otherString";
+					model.flag1 = true;
+					model.value2 = 50;
+					JsonObject delta = new JsonObject("str", "otherString", "flag1", true, "value2", 50);
+					PrimitivesModel fromDelta = Json.GetValue<PrimitivesModel>(delta);
+					model.ShouldEqual(fromDelta);
+				}
+			}
+
+			private class ArraysModel {
+				public float[] floats = new float[] { 3 };
+				public string[] strs = new string[] { "nope" };
+				public bool[] flags = new bool[] { false };
+			}
+			public static void TestArrayReflection() {
+				{
+					JsonObject obj = new JsonObject();
+					obj["floats"] = new JsonArray(0, 1, 2, 3, 4, 5, 6);
+					obj["strs"] = new JsonArray("oh", "bob", "saget");
+					obj["flags"] = new JsonArray(true, true, false, true, false, false);
+
+					ArraysModel model = new ArraysModel();
+					model.floats = new float[] { 0f, 1f, 2f, 3f, 4f, 5f, 6f };
+					model.strs = new string[] { "oh", "bob", "saget" };
+					model.flags = new bool[] { true, true, false, true, false, false };
+
+					ArraysModel reflected = Json.GetValue<ArraysModel>(obj);
+					reflected.floats.ShouldBeSame(model.floats);
+					reflected.strs.ShouldBeSame(model.strs);
+					reflected.flags.ShouldBeSame(model.flags);
+				}
+			}
+
+			private class JsonValuesModels {
+				public JsonArray arr = new JsonArray(12);
+				public JsonObject obj = new JsonObject("nope", 5);
+				public JsonString str = "yep";
+				public JsonNumber num = 200;
+				public JsonBool flg = false;
+				public override bool Equals(object other) {
+					if (!(other is JsonValuesModels)) { return false; }
+					var o = other as JsonValuesModels;
+					return arr.Equals(o.arr) && obj.Equals(o.obj) && str == o.str && num == o.num && flg == o.flg;
+				}
+				public override int GetHashCode() { return -1; }
+			}
+
+		
+			public static void TestJsonValueReflection() {
+				{
+					JsonObject obj = new JsonObject();
+					obj["arr"] = new JsonArray(1,2,3,4);
+					obj["obj"] = new JsonObject("yeah", 20);
+					obj["str"] = "naw";
+					obj["num"] = 300;
+					obj["flg"] = true;
+
+					JsonValuesModels model = new JsonValuesModels();
+					model.arr = new JsonArray(1,2,3,4);
+					model.obj = new JsonObject("yeah", 20);
+					model.str = "naw";
+					model.num = 300;
+					model.flg = true;
+
+					JsonValuesModels reflected = Json.GetValue<JsonValuesModels>(obj);
+					reflected.ShouldEqual(model);
+				}
+			}
+
+			public struct Vector2 { public float x, y; public Vector2(float a, float b) { x = a; y = b; } }
+			public struct Vector3 { public float x, y, z; public Vector3(float a, float b, float c) { x = a; y = b; z = c; } }
+			public struct Vector4 { public float x, y, z, w; public Vector4(float a, float b, float c, float d) { x = a; y = b; z = c; w = d; } }
+			public static Vector2 ToVector2(JsonValue data) {
+				if (data.isObject) {
+					JsonObject obj = (JsonObject)data;
+					return new Vector2(obj.Pull("x", 0f), obj.Pull("y", 0f));
+				} else if (data.isArray) {
+					JsonArray arr = (JsonArray)data;
+					return new Vector2(arr.Pull(0, 0f), arr.Pull(1, 0f));
+				}
+				return new Vector2();
+			}
+			public static Vector3 ToVector3(JsonValue data) {
+				if (data.isObject) {
+					JsonObject obj = (JsonObject)data;
+					return new Vector3(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("z", 0f));
+				} else if (data.isArray) {
+					JsonArray arr = (JsonArray)data;
+					return new Vector3(arr.Pull(0, 0f), arr.Pull(1, 0f), arr.Pull(2, 0f));
+				}
+				return new Vector3();
+			}
+			public static Vector4 ToVector4(JsonValue data) {
+				if (data.isObject) {
+					JsonObject obj = (JsonObject)data;
+					return new Vector4(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("z", 0f), obj.Pull("w", 0f));
+				} else if (data.isArray) {
+					JsonArray arr = (JsonArray)data;
+					return new Vector4(arr.Pull(0, 0f), arr.Pull(1, 0f), arr.Pull(2, 0f), arr.Pull(3, 0f));
+				}
+				return new Vector4();
+			}
+			public static JsonValue Vector2ToJsonArray(Vector2 v) { return new JsonArray(v.x, v.y); }
+			public static JsonValue Vector3ToJsonArray(Vector3 v) { return new JsonArray(v.x, v.y, v.z); }
+			public static JsonValue Vector4ToJsonArray(Vector4 v) { return new JsonArray(v.x, v.y, v.z, v.w); }
+			public static void TestExplicitReflectorGenerator() {
+				JsonReflector.RegisterGenerator<Vector3>(ToVector3);
+				JsonReflector.RegisterReflector<Vector3>(Vector3ToJsonArray);
+				// wtb defer
+				// defer JsonReflector.UnregisterGenerator<Vector3>();
+				// defer JsonReflector.UnregisterReflector<Vector3>();
+				try {
+
+					Vector3 testValue= new Vector3(1,2,3);
+
+					JsonValue reflected = Json.Reflect(testValue);
+					reflected.ToString().ShouldEqual("[1,2,3]");
+
+					Vector3 restored = Json.GetValue<Vector3>(reflected);
+
+					JsonValue objJsonValue = new JsonObject("x", 1, "y", 2, "z", 3);
+					Vector3 objRestored = Json.GetValue<Vector3>(objJsonValue);
+					Vector3 directArr = Json.To<Vector3>("[1,2,3]");
+					Vector3 directObj = Json.To<Vector3>("{x:1,y:2,z:3}");
+
+
+					restored.x.ShouldBe(1); restored.y.ShouldBe(2); restored.z.ShouldBe(3);
+					objRestored.x.ShouldBe(1); objRestored.y.ShouldBe(2); objRestored.z.ShouldBe(3);
+					directArr.x.ShouldBe(1); directArr.y.ShouldBe(2); directArr.z.ShouldBe(3);
+					directObj.x.ShouldBe(1); directObj.y.ShouldBe(2); directObj.z.ShouldBe(3);
+
+				} finally {
+					JsonReflector.UnregisterGenerator<Vector3>();
+					JsonReflector.UnregisterReflector<Vector3>();
+				}
+			}
+
+			public static void TestShouldFailIfUnregisterCallsFail() {
+				Vector3 v = new Vector3(1,2,3);
+				JsonValue reflected = Json.Reflect(v);
+
+				reflected.isArray.ShouldBeFalse();
+
+				
+				Vector3 restored = Json.To<Vector3>("[1,2,3]");
+				
+
+			}
+
+			public class Vector3_IRG {
+				public float x, y, z;
+				public Vector3_IRG(float x, float y, float z) { this.x = x; this.y = y; this.z = z; }
+				public static Vector3_IRG FromJson(JsonValue data) {
+					if (data.isObject) {
+						JsonObject obj = (JsonObject) data;
+						return new Vector3_IRG(obj.Pull("x", 0f), obj.Pull("y", 0f), obj.Pull("z", 0f));
+					} else if (data.isArray) {
+						JsonArray arr = (JsonArray) data;
+						return new Vector3_IRG(arr.Get<float>(0), arr.Get<float>(1), arr.Get<float>(2));
+					}
+					return null;
+				}
+				public JsonValue ToJson() { return new JsonArray(x, y, z); }
+			}
+			public static void TestImplicitReflectorGenerator() {
+				Vector3_IRG testValue = new Vector3_IRG(1, 2, 3);
+
+				JsonValue reflected = Json.Reflect(testValue);
+				reflected.ToString().ShouldEqual("[1,2,3]");
+
+				Vector3_IRG restored = Json.GetValue<Vector3_IRG>(reflected);
+				
+				JsonValue objJsonValue = new JsonObject("x", 1, "y", 2, "z", 3);
+				Vector3_IRG objRestored = Json.GetValue<Vector3_IRG>(objJsonValue);
+
+				restored.x.ShouldBe(1);
+				objRestored.x.ShouldBe(1);
+				restored.y.ShouldBe(2);
+				objRestored.y.ShouldBe(2);
+				restored.z.ShouldBe(3);
+				objRestored.z.ShouldBe(3);
+			}
+
+			public class SomethingWithList {
+				public List<Vector3> stuff = new List<Vector3>();
+			}
+
+			public static void TestListCoercion() {
+				SomethingWithList a = new SomethingWithList();
+				a.stuff.Add(new Vector3(1,2,3));
+				a.stuff.Add(new Vector3(4,5,6));
+				a.stuff.Add(new Vector3(7,8,9));
+
+				JsonObject obj = Json.Reflect(a) as JsonObject;
+
+				obj.Count.ShouldBe(1);
+				obj["stuff"].Count.ShouldBe(3);
+				
+				SomethingWithList b = Json.GetValue<SomethingWithList>(obj);
+				b.stuff[0].ShouldEqual(new Vector3(1,2,3));
+				b.stuff[1].ShouldEqual(new Vector3(4,5,6));
+				b.stuff[2].ShouldEqual(new Vector3(7,8,9));
+				
+				void testOtherVectors() {
+					JsonArray arr = obj["stuff"] as JsonArray;
+					List<Vector3> vec3s = arr.ToListOf<Vector3>();
+					vec3s[0].ShouldEqual(new Vector3(1, 2, 3));
+					vec3s[1].ShouldEqual(new Vector3(4, 5, 6));
+					vec3s[2].ShouldEqual(new Vector3(7, 8, 9));
+
+					List<Vector2> vec2s = arr.ToListOf<Vector2>();
+					vec2s[0].ShouldEqual(new Vector2(1, 2));
+					vec2s[1].ShouldEqual(new Vector2(4, 5));
+					vec2s[2].ShouldEqual(new Vector2(7, 8));
+
+					List<Vector4> vec4s = arr.ToListOf<Vector4>();
+					vec4s[0].ShouldEqual(new Vector4(1, 2, 3, 0));
+					vec4s[1].ShouldEqual(new Vector4(4, 5, 6, 0));
+					vec4s[2].ShouldEqual(new Vector4(7, 8, 9, 0));
+				}
+				testOtherVectors();
+
+				JsonReflector.RegisterGenerator<Vector2>(ToVector2);
+				JsonReflector.RegisterGenerator<Vector3>(ToVector3);
+				JsonReflector.RegisterGenerator<Vector4>(ToVector4);
+				JsonReflector.RegisterReflector<Vector3>(Vector3ToJsonArray);
+				// wtb defer
+				// defer JsonReflector.UnregisterGenerator<Vector3>();
+				// defer JsonReflector.UnregisterReflector<Vector3>();
+				try {
+					obj = Json.Reflect(a) as JsonObject;
+
+					SomethingWithList c= Json.GetValue<SomethingWithList>(obj);
+					c.stuff[0].ShouldEqual(new Vector3(1, 2, 3));
+					c.stuff[1].ShouldEqual(new Vector3(4, 5, 6));
+					c.stuff[2].ShouldEqual(new Vector3(7, 8, 9));
+
+					testOtherVectors();
+				} finally {
+					JsonReflector.UnregisterGenerator<Vector2>();
+					JsonReflector.UnregisterGenerator<Vector3>();
+					JsonReflector.UnregisterGenerator<Vector4>();
+					JsonReflector.UnregisterReflector<Vector3>();
+				}
+			}
+
+			public class SomethingWithNullableList {
+				public List<int?> stuff = new List<int?>();
+			}
+			public static void TestReflectionWithNullable() {
+				SomethingWithNullableList a = new SomethingWithNullableList();
+				a.stuff.Add(1);
+				a.stuff.Add(2);
+				a.stuff.Add(3);
+				a.stuff.Add(null);
+				a.stuff.Add(4);
+				a.stuff.Add(5);
+				a.stuff.Add(6);
+
+				JsonObject obj = Json.Reflect(a) as JsonObject;
+				obj["stuff"].Count.ShouldBe(7);
+
+				SomethingWithNullableList b = Json.GetValue<SomethingWithNullableList>(obj);
+				b.stuff[0].ShouldEqual(1);
+				b.stuff[1].ShouldEqual(2);
+				b.stuff[2].ShouldEqual(3);
+				(b.stuff[3]==null).ShouldBeTrue();
+				b.stuff[4].ShouldEqual(4);
+				b.stuff[5].ShouldEqual(5);
+				b.stuff[6].ShouldEqual(6);
+
+
+			}
+
 		}
-		public static void TestObjectParse1() {
-			{
-				PrimitivesModel model = new PrimitivesModel();
-				PrimitivesModel fromEmpty = Json.GetValue<PrimitivesModel>(new JsonObject());
-				model.ShouldEqual(fromEmpty);
+
+		/// <summary> Test holding JsonObject test functions </summary>
+		public class TestJsonObject {
+			public static void TestObjectAdd() {
+				{
+					JsonObject obj = new JsonObject();
+
+					obj.Count.ShouldBe(0);
+
+					obj.Add("what", "huh")
+						.Add("okay", "alright");
+
+					obj.Count.ShouldBe(2);
+				}
 			}
+			public static void TestEmpty() {
+				{
+					JsonObject empty = new JsonObject();
+					JsonObject emptyConcurrent = new JsonObject(new ConcurrentDictionary<JsonString, JsonValue>());
 
-			{
-				PrimitivesModel model = new PrimitivesModel();
-				model.str = "otherString";
-				model.flag1 = true;
-				model.value2 = 50;
-				JsonObject delta = new JsonObject("str", "otherString", "flag1", true, "value2", 50);
-				PrimitivesModel fromDelta = Json.GetValue<PrimitivesModel>(delta);
-				model.ShouldEqual(fromDelta);
+					empty.IsEmpty.ShouldBeTrue();
+					emptyConcurrent.IsEmpty.ShouldBeTrue();
+
+					JsonObject notEmpty = new JsonObject("ayy", "lmao");
+					JsonObject notEmptyConcurrent = new JsonObject(new ConcurrentDictionary<JsonString, JsonValue>());
+					notEmptyConcurrent.Add("ayy", "lmao");
+
+					notEmpty.IsEmpty.ShouldBeFalse();
+					notEmptyConcurrent.IsEmpty.ShouldBeFalse();
+
+				}
 			}
-		}
+			public static void TestObjectVectOps() {
+				{
+					JsonObject v1 = new JsonObject("x", 5, "y", 3, "z", 2);
+					JsonObject v2 = new JsonObject("x", 3, "y", 1, "z", 4);
 
-		private class ArraysModel {
-			public float[] floats = new float[] { 3 };
-			public string[] strs = new string[] { "nope" };
-			public bool[] flags = new bool[] { false };
-		}
-		public static void TestArrayReflection() {
-			{
-				JsonObject obj = new JsonObject();
-				obj["floats"] = new JsonArray(0, 1, 2, 3, 4, 5, 6);
-				obj["strs"] = new JsonArray("oh", "bob", "saget");
-				obj["flags"] = new JsonArray(true, true, false, true, false, false);
+					var v3 = v1.Multiply(v2);
+					v3["x"].numVal.ShouldBe(15);
+					v3["y"].numVal.ShouldBe(3);
+					v3["z"].numVal.ShouldBe(8);
 
-				ArraysModel model = new ArraysModel();
-				model.floats = new float[] { 0f, 1f, 2f, 3f, 4f, 5f, 6f };
-				model.strs = new string[] { "oh", "bob", "saget" };
-				model.flags = new bool[] { true, true, false, true, false, false };
+					var v4 = v1.AddNumbers(v2);
+					v4["x"].numVal.ShouldBe(8);
+					v4["y"].numVal.ShouldBe(4);
+					v4["z"].numVal.ShouldBe(6);
+				}
 
-				ArraysModel reflected = Json.GetValue<ArraysModel>(obj);
-				reflected.floats.ShouldBeSame(model.floats);
-				reflected.strs.ShouldBeSame(model.strs);
-				reflected.flags.ShouldBeSame(model.flags);
+				{
+					JsonObject matrix = new JsonObject()
+						.Add("maxHP", new JsonObject("str", 2, "vit", 5))
+						.Add("maxMP", new JsonObject("int", 2, "wis", 2));
+
+					JsonObject stats = new JsonObject("str", 10, "dex", 10, "vit", 10, "int", 10, "wis", 10);
+
+					var result = stats.Multiply(matrix);
+
+					result["maxHP"].numVal.ShouldBe(70);
+					result["maxMP"].numVal.ShouldBe(40);
+				}
 			}
-		}
+			public static void TestObjectEqual() {
 
-		private class JsonValuesModels {
-			public JsonArray arr = new JsonArray(12);
-			public JsonObject obj = new JsonObject("nope", 5);
-			public JsonString str = "yep";
-			public JsonNumber num = 200;
-			public JsonBool flg = false;
-			public override bool Equals(object other) {
-				if (!(other is JsonValuesModels)) { return false; }
-				var o = other as JsonValuesModels;
-				return arr.Equals(o.arr) && obj.Equals(o.obj) && str == o.str && num == o.num && flg == o.flg;
+				{
+					JsonObject a = new JsonObject("x", 3);
+					JsonObject b = new JsonObject("x", 3);
+					JsonObject c = new JsonObject("x", 2);
+
+					a.Equals(b).ShouldBeTrue();
+					b.Equals(a).ShouldBeTrue();
+
+					a.Equals(c).ShouldBeFalse();
+				}
+
+				{
+					JsonObject a = new JsonObject("x", null, "y", false, "z", true);
+					JsonObject b = new JsonObject()
+						.Add("x", null)
+						.Add("y", false)
+						.Add("z", true);
+					JsonObject c = new JsonObject("x", "something", "y", true, "z", false);
+
+
+					a.Equals(b).ShouldBeTrue();
+					b.Equals(a).ShouldBeTrue();
+
+					a.Equals(c).ShouldBeFalse();
+				}
+
+				{
+					JsonObject a = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
+						.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject()))
+						.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
+						.Add("emptyObject", new JsonObject())
+						.Add("emptyArray", new JsonArray());
+
+					JsonObject b = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
+						.Add("emptyObject", new JsonObject())
+						.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
+						.Add("emptyArray", new JsonArray())
+						.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject()));
+
+					JsonObject c = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
+						.Add("emptyObject", new JsonObject())
+						.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
+						.Add("emptyArray", new JsonArray())
+						.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject("x", 5)));
+
+					a.Equals(b).ShouldBeTrue();
+					b.Equals(a).ShouldBeTrue();
+
+					a.Equals(c).ShouldBeFalse();
+				}
+
+				{
+					JsonObject a = new JsonObject()
+						.Add("name", "bob saget")
+						.Add("paperTowels", 50)
+						.Add("hasBalls", true);
+
+					JsonObject b = new JsonObject()
+						.Add("name", "bob saget")
+						.Add("paperTowels", 50)
+						.Add("hasBalls", true);
+
+					JsonObject c = new JsonObject()
+						.Add("name", "bobby bob bobberton")
+						.Add("paperTowels", "three hundred")
+						.Add("hasBalls", "yes");
+
+					a.ShouldEqual(b);
+					a.ShouldNotBe(b);
+					a.ShouldNotBe(c);
+					a.ShouldNotEqual(c);
+
+					a.Add("son", c);
+					b.Add("son", c.Clone());
+
+					a.ShouldEqual(b);
+					a.ShouldNotBe(b);
+
+					a["son"].ShouldBe(c);
+					a["son"].ShouldEqual(c);
+
+					b["son"].ShouldNotBe(c);
+					b["son"].ShouldEqual(c);
+				}
+			
 			}
-			public override int GetHashCode() { return -1; }
-		}
-
-
-		public static void TestJsonValueReflection() {
-			{
-				JsonObject obj = new JsonObject();
-				obj["arr"] = new JsonArray(1, 2, 3, 4);
-				obj["obj"] = new JsonObject("yeah", 20);
-				obj["str"] = "naw";
-				obj["num"] = 300;
-				obj["flg"] = true;
-
-				JsonValuesModels model = new JsonValuesModels();
-				model.arr = new JsonArray(1, 2, 3, 4);
-				model.obj = new JsonObject("yeah", 20);
-				model.str = "naw";
-				model.num = 300;
-				model.flg = true;
-
-				JsonValuesModels reflected = Json.GetValue<JsonValuesModels>(obj);
-				reflected.ShouldEqual(model);
-			}
-		}
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	
-	public class TestJsonObject {
-		public static void TestObjectAdd() {
-			{
-				JsonObject obj = new JsonObject();
-
-				obj.Count.ShouldBe(0);
-
-				obj.Add("what", "huh")
-					.Add("okay", "alright");
-
-				obj.Count.ShouldBe(2);
-			}
-		}
-		public static void TestEmpty() {
-			{
-				JsonObject empty = new JsonObject();
-				JsonObject emptyConcurrent = new JsonObject(new ConcurrentDictionary<JsonString, JsonValue>());
-
-				empty.IsEmpty.ShouldBeTrue();
-				emptyConcurrent.IsEmpty.ShouldBeTrue();
-
-				JsonObject notEmpty = new JsonObject("ayy", "lmao");
-				JsonObject notEmptyConcurrent = new JsonObject(new ConcurrentDictionary<JsonString, JsonValue>());
-				notEmptyConcurrent.Add("ayy", "lmao");
-
-				notEmpty.IsEmpty.ShouldBeFalse();
-				notEmptyConcurrent.IsEmpty.ShouldBeFalse();
-
-			}
-		}
-		public static void TestObjectVectOps() {
-			{
-				JsonObject v1 = new JsonObject("x", 5, "y", 3, "z", 2);
-				JsonObject v2 = new JsonObject("x", 3, "y", 1, "z", 4);
-
-				var v3 = v1.Multiply(v2);
-				v3["x"].numVal.ShouldBe(15);
-				v3["y"].numVal.ShouldBe(3);
-				v3["z"].numVal.ShouldBe(8);
-
-				var v4 = v1.AddNumbers(v2);
-				v4["x"].numVal.ShouldBe(8);
-				v4["y"].numVal.ShouldBe(4);
-				v4["z"].numVal.ShouldBe(6);
-			}
-
-			{
-				JsonObject matrix = new JsonObject()
-					.Add("maxHP", new JsonObject("str", 2, "vit", 5))
-					.Add("maxMP", new JsonObject("int", 2, "wis", 2));
-
-				JsonObject stats = new JsonObject("str", 10, "dex", 10, "vit", 10, "int", 10, "wis", 10);
-
-				var result = stats.Multiply(matrix);
-
-				result["maxHP"].numVal.ShouldBe(70);
-				result["maxMP"].numVal.ShouldBe(40);
-			}
-		}
-		public static void TestObjectEqual() {
-
-			{
-				JsonObject a = new JsonObject("x", 3);
-				JsonObject b = new JsonObject("x", 3);
-				JsonObject c = new JsonObject("x", 2);
-
-				a.Equals(b).ShouldBeTrue();
-				b.Equals(a).ShouldBeTrue();
-
-				a.Equals(c).ShouldBeFalse();
-			}
-
-			{
-				JsonObject a = new JsonObject("x", null, "y", false, "z", true);
-				JsonObject b = new JsonObject()
-					.Add("x", null)
-					.Add("y", false)
-					.Add("z", true);
-				JsonObject c = new JsonObject("x", "something", "y", true, "z", false);
-
-
-				a.Equals(b).ShouldBeTrue();
-				b.Equals(a).ShouldBeTrue();
-
-				a.Equals(c).ShouldBeFalse();
-			}
-
-			{
-				JsonObject a = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
-					.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject()))
-					.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
-					.Add("emptyObject", new JsonObject())
-					.Add("emptyArray", new JsonArray());
-
-				JsonObject b = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
-					.Add("emptyObject", new JsonObject())
-					.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
-					.Add("emptyArray", new JsonArray())
-					.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject()));
-
-				JsonObject c = new JsonObject("x", 5, "y", 12, "z", 15, "tag", "blah")
-					.Add("emptyObject", new JsonObject())
-					.Add("array", new JsonArray("a", "b", "c", 1, 2, 3))
-					.Add("emptyArray", new JsonArray())
-					.Add("nested", new JsonObject("x", 3, "nestedNested", new JsonObject("x", 5)));
-
-				a.Equals(b).ShouldBeTrue();
-				b.Equals(a).ShouldBeTrue();
-
-				a.Equals(c).ShouldBeFalse();
-			}
-
-			{
-				JsonObject a = new JsonObject()
-					.Add("name", "bob saget")
-					.Add("paperTowels", 50)
-					.Add("hasBalls", true);
-
-				JsonObject b = new JsonObject()
-					.Add("name", "bob saget")
-					.Add("paperTowels", 50)
-					.Add("hasBalls", true);
-
-				JsonObject c = new JsonObject()
-					.Add("name", "bobby bob bobberton")
-					.Add("paperTowels", "three hundred")
-					.Add("hasBalls", "yes");
-
-				a.ShouldEqual(b);
-				a.ShouldNotBe(b);
-				a.ShouldNotBe(c);
-				a.ShouldNotEqual(c);
-
-				a.Add("son", c);
-				b.Add("son", c.Clone());
-
-				a.ShouldEqual(b);
-				a.ShouldNotBe(b);
-
-				a["son"].ShouldBe(c);
-				a["son"].ShouldEqual(c);
-
-				b["son"].ShouldNotBe(c);
-				b["son"].ShouldEqual(c);
-			}
-
-		}
-		public static void TestObjectIndex() {
-			{
-				Dictionary<string, float> data = new Dictionary<string, float>() {
+			public static void TestObjectIndex() {
+				{
+					Dictionary<string, float> data = new Dictionary<string, float>() {
 					{"str", 5},
 					{"dex", 12},
 					{"vit", 8},
 				};
-				JsonObject obj = new JsonObject();
-				foreach (var pair in data) { obj[pair.Key] = pair.Value; }
+					JsonObject obj = new JsonObject();
+					foreach (var pair in data) { obj[pair.Key] = pair.Value; }
 
-				obj.Count.ShouldBe(3);
-				obj["str"].numVal.ShouldBe(5);
-				obj["vit"].numVal.ShouldBe(8);
+					obj.Count.ShouldBe(3);
+					obj["str"].numVal.ShouldBe(5);
+					obj["vit"].numVal.ShouldBe(8);
+				}
 			}
-		}
-		public static void TestObjectSet() {
-			{
-				JsonObject a = new JsonObject("x", 1, "y", 2, "z", 3);
-				JsonObject b = new JsonObject("x", 4, "y", 5, "z", 6);
+			public static void TestObjectSet() {
+				{
+					JsonObject a = new JsonObject("x", 1, "y", 2, "z", 3);
+					JsonObject b = new JsonObject("x", 4, "y", 5, "z", 6);
 
-				a.Set(b);
+					a.Set(b);
 
-				a["x"].numVal.ShouldBe(4);
-				a["y"].numVal.ShouldBe(5);
-				a["z"].numVal.ShouldBe(6);
-			}
+					a["x"].numVal.ShouldBe(4);
+					a["y"].numVal.ShouldBe(5);
+					a["z"].numVal.ShouldBe(6);
+				}
 
-			{
-				JsonObject a = new JsonObject()
-					.Add("nested", new JsonObject("a", 1, "b", 2, "c", 3));
+				{
+					JsonObject a = new JsonObject()
+						.Add("nested", new JsonObject("a", 1, "b", 2, "c", 3));
 
-				JsonObject b = new JsonObject()
-					.Add("nested", new JsonObject("x", 1, "y", 2, "z", 3, "c", 621));
+					JsonObject b = new JsonObject()
+						.Add("nested", new JsonObject("x", 1, "y", 2, "z", 3, "c", 621));
 
-				a.Set(b);
+					a.Set(b);
 
-				a["nested"].Count.ShouldBe(4);
-				a["nested"].ContainsKey("a").ShouldBeFalse();
-				a["nested"].ContainsKey("x").ShouldBeTrue();
-			}
+					a["nested"].Count.ShouldBe(4);
+					a["nested"].ContainsKey("a").ShouldBeFalse();
+					a["nested"].ContainsKey("x").ShouldBeTrue();
+				}
 
-			{
-				JsonObject a = new JsonObject()
-					.Add("nested", new JsonObject("a", 1, "b", 2, "c", 3));
+				{
+					JsonObject a = new JsonObject()
+						.Add("nested", new JsonObject("a", 1, "b", 2, "c", 3));
 
-				JsonObject b = new JsonObject()
-					.Add("nested", new JsonObject("x", 1, "y", 2, "z", 3, "c", 621));
+					JsonObject b = new JsonObject()
+						.Add("nested", new JsonObject("x", 1, "y", 2, "z", 3, "c", 621));
 
-				a.SetRecursively(b);
+					a.SetRecursively(b);
 
-				a["nested"].Count.ShouldBe(6);
-				a["nested"].ContainsKey("a").ShouldBeTrue();
-				a["nested"].ContainsKey("x").ShouldBeTrue();
+					a["nested"].Count.ShouldBe(6);
+					a["nested"].ContainsKey("a").ShouldBeTrue();
+					a["nested"].ContainsKey("x").ShouldBeTrue();
 
-			}
-
-		}
-		public static void TestObjectPrintParse() {
-			{
-				JsonObject obj = new JsonObject();
-
-				string str = obj.ToString();
-				str.ShouldBe("{}");
-
-				string pp = obj.PrettyPrint();
-				pp.ShouldBe<string>("{\n}");
-
-				JsonObject strParse = Json.Parse(str) as JsonObject;
-				JsonObject ppParse = Json.Parse(pp) as JsonObject;
-
-				true.ShouldBe(obj.Equals(strParse));
-				true.ShouldBe(obj.Equals(ppParse));
+				}
 
 			}
+			public static void TestObjectPrintParse() {
+				{
+					JsonObject obj = new JsonObject();
 
-			{
-				JsonObject obj = new JsonObject("x", 5, "y", 20, "str", "someString", "z", false);
+					string str = obj.ToString();
+					str.ShouldBe("{}");
 
-				string str = obj.ToString();
-				string expectedToString = "{'x':5,'y':20,'str':'someString','z':false}".Replace('\'', '\"');
-				str.ShouldBe(expectedToString);
+					string pp = obj.PrettyPrint();
+					pp.ShouldBe<string>("{\n}");
 
-				string pp = obj.PrettyPrint();
-				string expectedPrettyPrint = @"{
+					JsonObject strParse = Json.Parse(str) as JsonObject;
+					JsonObject ppParse = Json.Parse(pp) as JsonObject;
+
+					true.ShouldBe(obj.Equals(strParse));
+					true.ShouldBe(obj.Equals(ppParse));
+
+				}
+
+				{
+					JsonObject obj = new JsonObject("x", 5, "y", 20, "str", "someString", "z", false);
+
+					string str = obj.ToString();
+					string expectedToString = "{'x':5,'y':20,'str':'someString','z':false}".Replace('\'', '\"');
+					str.ShouldBe(expectedToString);
+
+					string pp = obj.PrettyPrint();
+					string expectedPrettyPrint = @"{
 	'x':5,
 	'y':20,
 	'str':'someString',
 	'z':false
 }".Replace('\'', '\"');
 
-				pp.ShouldBe<string>(expectedPrettyPrint);
-				JsonObject strParse = Json.Parse(str) as JsonObject;
-				JsonObject ppParse = Json.Parse(pp) as JsonObject;
-				
-				true.ShouldBe(obj.Equals(strParse));
-				true.ShouldBe(obj.Equals(ppParse));
-			}
+					pp.ShouldBe<string>(expectedPrettyPrint);
 
-			{
-				JsonObject obj = new JsonObject();
-				obj["x"] = new JsonObject();
-				obj["x"]["y"] = new JsonObject();
-				obj["x"]["y"]["z"] = new JsonObject();
+					JsonObject strParse = Json.Parse(str) as JsonObject;
+					JsonObject ppParse = Json.Parse(pp) as JsonObject;
 
-				string str = obj.ToString();
-				string expectedToString = "{'x':{'y':{'z':{}}}}".Replace('\'', '\"');
-				str.ShouldBe<string>(expectedToString);
+					true.ShouldBe(obj.Equals(strParse));
+					true.ShouldBe(obj.Equals(ppParse));
+				}
 
-				string pp = obj.PrettyPrint();
-				string expectedPrettyPrint = @"{
+				{
+					JsonObject obj = new JsonObject();
+					obj["x"] = new JsonObject();
+					obj["x"]["y"] = new JsonObject();
+					obj["x"]["y"]["z"] = new JsonObject();
+
+					string str = obj.ToString();
+					string expectedToString = "{'x':{'y':{'z':{}}}}".Replace('\'', '\"');
+					str.ShouldBe<string>(expectedToString);
+
+					string pp = obj.PrettyPrint();
+					string expectedPrettyPrint = @"{
 	'x':
 	{
 		'y':
@@ -390,132 +594,118 @@ public static class Json_Tests {
 		}
 	}
 }".Replace('\'', '\"');
-				pp.ShouldBe<string>(expectedPrettyPrint);
+					pp.ShouldBe<string>(expectedPrettyPrint);
 
-				JsonObject strParse = Json.Parse(str) as JsonObject;
-				JsonObject ppParse = Json.Parse(pp) as JsonObject;
+					JsonObject strParse = Json.Parse(str) as JsonObject;
+					JsonObject ppParse = Json.Parse(pp) as JsonObject;
 
-				true.ShouldBe(obj.Equals(strParse));
-				true.ShouldBe(obj.Equals(ppParse));
+					true.ShouldBe(obj.Equals(strParse));
+					true.ShouldBe(obj.Equals(ppParse));
 
-			}
-
-			{
-				JsonObject obj = new JsonObject();
-				obj["ayy:lmao"] = 5;
-				string str = obj.ToString();
-
-				JsonObject parsed = Json.Parse<JsonObject>(str);
-				true.ShouldBe(obj.Equals(parsed));
-
-			}
-
-		}
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-	public static class TestJsonArray {
-		public static void TestArrayGeneral() {
-			{
-				JsonArray x = new JsonArray();
-				x.Count.ShouldBe(0);
-
-				x[0] = "Test1";
-				x["1"] = "test2";
-				x[2.0] = "test3";
-
-				x.Count.ShouldBe(3);
-				x[1].stringVal.ShouldBe<string>("test2");
-				x["2"].stringVal.ShouldBe<string>("test3");
-
-			}
-
-			{
-				JsonArray x = new object[] { 1, 2, 3 };
-				JsonArray y = new JsonArray() { 1, 2, 3 };
-				JsonArray z = new int[] { 1, 2, 3 };
-
-				x.Count.ShouldBe(y.Count);
-				x.Equals(y).ShouldBeTrue();
-				z.Equals(z).ShouldBeTrue();
-				y.Equals(z).ShouldBeTrue();
-			}
-
-		}
-		public static void TestArrayAdd() {
-			{
-				JsonArray x = new JsonArray().Add(1).Add(2).Add(3);
-				x.Count.ShouldBe(3);
-			}
-
-			{
-				JsonArray x = new JsonArray().Add(1).Add(2).Add(3);
-				JsonArray y = new JsonArray().Add(x);
-
-				y.Count.ShouldBe(1);
-				y[0].Count.ShouldBe(3);
-			}
-
-			{
-				int[] nums = { 1, 2, 3 };
-				JsonArray x = new JsonArray().Add((JsonArray)nums);
-				x.Count.ShouldBe(1);
-				x[0].Count.ShouldBe(3);
-			}
-
-		}
-		public static void TestArrayAddAll() {
-			{
-				JsonArray x = new JsonArray();
-				JsonArray y = new JsonArray();
-				x.AddAll(y);
-				x.Count.ShouldBe(0);
-			}
-
-			{
-				JsonArray x = new JsonArray();
-				JsonArray y = new JsonArray() { 1, 2, 3 };
-
-				x.AddAll(y);
-				x.Count.ShouldBe(3);
-			}
-
-			{
-				JsonArray x = new JsonArray();
-				int[] y = { 1, 2, 3 };
-
-				x.AddAll(y);
+				}
 
 			}
 		}
-		public static void TestArrayPrintParse() {
-			{
-				JsonArray arr = new JsonArray();
-				string str = arr.ToString();
-				string pp = arr.PrettyPrint();
+		/// <summary> Test holding JsonArray test functions </summary>
+		public static class TestJsonArray {
+			public static void TestArrayGeneral() {
+				{
+					JsonArray x = new JsonArray();
+					x.Count.ShouldBe(0);
 
-				str.ShouldBe<string>("[]");
-				pp.ShouldBe<string>("[\n]");
+					x[0] = "Test1";
+					x["1"] = "test2";
+					x[2.0] = "test3";
 
-				JsonArray strParse = Json.Parse(str) as JsonArray;
-				JsonArray ppParse = Json.Parse(pp) as JsonArray;
+					x.Count.ShouldBe(3);
+					x[1].stringVal.ShouldBe<string>("test2");
+					x["2"].stringVal.ShouldBe<string>("test3");
 
-				true.ShouldBe(arr.Equals(strParse));
-				true.ShouldBe(arr.Equals(ppParse));
+				}
+
+				{
+					JsonArray x = new object[] { 1, 2, 3 };
+					JsonArray y = new JsonArray() { 1, 2, 3 };
+					JsonArray z = new int[] { 1, 2, 3 };
+
+					x.Count.ShouldBe(y.Count);
+					x.Equals(y).ShouldBeTrue();
+					z.Equals(z).ShouldBeTrue();
+					y.Equals(z).ShouldBeTrue();
+				}
 
 			}
+			public static void TestArrayAdd() {
+				{
+					JsonArray x = new JsonArray().Add(1).Add(2).Add(3);
+					x.Count.ShouldBe(3);
+				}
 
-			{
-				JsonArray arr = new JsonArray(1, 2, 3, 4, 5, 6);
+				{
+					JsonArray x = new JsonArray().Add(1).Add(2).Add(3);
+					JsonArray y = new JsonArray().Add(x);
 
-				string str = arr.ToString();
-				string pp = arr.PrettyPrint();
+					y.Count.ShouldBe(1);
+					y[0].Count.ShouldBe(3);
+				}
 
-				string strExpected = "[1,2,3,4,5,6]";
-				string ppExpected = @"[
+				{
+					int[] nums = { 1, 2, 3 };
+					JsonArray x = new JsonArray().Add((JsonArray)nums);
+					x.Count.ShouldBe(1);
+					x[0].Count.ShouldBe(3);
+				}
+
+			}
+			public static void TestArrayAddAll() {
+				{
+					JsonArray x = new JsonArray();
+					JsonArray y = new JsonArray();
+					x.AddAll(y);
+					x.Count.ShouldBe(0);
+				}
+
+				{
+					JsonArray x = new JsonArray();
+					JsonArray y = new JsonArray() { 1, 2, 3 };
+
+					x.AddAll(y);
+					x.Count.ShouldBe(3);
+				}
+
+				{
+					JsonArray x = new JsonArray();
+					int[] y = { 1, 2, 3 };
+
+					x.AddAll(y);
+
+				}
+			}
+			public static void TestArrayPrintParse() {
+				{
+					JsonArray arr = new JsonArray();
+					string str = arr.ToString();
+					string pp = arr.PrettyPrint();
+
+					str.ShouldBe<string>("[]");
+					pp.ShouldBe<string>("[\n]");
+
+					JsonArray strParse = Json.Parse(str) as JsonArray;
+					JsonArray ppParse = Json.Parse(pp) as JsonArray;
+
+					true.ShouldBe(arr.Equals(strParse));
+					true.ShouldBe(arr.Equals(ppParse));
+
+				}
+
+				{
+					JsonArray arr = new JsonArray(1, 2, 3, 4, 5, 6);
+
+					string str = arr.ToString();
+					string pp = arr.PrettyPrint();
+
+					string strExpected = "[1,2,3,4,5,6]";
+					string ppExpected = @"[
 	1,
 	2,
 	3,
@@ -524,28 +714,28 @@ public static class Json_Tests {
 	6
 ]".Replace('\'', '\"');
 
-				str.ShouldBe<string>(strExpected);
-				pp.ShouldBe<string>(ppExpected);
+					str.ShouldBe<string>(strExpected);
+					pp.ShouldBe<string>(ppExpected);
 
-				JsonArray strParse = Json.Parse(str) as JsonArray;
-				JsonArray ppParse = Json.Parse(pp) as JsonArray;
+					JsonArray strParse = Json.Parse(str) as JsonArray;
+					JsonArray ppParse = Json.Parse(pp) as JsonArray;
 
-				true.ShouldBe(arr.Equals(strParse));
-				true.ShouldBe(arr.Equals(ppParse));
+					true.ShouldBe(arr.Equals(strParse));
+					true.ShouldBe(arr.Equals(ppParse));
 
-			}
+				}
 
-			{
-				JsonArray arr = new JsonArray();
-				arr.Add(new JsonArray());
-				arr.Add(new JsonArray().Add(new JsonArray()));
-				arr.Add(new JsonArray().Add(new JsonArray().Add(new JsonArray())));
+				{
+					JsonArray arr = new JsonArray();
+					arr.Add(new JsonArray());
+					arr.Add(new JsonArray().Add(new JsonArray()));
+					arr.Add(new JsonArray().Add(new JsonArray().Add(new JsonArray())));
 
-				string str = arr.ToString();
-				string pp = arr.PrettyPrint();
+					string str = arr.ToString();
+					string pp = arr.PrettyPrint();
 
-				string strExpected = "[[],[[]],[[[]]]]";
-				string ppExpected = @"[
+					string strExpected = "[[],[[]],[[[]]]]";
+					string ppExpected = @"[
 	[
 	],
 	[
@@ -559,36 +749,36 @@ public static class Json_Tests {
 		]
 	]
 ]";
-				str.ShouldBe<string>(strExpected);
-				pp.ShouldBe<string>(ppExpected);
+					str.ShouldBe<string>(strExpected);
+					pp.ShouldBe<string>(ppExpected);
 
-				JsonArray strParse = Json.Parse(str) as JsonArray;
-				JsonArray ppParse = Json.Parse(pp) as JsonArray;
+					JsonArray strParse = Json.Parse(str) as JsonArray;
+					JsonArray ppParse = Json.Parse(pp) as JsonArray;
 
-				true.ShouldBe(arr.Equals(strParse));
-				true.ShouldBe(arr.Equals(ppParse));
+					true.ShouldBe(arr.Equals(strParse));
+					true.ShouldBe(arr.Equals(ppParse));
 
+				}
 			}
-		}
-		public static void TestNestedPrintParse() {
-			JsonObject obj = new JsonObject(
-				"value", 20,
-				"level", 5,
-				"name", "Sword of Boom",
-				"desc", "It goes boom.",
-				"damage", new JsonArray(new JsonObject("power", 25, "type", "fire"), new JsonObject("power", 10, "type", "elec")),
-				"proc", new JsonObject(
-					"chance", .1,
-					"scripts", new JsonArray("explode", new JsonObject("name", "stun", "chance", .35, "duration", 3))
-				)
+			public static void TestNestedPrintParse() {
+				JsonObject obj = new JsonObject(
+					"value", 20,
+					"level", 5,
+					"name", "Sword of Boom",
+					"desc", "It goes boom.",
+					"damage", new JsonArray(new JsonObject("power", 25, "type", "fire"), new JsonObject("power", 10, "type", "elec")),
+					"proc", new JsonObject(
+						"chance", .1,
+						"scripts", new JsonArray("explode", new JsonObject("name", "stun", "chance", .35, "duration", 3))
+					)
 
-			);
+				);
 
-			string str = obj.ToString();
-			string pp = obj.PrettyPrint();
+				string str = obj.ToString();
+				string pp = obj.PrettyPrint();
 
-			string strExpected = "{'value':20,'level':5,'name':'Sword of Boom','desc':'It goes boom.','damage':[{'power':25,'type':'fire'},{'power':10,'type':'elec'}],'proc':{'chance':0.1,'scripts':['explode',{'name':'stun','chance':0.35,'duration':3}]}}".Replace('\'', '\"');
-			string ppExpected = @"{
+				string strExpected = "{'value':20,'level':5,'name':'Sword of Boom','desc':'It goes boom.','damage':[{'power':25,'type':'fire'},{'power':10,'type':'elec'}],'proc':{'chance':0.1,'scripts':['explode',{'name':'stun','chance':0.35,'duration':3}]}}".Replace('\'', '\"');
+				string ppExpected = @"{
 	'value':20,
 	'level':5,
 	'name':'Sword of Boom',
@@ -619,491 +809,466 @@ public static class Json_Tests {
 	}
 }".Replace('\'', '\"');
 
-			str.ShouldBe<string>(strExpected);
-			//Debug.Log(pp);
-			//Debug.Log(ppExpected);
-			pp.ShouldBe<string>(ppExpected);
-
-			JsonObject strParse = Json.Parse(str) as JsonObject;
-			JsonObject ppParse = Json.Parse(pp) as JsonObject;
-
-			true.ShouldBe(obj.Equals(strParse));
-			true.ShouldBe(obj.Equals(ppParse));
-		}
-		public static void TestListReflecting() {
-			{
-				List<string> list = new List<string>();
-				for (int i = 0; i < 10; i++) { list.Add("" + (char)('a' + i)); }
-
-				var reflect = Json.Reflect(list);
-				//Debug.Log(reflect);
-
-				true.ShouldBe(reflect.isArray);
-
-				List<string> reflectBack = Json.GetValue<List<string>>(reflect);
-
-				10.ShouldBe(reflectBack.Count);
-				for (int i = 0; i < 10; i++) {
-					string expect = "" + (char)('a' + i);
-					reflectBack[i].ShouldBe<string>(expect);
-				}
-
-
-			}
-
-		}
-		public static void TestEquality() {
-			{
-				JsonArray a = new JsonArray().Add("Heeeello").Add("nurse").Add(42);
-				JsonArray b = new JsonArray().Add("Heeeello").Add("nurse").Add(42);
-				JsonArray c = new JsonArray().Add("yes").Add("no").Add("maybe").Add("could you repeat the question?");
-
-				// .Equals
-				a.ShouldEqual(b);
-				// ==
-				a.ShouldNotBe(b);
-				a.ShouldNotBe(c);
-				a.ShouldNotEqual(c);
-
-			}
-		}
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-	public static class TestJsonExt {
-
-		public static void TestObjectSetParse() {
-			{
-				string raw = @"
-{
-	a, b, c, one, two, three,
-}".Replace('\'', '\"');
-
-				JsonObject parsed = Json.Parse<JsonObject>(raw);
-
-				parsed.Count.ShouldBe(6);
-				parsed.Get<bool>("a").ShouldBe(true);
-				parsed.Get<bool>("b").ShouldBe(true);
-				parsed.Get<bool>("c").ShouldBe(true);
-				parsed.Get<bool>("one").ShouldBe(true);
-				parsed.Get<bool>("two").ShouldBe(true);
-				parsed.Get<bool>("three").ShouldBe(true);
-
-				JsonObject expected = new JsonObject("a", true, "b", true, "c", true, "one", true, "two", true, "three", true);
-
-				parsed.ShouldEqual(expected);
-			}
-		}
-
-		public static void TestObjectsetParseStrict() {
-			{
-				string raw = @"
-{
-	a, b, c, one, two, three,
-}".Replace('\'', '\"');
-				Exception caught = null;
-				try {
-					JsonObject fail = Json.ParseStrict<JsonObject>(raw);
-				} catch (Exception e) { caught = e; }
-
-				caught.ShouldNotBe(null);
-			}
-		}
-
-		public static void TestArraySetParse() {
-			{
-				string raw = @"
-[
-	a, b, c, one, two, three
-]".Replace('\'', '\"');
-
-				JsonArray parsed = Json.Parse<JsonArray>(raw);
-
-				parsed.Count.ShouldBe(6);
-				parsed.Get<string>(0).ShouldBe("a");
-				parsed.Get<string>(1).ShouldBe("b");
-				parsed.Get<string>(2).ShouldBe("c");
-				parsed.Get<string>(3).ShouldBe("one");
-				parsed.Get<string>(4).ShouldBe("two");
-				parsed.Get<string>(5).ShouldBe("three");
-
-				JsonArray expected = new JsonArray("a", "b", "c", "one", "two", "three");
-
-				parsed.ShouldEqual(expected);
-			}
-		}
-
-		public static void TestArraySetParseStrict() {
-			{
-				string raw = @"
-[
-	a, b, c, one, two, three
-]".Replace('\'', '\"');
-				Exception caught = null;
-				try {
-					JsonArray fail = Json.ParseStrict<JsonArray>(raw);
-				} catch (Exception e) { caught = e; }
-
-				caught.ShouldNotBe(null);
-			}
-		}
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-	public static class TestGeneral {
-		public static void TestEscapes() {
-			{
-				JsonObject obj = new JsonObject();
-				string key = "keyWithoutEscapes";
-				string val = "\"what\" are you doing \"here\" you \"gentleman\" and \"scholar\"";
-				obj[key] = val;
-
-				1.ShouldBe(obj.Count);
-				true.ShouldBe(obj.ContainsKey(key));
-				true.ShouldBe(obj[key] == val);
-
-				string str = obj.ToString();
-				string pp = obj.PrettyPrint();
-				JsonObject strParse = Json.Parse(str) as JsonObject;
-				JsonObject ppParse = Json.Parse(pp) as JsonObject;
-				true.ShouldBe(obj.Equals(strParse));
-				true.ShouldBe(obj.Equals(ppParse));
-
-				JsonObject strStrict = Json.ParseStrict<JsonObject>(str);
-				JsonObject ppStrict = Json.ParseStrict<JsonObject>(pp);
-				true.ShouldBe(obj.Equals(strStrict));
-				true.ShouldBe(obj.Equals(ppStrict));
-			}
-			{
-				JsonObject obj = new JsonObject();
-
-				string key = "scv:\"wark\"";
-				string val = "balls:\"borf\"";
-				obj[key] = val;
-				1.ShouldBe(obj.Count);
-				true.ShouldBe(obj.ContainsKey(key));
-				true.ShouldBe(obj[key] == val);
-
-				string str = obj.ToString();
-				string pp = obj.PrettyPrint();
+				str.ShouldBe<string>(strExpected);
+				//Debug.Log(pp);
+				//Debug.Log(ppExpected);
+				pp.ShouldBe<string>(ppExpected);
 
 				JsonObject strParse = Json.Parse(str) as JsonObject;
 				JsonObject ppParse = Json.Parse(pp) as JsonObject;
+
 				true.ShouldBe(obj.Equals(strParse));
 				true.ShouldBe(obj.Equals(ppParse));
-
-				JsonObject strStrict = Json.ParseStrict<JsonObject>(str);
-				JsonObject ppStrict = Json.ParseStrict<JsonObject>(pp);
-				true.ShouldBe(obj.Equals(strStrict));
-				true.ShouldBe(obj.Equals(ppStrict));
 			}
-		}
-		public static void TestBoolConversion() {
-			{ // JsonNull should always be a false
-				if (JsonNull.instance) { ShouldNotRun(); }
-				JsonValue empty = null;
-				if (empty) { ShouldNotRun(); }
-			}
+			public static void TestListReflecting() {
+				{
+					List<string> list = new List<string>();
+					for (int i = 0; i < 10; i++) { list.Add("" + (char)('a' + i)); }
 
-			{ // JsonBools should behave directly
-				JsonBool yes = true;
-				JsonBool no = false;
-				if (yes) { /* good */ } else { ShouldNotRun(); }
-				if (!yes) { ShouldNotRun(); }
+					var reflect = Json.Reflect(list);
+					//Debug.Log(reflect);
 
-				if (no) { ShouldNotRun(); }
-				if (!no) { /* good */ } else { ShouldNotRun(); }
-			}
+					true.ShouldBe(reflect.isArray);
 
-			{ // JsonNumber are only false when 0
-				JsonNumber zero = 0;
-				JsonNumber five = 5;
-				var zeroCon = five - five;
+					List<string> reflectBack = Json.GetValue<List<string>>(reflect);
 
-				if (zero) { ShouldNotRun(); }
-				if (five) { /* good */ } else { ShouldNotRun(); }
-				if (zeroCon) { ShouldNotRun(); }
-			}
-
-			{ // JsonString are only false when empty
-				JsonString empty = "";
-				JsonString other = "other";
-				if (empty) { ShouldNotRun(); }
-				if (other) { /* good */ } else { ShouldNotRun(); }
-			}
-			{ // JsonObject are always true if not null
-				JsonObject empty = new JsonObject();
-				JsonObject obj = new JsonObject().Add("ayy", "lmao");
-				if (empty) { /* good */ } else { ShouldNotRun(); }
-				if (obj) { /* good */ } else { ShouldNotRun(); }
-			}
-			{ // JsonArray are always true if not null
-				JsonArray empty = new JsonArray();
-				JsonArray arr = new JsonArray().Add("ayy").Add("lmao");
-				if (empty) { /* good */ } else { ShouldNotRun(); }
-				if (arr) { /* good */ } else { ShouldNotRun(); }
-			}
-		}
-		public static void TestNumberConversion() {
-			{
-				JsonString five = "5";
-				float fiveF = five; fiveF.ShouldBe(5);
-				double fiveD = five; fiveD.ShouldBe(5);
-				int fiveI = five; fiveI.ShouldBe(5);
-				long fiveL = five; fiveL.ShouldBe(5);
-				decimal fiveDC = five; fiveDC.ShouldBe(5);
-			}
-			{
-				JsonBool yes = true;
-				float yesF = yes; yesF.ShouldBe(1);
-				double yesD = yes; yesD.ShouldBe(1);
-				int yesI = yes; yesI.ShouldBe(1);
-				long yesL = yes; yesL.ShouldBe(1);
-				decimal yesDC = yes; yesDC.ShouldBe(1);
-
-				JsonBool no = false;
-				float noF = no; noF.ShouldBe(0);
-				double noD = no; noD.ShouldBe(0);
-				int noI = no; noI.ShouldBe(0);
-				long noL = no; noL.ShouldBe(0);
-				decimal noDC = no; noDC.ShouldBe(0);
-			}
-		}
-		public static void TestEqualities() {
-			{ // JsonNull
-				(JsonNull.instance == null).ShouldBeTrue();
-				JsonNull.instance.ShouldEqual(null);
-
-			}
-
-			{ // JsonNumber
-				JsonNumber a = 5;
-				JsonNumber b = 5;
-				JsonNumber c = 10;
-				JsonNumber zeroA = 0;
-				JsonNumber zeroB = Json.Parse("{z:0}")["z"] as JsonNumber;
-
-				(a == b).ShouldBeTrue();
-				(a == 5).ShouldBeTrue();
-				(a != c).ShouldBeTrue();
-				(c == 10).ShouldBeTrue();
-				(zeroA == zeroB).ShouldBeTrue();
-
-				a.ShouldEqual(b);
-				a.ShouldEqual(5);
-				a.ShouldNotEqual(c);
-				c.ShouldEqual(10);
-				zeroA.ShouldEqual(0);
-				zeroB.ShouldEqual(0);
-
-			}
-
-			{ // Infinity and NaN
-				JsonValue jminf = double.NegativeInfinity;
-				JsonValue jpinf = double.PositiveInfinity;
-				JsonValue jnan = double.NaN;
-
-				double minf = double.NegativeInfinity;
-				double pinf = double.PositiveInfinity;
-				double nan = double.NaN;
-
-				(jpinf == pinf).ShouldBeTrue();
-				(jminf == minf).ShouldBeTrue();
-				(jnan == nan).ShouldBeTrue();
-
-				jpinf.ShouldEqual(pinf);
-				jminf.ShouldEqual(minf);
-				jnan.ShouldEqual(nan);
-
-				jpinf.ShouldNotBe(jminf);
-				jpinf.ShouldNotBe(minf);
-				jpinf.ShouldNotBe(jnan);
-				jpinf.ShouldNotBe(nan);
-
-				jminf.ShouldNotBe(jpinf);
-				jminf.ShouldNotBe(pinf);
-				jminf.ShouldNotBe(jnan);
-				jminf.ShouldNotBe(nan);
-
-				jnan.ShouldNotBe(jpinf);
-				jnan.ShouldNotBe(pinf);
-				jnan.ShouldNotBe(jminf);
-				jnan.ShouldNotBe(minf);
-			}
-
-			{ // JsonStrings
-				JsonString a = "hullo";
-				JsonString b = "hullo";
-				JsonString c = "bob saget";
-
-				(a == b).ShouldBeTrue();
-				(a == "hullo").ShouldBeTrue();
-				(a != c).ShouldBeTrue();
-				(c == "bob saget").ShouldBeTrue();
-
-				a.ShouldEqual(b);
-				a.ShouldEqual("hullo");
-				a.ShouldNotEqual(c);
-				c.ShouldEqual("bob saget");
-			}
-
-			{ // JsonBool
-				JsonBool a = true;
-				JsonBool c = false;
-
-				BakaTests.ShouldBeTrue(a);
-				(a != c).ShouldBeTrue();
-				BakaTests.ShouldBeFalse(c);
-
-			}
-
-			{ // JsonObject
-				JsonObject a = new JsonObject()
-					.Add("name", "bob saget")
-					.Add("paperTowels", 50)
-					.Add("hasBalls", true);
-
-				JsonObject b = new JsonObject()
-					.Add("name", "bob saget")
-					.Add("paperTowels", 50)
-					.Add("hasBalls", true);
-
-				JsonObject c = new JsonObject()
-					.Add("name", "bobby bob bobberton")
-					.Add("paperTowels", "three hundred")
-					.Add("hasBalls", "yes");
-
-				a.ShouldEqual(b);
-				a.ShouldNotBe(b);
-				a.ShouldNotBe(c);
-				a.ShouldNotEqual(c);
-
-				a.Add("son", c);
-				b.Add("son", c.Clone());
-
-				a.ShouldEqual(b);
-				a.ShouldNotBe(b);
-
-				a["son"].ShouldBe(c);
-				a["son"].ShouldEqual(c);
-
-				b["son"].ShouldNotBe(c);
-				b["son"].ShouldEqual(c);
-			}
-		}
-
-	}
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	
-	public static class TestExt {
-
-		public class NullableModel {
-			public float? nullFloat;
-			public int? nullInt;
-			public int?[] nullIntArray;
-		}
-
-		public static void TestReflectNullables() {
-			{
-				JsonObject obj = new JsonObject();
-				NullableModel model = Json.GetValue<NullableModel>(obj);
-
-				model.nullFloat.HasValue.ShouldBeFalse();
-				model.nullInt.HasValue.ShouldBeFalse();
-				model.nullIntArray.ShouldBeNull();
-			}
-
-			{
-				JsonObject obj = new JsonObject();
-				obj["nullFloat"] = 5.5;
-				obj["nullInt"] = 5;
-				JsonArray arr = new JsonArray(1, 2, 3, null, 5, 6);
-				obj["nullIntArray"] = arr;
-
-				NullableModel model = Json.GetValue<NullableModel>(obj);
-				model.nullFloat.HasValue.ShouldBeTrue();
-				model.nullFloat.Value.ShouldBe(5.5f);
-				model.nullInt.HasValue.ShouldBeTrue();
-				model.nullInt.Value.ShouldBe(5);
-
-				int?[] checkArr = new int?[] { 1, 2, 3, null, 5, 6 };
-
-				model.nullIntArray.ShouldBeSame(checkArr);
-				/*(a,b) => {
-					if (!a.HasValue == b.HasValue) { return false; }
-					if (a.HasValue) {
-						if (a.Value != b.Value) {
-							return false;
-						}
+					10.ShouldBe(reflectBack.Count);
+					for (int i = 0; i < 10; i++) {
+						string expect = "" + (char)('a' + i);
+						reflectBack[i].ShouldBe<string>(expect);
 					}
-					return true;
-				});*/
 
-			}
-		}
 
-	}
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-	public static class TestComments {
-		public static void TestObjects(string[] jsonLits, JsonObject expected) {
-			for (int i = 0; i < jsonLits.Length; i++) {
-				string json = jsonLits[i].Replace('\'', '\"');
-				JsonObject value = null;
-				try {
-					value = Json.Parse<JsonObject>(json.Replace('\'', '\"'));
-					value.ShouldNotBe(null);
-					value.ShouldEqual(expected);
-
-				} catch (Exception e) {
-					throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
 				}
 
-				Exception caught = null;
-				try {
-					Json.ParseStrict<JsonObject>(json.Replace('\'', '\"'));
-				} catch (Exception e) { caught = e; }
-				caught.ShouldNotBe(null);
+			}
+			public static void TestEquality() {
+				{
+					JsonArray a = new JsonArray().Add("Heeeello").Add("nurse").Add(42);
+					JsonArray b = new JsonArray().Add("Heeeello").Add("nurse").Add(42);
+					JsonArray c = new JsonArray().Add("yes").Add("no").Add("maybe").Add("could you repeat the question?");
+
+					// .Equals
+					a.ShouldEqual(b);
+					// ==
+					a.ShouldNotBe(b);
+					a.ShouldNotBe(c);
+					a.ShouldNotEqual(c);
+
+				}
 			}
 		}
-		public static void TestArrays(string[] jsonLits, JsonArray expected) {
-			for (int i = 0; i < jsonLits.Length; i++) {
-				string json = jsonLits[i].Replace('\'', '\"');
-				JsonArray value = null;
-				try {
-					value = Json.Parse<JsonArray>(json);
-					value.ShouldNotBe(null);
-					value.ShouldEqual(expected);
 
-				} catch (Exception e) {
-					throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
+		/// <summary> Tests for non-standard json features, other than comments. </summary>
+		public static class TestJsonExt { 
+		
+			public static void TestObjectSetParse() {
+				{
+					string raw = @"
+{
+	a, b, c, one, two, three,
+}".Replace('\'', '\"');
+
+					JsonObject parsed = Json.Parse<JsonObject>(raw);
+
+					parsed.Count.ShouldBe(6);
+					parsed.Get<bool>("a").ShouldBe(true);
+					parsed.Get<bool>("b").ShouldBe(true);
+					parsed.Get<bool>("c").ShouldBe(true);
+					parsed.Get<bool>("one").ShouldBe(true);
+					parsed.Get<bool>("two").ShouldBe(true);
+					parsed.Get<bool>("three").ShouldBe(true);
+
+					JsonObject expected = new JsonObject("a", true, "b", true, "c", true, "one", true, "two", true, "three", true);
+
+					parsed.ShouldEqual(expected);
+			}
+		}
+
+			public static void TestObjectsetParseStrict() {
+				{
+					string raw = @"
+{
+	a, b, c, one, two, three,
+}".Replace('\'', '\"');
+					Exception caught = null;
+					try {
+						JsonObject fail = Json.ParseStrict<JsonObject>(raw);
+					} catch (Exception e) { caught = e; }
+
+					caught.ShouldNotBe(null);
+
+				}
+			}
+
+			public static void TestArraySetParse() {
+				{
+					string raw = @"
+[
+	a, b, c, one, two, three
+]
+	".Replace('\'', '\"');
+
+					JsonArray parsed = Json.Parse<JsonArray>(raw);
+
+					parsed.Count.ShouldBe(6);
+					parsed.Get<string>(0).ShouldBe("a");
+					parsed.Get<string>(1).ShouldBe("b");
+					parsed.Get<string>(2).ShouldBe("c");
+					parsed.Get<string>(3).ShouldBe("one");
+					parsed.Get<string>(4).ShouldBe("two");
+					parsed.Get<string>(5).ShouldBe("three");
+
+					JsonArray expected = new JsonArray("a", "b", "c", "one", "two", "three");
+
+					parsed.ShouldEqual(expected);
+				}
+			}
+
+			public static void TestArraySetParseStrict() {
+				{
+					string raw = @"
+[
+	a, b, c, one, two, three
+]".Replace('\'', '\"');
+					Exception caught = null;
+					try {
+						JsonArray fail = Json.ParseStrict<JsonArray>(raw);
+					} catch (Exception e) { caught = e; }
+
+					caught.ShouldNotBe(null);
+
+				}
+			}
+
+		}
+
+		/// <summary> Test holding General JsonValue test functions </summary>
+		public static class TestGeneral {
+			public static void TestEscapes() {
+				{
+					JsonObject obj = new JsonObject();
+
+					string key = "scv:\"wark\"";
+					string val = "balls:\"borf\"";
+					obj[key] = val;
+					1.ShouldBe(obj.Count);
+					true.ShouldBe(obj.ContainsKey(key));
+					true.ShouldBe(obj[key] == val);
+
+					string str = obj.ToString();
+					string pp = obj.PrettyPrint();
+
+					JsonObject strParse = Json.Parse(str) as JsonObject;
+					JsonObject ppParse = Json.Parse(pp) as JsonObject;
+					true.ShouldBe(obj.Equals(strParse));
+					true.ShouldBe(obj.Equals(ppParse));
+
+					JsonObject strStrict = Json.ParseStrict<JsonObject>(str);
+					JsonObject ppStrict = Json.ParseStrict<JsonObject>(pp);
+					true.ShouldBe(obj.Equals(strStrict));
+					true.ShouldBe(obj.Equals(ppStrict));
+				}
+			}
+			public static void TestBoolConversion() {
+				{ // JsonNull should always be a false
+					if (JsonNull.instance) { ShouldNotRun(); }
+					JsonValue empty = null;
+					if (empty) { ShouldNotRun(); }
 				}
 
-				Exception caught = null;
-				try {
-					Json.ParseStrict<JsonArray>(json.Replace('\'', '\"'));
-				} catch (Exception e) { caught = e; }
-				caught.ShouldNotBe(null);
+				{ // JsonBools should behave directly
+					JsonBool yes = true;
+					JsonBool no = false;
+					if (yes) { /* good */ } else { ShouldNotRun(); }
+					if (!yes) { ShouldNotRun(); }
+
+					if (no) { ShouldNotRun(); }
+					if (!no) { /* good */ } else { ShouldNotRun(); }
+				}
+
+				{ // JsonNumber are only false when 0
+					JsonNumber zero = 0;
+					JsonNumber five = 5;
+					var zeroCon = five - five;
+
+					if (zero) { ShouldNotRun(); }
+					if (five) { /* good */ } else { ShouldNotRun(); }
+					if (zeroCon) { ShouldNotRun(); }
+				}
+
+				{ // JsonString are only false when empty
+					JsonString empty = "";
+					JsonString other = "other";
+					if (empty) { ShouldNotRun(); }
+					if (other) { /* good */ } else { ShouldNotRun(); }
+				}
+				{ // JsonObject are always true if not null
+					JsonObject empty = new JsonObject();
+					JsonObject obj = new JsonObject().Add("ayy","lmao");
+					if (empty) { /* good */ } else { ShouldNotRun(); }
+					if (obj) { /* good */ } else { ShouldNotRun(); }
+				} 
+				{ // JsonArray are always true if not null
+					JsonArray empty = new JsonArray();
+					JsonArray arr = new JsonArray().Add("ayy").Add("lmao");
+					if (empty) { /* good */ } else { ShouldNotRun(); }
+					if (arr) { /* good */ } else { ShouldNotRun(); }
+				}
 			}
+			public static void TestNumberConversion() {
+				{
+					JsonString five = "5";
+					float fiveF = five;		fiveF.ShouldBe(5);
+					double fiveD = five;	fiveD.ShouldBe(5);
+					int fiveI = five;		fiveI.ShouldBe(5);
+					long fiveL = five;		fiveL.ShouldBe(5);
+					decimal fiveDC = five;	fiveDC.ShouldBe(5);
+				}
+				{
+					JsonBool yes = true;
+					float yesF = yes;		yesF.ShouldBe(1);
+					double yesD = yes;		yesD.ShouldBe(1);
+					int yesI = yes;			yesI.ShouldBe(1);
+					long yesL = yes;		yesL.ShouldBe(1);
+					decimal yesDC = yes;	yesDC.ShouldBe(1);
+
+					JsonBool no = false;
+					float noF = no;			noF.ShouldBe(0);
+					double noD = no;		noD.ShouldBe(0);
+					int noI = no;			noI.ShouldBe(0);
+					long noL = no;			noL.ShouldBe(0);
+					decimal noDC = no;		noDC.ShouldBe(0);
+				}
+			}
+			public static void TestEqualities() {
+				{ // JsonNull
+					(JsonNull.instance == null).ShouldBeTrue();
+					JsonNull.instance.ShouldEqual(null);
+
+				}
+
+				{ // JsonNumber
+					JsonNumber a = 5;
+					JsonNumber b = 5;
+					JsonNumber c = 10;
+					JsonNumber zeroA = 0;
+					JsonNumber zeroB = Json.Parse("{z:0}")["z"] as JsonNumber;
+
+					(a == b).ShouldBeTrue();
+					(a == 5).ShouldBeTrue();
+					(a != c).ShouldBeTrue();
+					(c == 10).ShouldBeTrue();
+					(zeroA == zeroB).ShouldBeTrue();
+
+					a.ShouldEqual(b);
+					a.ShouldEqual(5);
+					a.ShouldNotEqual(c);
+					c.ShouldEqual(10);
+					zeroA.ShouldEqual(0);
+					zeroB.ShouldEqual(0);
+
+					}
+
+				{ // Infinity and NaN
+					JsonValue jminf = double.NegativeInfinity;
+					JsonValue jpinf = double.PositiveInfinity;
+					JsonValue jnan = double.NaN;
+
+					double minf = double.NegativeInfinity;
+					double pinf = double.PositiveInfinity;
+					double nan = double.NaN;
+
+					(jpinf == pinf).ShouldBeTrue();
+					(jminf == minf).ShouldBeTrue();
+					(jnan == nan).ShouldBeTrue();
+
+					jpinf.ShouldEqual(pinf);
+					jminf.ShouldEqual(minf);
+					jnan.ShouldEqual(nan);
+
+					jpinf.ShouldNotBe(jminf);
+					jpinf.ShouldNotBe(minf);
+					jpinf.ShouldNotBe(jnan);
+					jpinf.ShouldNotBe(nan);
+
+					jminf.ShouldNotBe(jpinf);
+					jminf.ShouldNotBe(pinf);
+					jminf.ShouldNotBe(jnan);
+					jminf.ShouldNotBe(nan);
+
+					jnan.ShouldNotBe(jpinf);
+					jnan.ShouldNotBe(pinf);
+					jnan.ShouldNotBe(jminf);
+					jnan.ShouldNotBe(minf);
+				}
+
+				{ // JsonStrings
+					JsonString a = "hullo";
+					JsonString b = "hullo";
+					JsonString c = "bob saget";
+
+					(a == b).ShouldBeTrue();
+					(a == "hullo").ShouldBeTrue();
+					(a != c).ShouldBeTrue();
+					(c == "bob saget").ShouldBeTrue();
+
+					a.ShouldEqual(b);
+					a.ShouldEqual("hullo");
+					a.ShouldNotEqual(c);
+					c.ShouldEqual("bob saget");
+				}
+
+				{ // JsonBool
+					JsonBool a = true;
+					JsonBool b = true;
+					JsonBool c = false;
+					JsonBool d = false;
+
+					a.ShouldEqual(true);
+					(a == b).ShouldBeTrue();
+					(a != c).ShouldBeTrue();
+					c.ShouldEqual(false);
+					(c == d).ShouldBeTrue();
+				}
+
+				{ // JsonObject
+					JsonObject a = new JsonObject()
+						.Add("name", "bob saget")
+						.Add("paperTowels", 50)
+						.Add("hasBalls", true);
+
+					JsonObject b = new JsonObject()
+						.Add("name", "bob saget")
+						.Add("paperTowels", 50)
+						.Add("hasBalls", true);
+
+					JsonObject c = new JsonObject()
+						.Add("name", "bobby bob bobberton")
+						.Add("paperTowels", "three hundred")
+						.Add("hasBalls", "yes");
+
+					a.ShouldEqual(b);
+					a.ShouldNotBe(b);
+					a.ShouldNotBe(c);
+					a.ShouldNotEqual(c);
+
+					a.Add("son", c);
+					b.Add("son", c.Clone());
+
+					a.ShouldEqual(b);
+					a.ShouldNotBe(b);
+
+					a["son"].ShouldBe(c);
+					a["son"].ShouldEqual(c);
+
+					b["son"].ShouldNotBe(c);
+					b["son"].ShouldEqual(c);
+				}
+			}
+
 		}
-		public static void TestLineComments() {
-			string[] empties = new string[] {
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////
+		public static class TestExt {
+
+			public class NullableModel {
+				public float? nullFloat;
+				public int? nullInt;
+				public int?[] nullIntArray;
+			}
+
+			public static void TestReflectNullables() {
+				{
+					JsonObject obj = new JsonObject();
+					NullableModel model = Json.GetValue<NullableModel>(obj);
+
+					model.nullFloat.HasValue.ShouldBeFalse();
+					model.nullInt.HasValue.ShouldBeFalse();
+					(null==model.nullIntArray).ShouldBeTrue();
+				}
+
+				{
+					JsonObject obj = new JsonObject();
+					obj["nullFloat"] = 5.5;
+					obj["nullInt"] = 5;
+					JsonArray arr = new JsonArray(1, 2, 3, null, 5, 6);
+					obj["nullIntArray"] = arr;
+
+					NullableModel model = Json.GetValue<NullableModel>(obj);
+					model.nullFloat.HasValue.ShouldBeTrue();
+					model.nullFloat.Value.ShouldBe(5.5f);
+					model.nullInt.HasValue.ShouldBeTrue();
+					model.nullInt.Value.ShouldBe(5);
+				
+					int?[] checkArr = new int?[] { 1, 2, 3, null, 5, 6 };
+
+					model.nullIntArray.ShouldBeSame(checkArr);
+					/*(a,b) => {
+						if (!a.HasValue == b.HasValue) { return false; }
+						if (a.HasValue) {
+							if (a.Value != b.Value) {
+								return false;
+							}
+						}
+						return true;
+					});*/
+
+				}
+			}
+
+		}
+
+		public static class TestComments {
+			public static void TestObjects(string[] jsonLits, JsonObject expected) {
+				for (int i = 0; i < jsonLits.Length; i++) {
+					string json = jsonLits[i].Replace('\'', '\"');
+					JsonObject value = null;
+					try {
+						value = Json.Parse<JsonObject>(json.Replace('\'', '\"'));
+						value.ShouldNotBe(null);
+						value.ShouldEqual(expected);
+
+					} catch (Exception e) {
+						throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
+					}
+					
+					Exception caught = null;
+					try {
+						Json.ParseStrict<JsonObject>(json.Replace('\'', '\"'));
+					} catch (Exception e) { caught = e; }
+					caught.ShouldNotBe(null);
+				}
+			}
+			public static void TestArrays(string[] jsonLits, JsonArray expected) {
+				for (int i = 0; i < jsonLits.Length; i++) {
+					string json = jsonLits[i].Replace('\'', '\"');
+					JsonArray value = null;
+					try {
+						value = Json.Parse<JsonArray>(json);
+						value.ShouldNotBe(null);
+						value.ShouldEqual(expected);
+
+					} catch (Exception e) {
+						throw new Exception($"Element {i} failed, json was:\n{json}\n...Failed to parse above json.\n\tparsed: {value}\n\texpected: {expected}", e);
+					}
+					
+					Exception caught = null;
+					try {
+						Json.ParseStrict<JsonArray>(json.Replace('\'', '\"'));
+					} catch (Exception e) { caught = e; }
+					caught.ShouldNotBe(null);
+				}
+			}
+			public static void TestLineComments() {
+				string[] empties = new string[] {
 					@"{}//Comment after closing",
 					@"{} //Comment after closing",
-
+				
 					@"
 { // empty object with comment inside
-}",
+}", 
 				@"//empty with comment before
 {//inside
 	//indented
@@ -1111,11 +1276,11 @@ public static class Json_Tests {
 //and far after
 ",
 				};
-			JsonObject empty = new JsonObject();
-			TestObjects(empties, empty);
+				JsonObject empty = new JsonObject();
+				TestObjects(empties, empty);
 
-			string[] smalls = new string[] {
-					@"{thing:""value""}//yep",
+				string[] smalls = new string[] {
+					@"{thing:'value'}//yep",
 					@"//
 {//
 //
@@ -1123,32 +1288,30 @@ thing//
 //
 ://
 //
-""value""//
+'value'//
 //
 }//
 //",
 				};
-			JsonObject small = new JsonObject("thing", "value");
-			TestObjects(smalls, small);
+				JsonObject small = new JsonObject("thing", "value");
+				TestObjects(smalls, small);
+			}
 
-
-		}
-
-		public static void TestLineCommentsArrays() {
-			string[] empties = new string[] {
+			public static void TestLineCommentsArrays() {
+				string[] empties = new string[] {
 					@"[]//",
 					@"[] //",
 					@"//
 [//
 //
 ]//
-//",
+//",		
 				};
 
-			JsonArray empty = new JsonArray();
-			TestArrays(empties, empty);
+				JsonArray empty = new JsonArray();
+				TestArrays(empties, empty);
 
-			string[] smalls = new string[] {
+				string[] smalls = new string[] {
 					@"['a','b','c',1,2,3]//Junk",
 					@"
 //
@@ -1167,93 +1330,93 @@ thing//
 ]//and
 //done",
 				};
-			JsonArray small = new JsonArray("a", "b", "c", 1, 2, 3);
-			TestArrays(smalls, small);
-			
-		}
-		public static void TestBS() {
+				JsonArray small = new JsonArray("a", "b", "c", 1, 2, 3);
+				TestArrays(smalls, small);
 
-			{
-				string data = @"
+			}
+			public static void TestBS() {
+
+				{
+					string data = @"
 { // empty object with comment
 }
 	".Replace('\'', '\"');
 
-				JsonObject obj = Json.Parse(data) as JsonObject;
+					JsonObject obj = Json.Parse(data) as JsonObject;
 
-				obj.ShouldNotBe(null);
-				obj.Count.ShouldBe(0);
-			}
+					obj.ShouldNotBe(null);
+					obj.Count.ShouldBe(0);
+				}
 
-			{
-				string data = @"
+				{
+					string data = @"
 {
 	thing: 'value', // Explanation
 }
 	".Replace('\'', '\"');
-				JsonObject obj = Json.Parse(data) as JsonObject;
+					JsonObject obj = Json.Parse(data) as JsonObject;
 
-				obj.ShouldNotBe(null);
-				obj.Count.ShouldBe(1);
-				obj["thing"].stringVal.ShouldBe("value");
-			}
+					obj.ShouldNotBe(null);
+					obj.Count.ShouldBe(1);
+					obj["thing"].stringVal.ShouldBe("value");
+				}
 
-			{
-				string data = @"
+				{
+					string data = @"
 {
 	thing: 'value' 
 	// Explanation
 }
 	".Replace('\'', '\"');
-				JsonObject obj = Json.Parse(data) as JsonObject;
+					JsonObject obj = Json.Parse(data) as JsonObject;
 
-				obj.ShouldNotBe(null);
-				obj.Count.ShouldBe(1);
-				obj["thing"].stringVal.ShouldBe("value");
-			}
-			{
-				string data = @"
+					obj.ShouldNotBe(null);
+					obj.Count.ShouldBe(1);
+					obj["thing"].stringVal.ShouldBe("value");
+				}
+				{
+					string data = @"
 {
 	thing: 'value',
 	// Explanation
 }
 	".Replace('\'', '\"');
-				JsonObject obj = Json.Parse(data) as JsonObject;
+					JsonObject obj = Json.Parse(data) as JsonObject;
 
-				obj.ShouldNotBe(null);
-				obj.Count.ShouldBe(1);
-				obj["thing"].stringVal.ShouldBe("value");
-			}
+					obj.ShouldNotBe(null);
+					obj.Count.ShouldBe(1);
+					obj["thing"].stringVal.ShouldBe("value");
+				}
 
-			{
-				string data = @"
+				{
+					string data = @"
 {
 	// Explanation
 	thing: 'value' 
 }
 	".Replace('\'', '\"');
-				JsonObject obj = Json.Parse(data) as JsonObject;
+					JsonObject obj = Json.Parse(data) as JsonObject;
 
-				obj.ShouldNotBe(null);
-				obj.Count.ShouldBe(1);
-				obj["thing"].stringVal.ShouldBe("value");
+					obj.ShouldNotBe(null);
+					obj.Count.ShouldBe(1);
+					obj["thing"].stringVal.ShouldBe("value");
+				}
+
 			}
-
 		}
-	}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////
 
-	public static class TestStrict {
-		public static void TestStrictObjectParse() {
-			string goodInput = 
-@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
+		public static class TestStrict {
+			public static void TestStrictObjectParse() {
+				string goodInput =
+	@"{'name':'bob','str':7,'dex':8,'vit':5,'agi':6,
 'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
 'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", "");
 
-			string[] badInputs = new string[] {
+				string[] badInputs = new string[] {
 @"{'name':'bob' 'str':7,'dex':8,'vit':5,'agi':6,
 'bag':{'potion':20,'hi-potion':3},'wallet': {'gil': 230,'shards': 23},
 'awesome':false,'cool':true}".Replace('\'', '\"').Replace("\n", ""),
@@ -1276,46 +1439,46 @@ thing//
 
 			};
 
-			JsonObject expected = new JsonObject();
-			expected["name"] = "bob";
-			expected["str"] = 7;
-			expected["dex"] = 8;
-			expected["vit"] = 5;
-			expected["agi"] = 6;
-			expected["bag"] = new JsonObject("potion", 20, "hi-potion", 3);
-			expected["wallet"] = new JsonObject("gil", 230, "shards", 23);
-			expected["awesome"] = false;
-			expected["cool"] = true;
+				JsonObject expected = new JsonObject();
+				expected["name"] = "bob";
+				expected["str"] = 7;
+				expected["dex"] = 8;
+				expected["vit"] = 5;
+				expected["agi"] = 6;
+				expected["bag"] = new JsonObject("potion", 20, "hi-potion", 3);
+				expected["wallet"] = new JsonObject("gil", 230, "shards", 23);
+				expected["awesome"] = false;
+				expected["cool"] = true;
 
-			JsonObject parsed = Json.ParseStrict<JsonObject>(goodInput);
-			parsed.ShouldEqual(expected);
-			string toStringed = parsed.ToString();
-			string prettyPrinted = parsed.PrettyPrint();
-			JsonObject reparsed1 = Json.ParseStrict<JsonObject>(toStringed);
-			JsonObject reparsed2 = Json.ParseStrict<JsonObject>(prettyPrinted);
+				JsonObject parsed = Json.ParseStrict<JsonObject>(goodInput);
+				parsed.ShouldEqual(expected);
+				string toStringed = parsed.ToString();
+				string prettyPrinted = parsed.PrettyPrint();
+				JsonObject reparsed1 = Json.ParseStrict<JsonObject>(toStringed);
+				JsonObject reparsed2 = Json.ParseStrict<JsonObject>(prettyPrinted);
 
-			reparsed1.ShouldEqual(expected);
-			reparsed2.ShouldEqual(expected);
+				reparsed1.ShouldEqual(expected);
+				reparsed2.ShouldEqual(expected);
 
-			foreach (var bad in badInputs) {
-				Exception e = null;
-				try {
-					JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
-				} catch (Exception ex) {
-					e = ex;
+				foreach (var bad in badInputs) {
+					Exception e = null;
+					try {
+						JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
+					} catch (Exception ex) {
+						e = ex;
+					}
+					e.ShouldNotBe(null);
+
 				}
-				e.ShouldNotBe(null);
+
 
 			}
 
+			public static void TestStrictArrayParse() {
+				string goodInput =
+	@"[1,2,3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", "");
 
-		}
-
-		public static void TestStrictArrayParse() {
-			string goodInput =
-@"[1,2,3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", "");
-
-			string[] badInputs = new string[] {
+				string[] badInputs = new string[] {
 @"[1,2 3,'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
 @"[1,2,3 'a','b','c',[123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
 @"[1,2,3,'a','b','c' [123,456,789,0],{'1':2,'3':'a','b':'c'}]".Replace('\'', '\"').Replace("\n", ""),
@@ -1327,39 +1490,43 @@ thing//
 
 			};
 
-			JsonArray expected = new JsonArray(1,2,3,"a","b","c",
-				new JsonArray(123,456,789,0),
-				new JsonObject("1",2,"3","a","b","c"));
+				JsonArray expected = new JsonArray(1, 2, 3, "a", "b", "c",
+					new JsonArray(123, 456, 789, 0),
+					new JsonObject("1", 2, "3", "a", "b", "c"));
 
-			JsonArray parsed = Json.ParseStrict<JsonArray>(goodInput);
-			parsed.ShouldEqual(expected);
-			string toStringed = parsed.ToString();
-			string prettyPrinted = parsed.PrettyPrint();
+				JsonArray parsed = Json.ParseStrict<JsonArray>(goodInput);
+				parsed.ShouldEqual(expected);
+				string toStringed = parsed.ToString();
+				string prettyPrinted = parsed.PrettyPrint();
 
-			JsonArray reparsed1 = Json.ParseStrict<JsonArray>(toStringed);
-			JsonArray reparsed2 = Json.ParseStrict<JsonArray>(prettyPrinted);
+				JsonArray reparsed1 = Json.ParseStrict<JsonArray>(toStringed);
+				JsonArray reparsed2 = Json.ParseStrict<JsonArray>(prettyPrinted);
 
-			reparsed1.ShouldEqual(expected);
-			reparsed2.ShouldEqual(expected);
+				reparsed1.ShouldEqual(expected);
+				reparsed2.ShouldEqual(expected);
 
 
-			foreach (var bad in badInputs) {
-				Exception e = null;
-				try {
-					JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
-				} catch (Exception ex) {
-					e = ex;
+				foreach (var bad in badInputs) {
+					Exception e = null;
+					try {
+						JsonObject badParsed = Json.ParseStrict<JsonObject>(bad);
+					} catch (Exception ex) {
+						e = ex;
+					}
+					e.ShouldNotBe(null);
 				}
-				e.ShouldNotBe(null);
+
 			}
 
 		}
+		////////////////////////////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 	}
 
-	////////////////////////////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//////////////////////////////////////////////////////////////////////////////////////////////
-
-
 }
+
+

@@ -69,5 +69,105 @@ namespace Ex.Utils {
 			return str.ToString();
 		}
 
+		#region Operators
+		public static Store<K, V> operator -(Store<K, V> a) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = -(dynamic)a[k]; }
+			return result;
+		}
+		public static Store<K, V> operator !(Store<K, V> a) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = !(dynamic)a[k]; }
+			return result;
+		}
+		public static Store<K, V> operator ~(Store<K, V> a) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = ~(dynamic)a[k]; }
+			return result;
+		}
+
+		public static Store<K, V> operator +(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] + b); }
+			return result;
+		}
+		public static Store<K, V> operator -(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] - b); }
+			return result;
+		}
+		public static Store<K, V> operator *(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] * b); }
+			return result;
+		}
+		public static Store<K, V> operator /(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] / b); }
+			return result;
+		}
+		public static Store<K, V> operator %(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] % b); }
+			return result;
+		}
+		public static Store<K, V> operator &(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] + b); }
+			return result;
+		}
+		public static Store<K, V> operator |(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] + b); }
+			return result;
+		}
+		public static Store<K, V> operator ^(Store<K, V> a, dynamic b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a[k] + b); }
+			return result;
+		}
+
+		public static Store<K, V> operator +(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a + b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator -(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a - b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator *(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a * b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator /(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a / b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator %(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a % b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator &(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a + b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator |(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a + b[k]); }
+			return result;
+		}
+		public static Store<K, V> operator ^(dynamic a, Store<K, V> b) {
+			Store<K, V> result = new Store<K, V>();
+			foreach (var k in Enum<K>.items) { result[k] = (V)(a + b[k]); }
+			return result;
+		}
+		#endregion
+
 	}
 }

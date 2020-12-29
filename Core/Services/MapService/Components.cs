@@ -2,9 +2,7 @@
 #define UNITY
 #endif
 
-#if !UNITY
-using MongoDB.Bson.Serialization.Attributes;
-#else
+#if UNITY
 using UnityEngine;
 #endif
 using System;
@@ -16,9 +14,6 @@ namespace Ex {
 	
 	/// <summary> Component for debugging, to allow unity to register a hook that names the component GameObject based on entity type. 
 	/// Auto-filled during load from database as long as the type is provided. </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	public class Typed : Comp {
 		/// <summary> Type to display. </summary>
 		public InteropString32 type;
@@ -130,9 +125,6 @@ namespace Ex {
 	}
 
 	/// <summary> Component that attaches a visible model to an entity on clients. </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	public class Display : Comp {
 		/// <summary> Prefab to display </summary>
 		public InteropString32 prefab;
@@ -154,9 +146,6 @@ namespace Ex {
 
 
 	/// <summary> Component that shows a name plate and renames the entity on clients. </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	public class Nameplate : Comp {
 		/// <summary> Name to display  </summary>
 		public InteropString32 name;
@@ -165,9 +154,6 @@ namespace Ex {
 	}
 
 	/// <summary> Component that attaches a visible model to an entity on clients. </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	public class AnimData : Comp {
 		/// <summary> Animation mapper to use </summary>
 		public InteropString32 mapper;
@@ -180,27 +166,18 @@ namespace Ex {
 	}
 
 	/// <summary> Example server-only data component </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	[ServerOnlyComponent]
 	public class SomeHiddenData : Comp {
 		public int key = 31337;
 	}
 
 	/// <summary> Example owner-only data component </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-#endif
 	[OwnerOnlySync]
 	public class SomeSecretData : Comp {
 		public int key = 1337;
 	}
 
 	/// <summary> Component that holds procedural terrain information. </summary>
-#if !UNITY
-	[BsonIgnoreExtraElements]
-	#endif
 	public class Terrain : Comp {
 		/// <summary> Size of each terrain segment </summary>
 		public Vector3 tileSize;
@@ -256,7 +233,7 @@ namespace Ex {
 		/// <summary> Extra data segment for non-builtin generation </summary>
 		public InteropFloat64 extra;
 		
-		public override string ToString() { return $"{entityId} Terrain"; }
+		public override string ToString() { return $"{entityId} Terrain + {Json.Reflect(this).PrettyPrint()}"; }
 	}
 
 

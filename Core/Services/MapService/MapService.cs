@@ -1,10 +1,8 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 #if UNITY
 using UnityEngine;
-#else
-using MongoDB.Bson.Serialization.Attributes;
 #endif
 
 using System;
@@ -15,6 +13,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Ex.Utils;
 using System.Runtime.CompilerServices;
+using BakaDB;
 
 namespace Ex {
 	/// <summary> Service which creates and manages Map instances </summary>
@@ -44,9 +43,9 @@ namespace Ex {
 		}
 
 		#if !UNITY
+
+		public static LocalDB db = DB.Local("Content");
 		
-		/// <summary> Connected DBService </summary>
-		public DBService db;
 		/// <summary> Connected EntityService </summary>
 		public EntityService entityService;
 
@@ -63,7 +62,6 @@ namespace Ex {
 		public WorkPool<Map> mapWorkPool;
 
 		public override void OnStart() {
-			db = GetService<DBService>();
 			entityService = GetService<EntityService>();
 		}
 		#endif
@@ -169,7 +167,7 @@ namespace Ex {
 			//Log.Debug($"Loading map {map}");
 			// Load the map from db, or the limbo map if it doesn't exist.
 			if (!mapInfoByName.ContainsKey(map)) {
-				var loadedMap = db.Get<MapInfo>("Content", "name", map) ?? db.Get<MapInfo>("Content", "name", "Limbo");
+				var loadedMap = db.Open<MapInfo>($"Maps/{map}") ?? db.Open<MapInfo>("Maps/limbo");
 				mapInfoByName[map] = loadedMap;
 				string s = loadedMap?.ToString() ?? "NULL";
 				Log.Debug($"Loaded MapInfo for {{{map}}}");

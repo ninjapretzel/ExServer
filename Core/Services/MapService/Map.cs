@@ -3,8 +3,6 @@
 #endif
 #if UNITY
 using UnityEngine;
-#else
-using MongoDB.Bson.Serialization.Attributes;
 #endif
 
 using Ex.Utils;
@@ -149,12 +147,14 @@ namespace Ex {
 				onMap.mapInstanceIndex = instanceIndex;
 
 				foreach (var comp in entityInfo.components) {
-					var type = entityService.GetCompType(comp.type);	
+					var type = entityService.GetCompType(comp.type);
 
 					if (type != null) {
 						Comp c = entityService.AddComponent(id, type);
-						Comp.LoadFromDB(c, comp.data);
+						Json.ReflectInto(comp.data, c);
+						Log.Info($"Initialized Component: {c}");
 					}
+
 				}
 
 				if (entityInfo.global) {

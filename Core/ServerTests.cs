@@ -1,4 +1,4 @@
-
+﻿
 #if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
@@ -6,6 +6,7 @@ using UnityEngine;
 
 // For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
 #if !UNITY
+using BakaDB;
 using Ex;
 using Ex.Utils;
 using System;
@@ -31,40 +32,50 @@ public static class Server_Tests {
 		}
 
 	}
-	private class TestUserEntityInfo : DefaultUserEntityInfo { }
+	private class TestUserEntityInfo : UserEntityInfo { }
 
 	private static TestData DefaultSetup(params Type[] clientServices) {
 		return Setup("Testing", "db", 12345, 50, clientServices);
 	}
+
+	public static readonly string TEST_USERNAME = "testuser";
+	public static readonly string TEST_PASSWORD = "testpassword";
+
 	private static TestData Setup(string testDbName = "Testing", string testDb = "db", int port = 12345, float tick = 50, Type[] clientServices = null) {
 		Server server = new Server(port, tick);
 		var debug = server.AddService<DebugService>();
 		var login = server.AddService<LoginService>();
 		var entity = server.AddService<EntityService>();
 		var map = server.AddService<MapService>();
-		var db = server.AddService<DBService>()
-			.Connect()
-			.UseDatabase(testDbName)
-			.CleanDatabase()
-			;
-
 		// Note: A data type for holding user entity info must be registered.
 		// This effectively saves the user's information of where they are,
 		// and typically should be customized to either store all of a user's primary information, or links to them.
 		entity.RegisterUserEntityInfo<TestUserEntityInfo>();
+		// any data from previous tests is cleaned up:
+		DB.Drop<TestUserEntityInfo>();
+		DB.Of<LoginService.UserLoginInfo>.Delete(TEST_USERNAME);
+		DB.Of<List<LoginService.UserAccountCreation>>.Delete("127.0.0.1.wtf");
 
+		var testDB = DB.Of<TestUserEntityInfo>.db;
 		// Note: Next, some logic should be provided so that when a user logs in for the first time,
 		// their data can be initialized to some default state.
 		login.userInitializer = (guid) => {
 			// In here, we can initialize anything the user needs.
 			// One of those things should be whatever was registered with `RegisterUserEntityInfo`.
-			var info = db.Initialize<TestUserEntityInfo>(guid, it => {
-				it.map = "HelloWorld";
-				it.position = Vector3.zero;
-				it.rotation = Vector3.zero;
-				it.skin = "Yeet";
-				it.color = "0xFFFFFFFF";
-			});
+			string guidStr = $"{guid}";
+
+			var info = new TestUserEntityInfo();
+			info.guid = guid;
+			info.map = "limbo";
+			info.position = Vector3.zero;
+			info.rotation = Vector3.zero;
+			info.skin = "Yeet";
+			info.color = "0xFFFFFFFF";
+			info.color2 = "0xFFFFFFFF";
+			info.color3 = "0xFFFFFFFF";
+			info.color4 = "0xFFFFFFFF";
+			
+			testDB.Save(guidStr, info);
 		};
 
 
@@ -163,7 +174,7 @@ public static class Server_Tests {
 				throw new Exception("Test failed: Test service did not recieve public key!");
 			}
 			
-			testData.admin.GetService<LoginService>().RequestLogin("admin", "admin");
+			testData.admin.GetService<LoginService>().RequestLogin(TEST_USERNAME, TEST_PASSWORD);
 
 			if (!WaitFor(testService.LoggedIn, 3333)) { 
 				throw new Exception("Test Failed: Test service did not log in!");
@@ -171,6 +182,10 @@ public static class Server_Tests {
 
 			if (!WaitFor(testService.PingFinished, 1111)) {
 				throw new Exception("Test Failed: Test service did not finish pinging!");
+			}
+
+			if (!WaitFor(testService.MapFinished, 3333)) {
+				throw new Exception("Test Failed: MapChange was not sent!!");
 			}
 
 		} finally {
@@ -206,6 +221,13 @@ public static class Server_Tests {
 		public bool sawPingFinish = false;
 		public bool PingFinished() { return sawLogin; }
 		public void On(DebugService.PingNEvent e) { if (e.val == 0) { sawPingFinish = true; } }
+
+		public bool sawMap = false;
+		public bool MapFinished() { return sawMap; }
+		public void On(MapService.MapChange_Client e) {
+			Log.Info($"TestService Saw MapChange: {e.mapName} / {e.pos} / {e.rot}");
+			sawMap = true;
+		}
 
 		/// <summary> Callback every global server tick </summary>
 		/// <param name="delta"> Delta between last tick and 'now' </param>

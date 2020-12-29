@@ -8,15 +8,10 @@
 			data: { name: "Terrain2" },
 		},
 		{
-			"type":"Ex.Terrain",
-			"data":
+			type:"Ex.Terrain",
+			data:
 			{
-				"tileSize":
-				[
-					100,
-					400,
-					100
-				],
+				tileSize: [ 100, 400, 100 ],
 				"viewDist":14,
 				"meshSamples":32,
 				"splatSamples":32,

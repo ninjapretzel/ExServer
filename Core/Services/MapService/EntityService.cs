@@ -2,9 +2,7 @@
 #define UNITY
 #endif
 
-#if !UNITY
-using MongoDB.Bson.Serialization.Attributes;
-#else
+#if UNITY
 using UnityEngine;
 #endif
 using Ex.Utils;
@@ -15,6 +13,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 using Ex.Utils.Ext;
+using BakaDB;
 
 namespace Ex {
 
@@ -51,59 +50,48 @@ namespace Ex {
 #if !UNITY
 
 		/// <summary> Interface for loading standard user entity data from database. </summary>
-		public interface UserEntityInfo : IDBEntry {
+		public class UserEntityInfo {
+			/// <summary> Associated user's GUID </summary>
+			public Guid guid;
 			/// <summary> Map the user is on </summary>
-			string map { get; set; }
+			public string map;
 			/// <summary> Position they were last at </summary>
-			Vector3 position { get; set; }
+			public Vector3 position;
 			/// <summary> Orientation they were last at </summary>
-			Vector3 rotation { get; set; }
+			public Vector3 rotation;
 			/// <summary> Model used to display the user </summary>
-			string skin { get; set; }
+			public string skin;
 			/// <summary> Primary Color, 0xRRGGBBAA </summary>
-			string color { get; set; }
+			public string color;
 			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
-			string color2 { get; set; }
+			public string color2;
 			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
-			string color3 { get; set; }
+			public string color3;
 			/// <summary> Alternate Color, 0xRRGGBBAA </summary>
-			string color4 { get; set; }
+			public string color4;
 		}
 
-		/// <summary> Base class which implements <see cref="UserEntityInfo"/> with <see cref="DBData"/>. </summary>
-		public class DefaultUserEntityInfo : DBData, UserEntityInfo {
-			public string map { get; set; }
-			public Vector3 position { get; set; }
-			public Vector3 rotation { get; set; }
-			[BsonIgnoreIfNull] public string color { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
-			[BsonIgnoreIfNull] public string color2 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
-			[BsonIgnoreIfNull] public string color3 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
-			[BsonIgnoreIfNull] public string color4 { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
-			[BsonIgnoreIfNull] public string skin { get { return data.Get<string>(MemberName()); } set { data[MemberName()] = value; } }
-		}
-
-		/// <summary> Connected DBService </summary>
-		DBService db;
 		/// <summary> Connected MapService </summary>
 		MapService mapService;
 		/// <summary> Connected LoginService </summary>
 		LoginService loginService;
 
-		/// <summary> Registered callback to generate a new user information. </summary>
-		Func<UserEntityInfo> GenerateUser;
-		/// <summary> Registered callback to locate a user by ID. </summary>
+		/// <summary> Registered callback to locate a user's entity data by ID. </summary>
 		Func<Guid, UserEntityInfo> FindUser;
+		/// <summary> Registered callback to save a user's entity data by ID. </summary>
+		Action<UserEntityInfo> SaveUser;
 
 		/// <summary> Call this to register a <see cref="UserEntityInfo"/> extension of <see cref="IDBEntry"/> as the container for Entity data.</summary>
 		/// <typeparam name="T"> Generic type that implements <see cref="UserEntityInfo"/></typeparam>
 		public void RegisterUserEntityInfo<T>() where T : UserEntityInfo, new() {
-			GenerateUser = () => new T();
-			FindUser = (guid) => db.Get<T>(guid);
-
+			if (FindUser != null || SaveUser != null) {
+				Log.Error("Only a single call to EntityService.RegisterUserEntityInfo<>() can be made!");
+			}
+			FindUser = (guid) => DB.Of<T>.Get(guid.ToString());
+			SaveUser = (info) => DB.Of<T>.Save(info.guid.ToString(), (T)info);
 		}
 		
 		public override void OnStart() {
-			db = GetService<DBService>();
 			mapService = GetService<MapService>();
 			loginService = GetService<LoginService>();
 
@@ -115,7 +103,7 @@ namespace Ex {
 			if (succ.client == null) { return; }
 			if (!isMaster) { return; }
 			// Log.Info("EntityService.On(LoginSuccess_Server)");
-			if (FindUser == null && GenerateUser == null) {
+			if (FindUser == null) {
 				Log.Error("A call to EntityService.RegisterUserEntityInfo<>() must be made before a login may produce an entity!");
 				return;
 			}
@@ -128,6 +116,7 @@ namespace Ex {
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
 			
 			UserEntityInfo info = FindUser(userId);
+
 			if (info == null) {
 				Log.Error($"OnLoginSuccess_Server for user {clientId} -> {username} / UserID={userId} found no entity information!\nDid you forget to set LoginService.userInitializer ?");
 			}
@@ -143,6 +132,8 @@ namespace Ex {
 			//	hidden.Send(); // Gotta remember to send component data to clients, even if it may be hidden.
 			//	secret.Send();
 			//}
+
+
 
 			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			if (username != "admin") {
@@ -160,8 +151,6 @@ namespace Ex {
 
 			display.Send();
 			nameplate.Send();
-
-
 
 			if (info != null) {
 
@@ -184,11 +173,12 @@ namespace Ex {
 		/// <summary> EntityInfo (spawn source) data cached from database by type </summary>
 		public ConcurrentDictionary<string, EntityInfo> entityInfos;
 		/// <summary> Returns an <see cref="EntityInfo"/> from the database, out of the "Content" database.</summary>
-		/// <param name="typeName"> Name of the type of entity, eg "Spider" or "Spawner" </param>
+		/// <param name="typeName"> Name of the type of entity, eg "Mobs/Spider" or "Misc/Spawner" </param>
 		/// <returns> <see cref="EntityInfo"/> that can be used to spawn an entity of the given type. </returns>
 		public EntityInfo GetEntityInfo(string typeName) {
 			if (entityInfos.ContainsKey(typeName)) { return entityInfos[typeName]; }
-			var info = (entityInfos[typeName] = db.Get<EntityInfo>("Content", "type", typeName));
+			//var info = (entityInfos[typeName] = db.Get<EntityInfo>("Content", "type", typeName));
+			var info = (entityInfos[typeName] = DB.Local("Content/Entities").Open<EntityInfo>(typeName));
 			
 			if (DEBUG_ENTITY_TYPES) {
 				Log.Debug($"Baking type info into {typeof(Ex.Typed).FullName} for {typeName}");
@@ -200,7 +190,7 @@ namespace Ex {
 				// This should be the only extra information after what is already in the entity database.
 				var typed = new ComponentInfo();
 				typed.type = typeof(Ex.Typed).FullName;
-				typed.data = new MongoDB.Bson.BsonDocument();
+				typed.data = new JsonObject();
 				typed.data["type"] = typeName;
 				comps[comps.Length-1] = typed;
 				info.components = comps;
@@ -766,7 +756,8 @@ namespace Ex {
 					}
 					
 					Log.Info($"EntityService.OnDisconnected: Saving entity data for {creds.username} ");
-					db.Save(info);
+					// db.Save(info);
+					SaveUser(info);
 					
 
 				} else {

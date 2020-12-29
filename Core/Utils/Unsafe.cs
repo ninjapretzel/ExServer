@@ -1,10 +1,6 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
-#else
-using MongoDB.Bson.Serialization.Serializers;
-using MongoDB.Bson.Serialization;
-using MongoDB.Bson.IO;
 #endif
 
 using System;
@@ -51,6 +47,21 @@ namespace Ex {
 			for (int i = 0; i < MAX_LENGTH && i < floats.Length; i++) { f[i] = floats[i]; }
 			return f;
 		}
+
+		public JsonValue ToJson() {
+			JsonArray result = new JsonArray();
+			for (int i = 0; i < MAX_LENGTH; i++) { result.Add(this[i]); }
+			return result;
+		}
+		public static InteropFloat64 FromJson(JsonValue value) {
+			InteropFloat64 result = new InteropFloat64();
+			if (value is JsonArray arr) {
+				for (int i = 0; i < MAX_LENGTH; i++) {
+					result[i] = arr.Pull(i, 0f);
+				}
+			}
+			return result;
+		}
 	}
 
 
@@ -79,6 +90,20 @@ namespace Ex {
 			InteropFloat32 f;
 			for (int i = 0; i < MAX_LENGTH && i < floats.Length; i++) { f[i] = floats[i]; }
 			return f;
+		}
+		public JsonValue ToJson() {
+			JsonArray result = new JsonArray();
+			for (int i = 0; i < MAX_LENGTH; i++) { result.Add(this[i]); }
+			return result;
+		}
+		public static InteropFloat64 FromJson(JsonValue value) {
+			InteropFloat64 result = new InteropFloat64();
+			if (value is JsonArray arr) {
+				for (int i = 0; i < MAX_LENGTH; i++) {
+					result[i] = arr.Pull(i, 0f);
+				}
+			}
+			return result;
 		}
 	}
 
@@ -125,6 +150,19 @@ namespace Ex {
 
 		public static implicit operator string (InteropString32 s) { return s.value; }
 		public static implicit operator InteropString32(string str) { InteropString32 s; s.value = str; return s; }
+
+		public JsonValue ToJson() { return (JsonString) (string) this; }
+		public static InteropString32 FromJson(JsonValue value) {
+			InteropString32 result = new InteropString32();
+			if (value is JsonString str) {
+				result.value = str;
+			} else if (value is JsonArray arr) {
+				for (int i = 0; i < MAX_LENGTH-1; i++) {
+					result.fixedBuffer[i] = arr.Pull(i, '\0');
+				}
+			}
+			return result;
+		}
 	}
 	/// <summary> Interop struct for packing a string into a struct, to allow proper use of network strings embedded in structs </summary>
 	[StructLayout(LayoutKind.Sequential)]
@@ -167,6 +205,19 @@ namespace Ex {
 
 		public static implicit operator string(InteropString256 s) { return s.value; }
 		public static implicit operator InteropString256(string str) { InteropString256 s; s.value = str; return s; }
+
+		public JsonValue ToJson() { return (JsonString)(string)this; }
+		public static InteropString32 FromJson(JsonValue value) {
+			InteropString32 result = new InteropString32();
+			if (value is JsonString str) {
+				result.value = str;
+			} else if (value is JsonArray arr) {
+				for (int i = 0; i < MAX_LENGTH - 1; i++) {
+					result.fixedBuffer[i] = arr.Pull(i, '\0');
+				}
+			}
+			return result;
+		}
 	}
 
 	#endregion
@@ -751,74 +802,74 @@ namespace Ex {
 
 	}
 
-#if !UNITY
-	public class InteropFloat64Serializer : SerializerBase<InteropFloat64> {
-		public override InteropFloat64 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			InteropFloat64 nums;
-			context.StartArray();
-			
-			for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) {
-				// Ew.
-				try { nums[i] = context.ReadFloat(); } catch { break; }
-			}
-			
-			context.EndArray();
-			
-			return nums;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat64 value) {
-			context.StartArray();
-			
-			for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) { context.WriteFloat(value[i]);	}
-			
-			context.EndArray();
-		}
-	}
-	public class InteropFloat32Serializer : SerializerBase<InteropFloat32> {
-		public override InteropFloat32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			InteropFloat32 nums;
-			context.StartArray();
 
-			for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) {
-				// Ew.
-				try { nums[i] = context.ReadFloat(); } catch { break; }
-			}
+	//public class InteropFloat64Serializer {
+	//	public override InteropFloat64 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+	//		InteropFloat64 nums;
+	//		context.StartArray();
+			
+	//		for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) {
+	//			// Ew.
+	//			try { nums[i] = context.ReadFloat(); } catch { break; }
+	//		}
+			
+	//		context.EndArray();
+			
+	//		return nums;
+	//	}
+	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat64 value) {
+	//		context.StartArray();
+			
+	//		for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) { context.WriteFloat(value[i]);	}
+			
+	//		context.EndArray();
+	//	}
+	//}
+	//public class InteropFloat32Serializer : SerializerBase<InteropFloat32> {
+	//	public override InteropFloat32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+	//		InteropFloat32 nums;
+	//		context.StartArray();
 
-			context.EndArray();
-			return nums;
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat32 value) {
-			context.StartArray();
+	//		for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) {
+	//			// Ew.
+	//			try { nums[i] = context.ReadFloat(); } catch { break; }
+	//		}
 
-			for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) { context.WriteFloat(value[i]); }
+	//		context.EndArray();
+	//		return nums;
+	//	}
+	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat32 value) {
+	//		context.StartArray();
 
-			context.EndArray();
-		}
-	}
-	public class InteropString32Serializer : SerializerBase<InteropString32> {
-		public override InteropString32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			string str = context.Reader.ReadString();
-			if (str.Length <= InteropString32.MAX_LENGTH) {
-				return (InteropString32) str;
-			}
-			throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString32 value) {
-			context.Writer.WriteString(value);
-		}
-	}
-	public class InteropString256Serializer : SerializerBase<InteropString256> {
-		public override InteropString256 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-			string str = context.Reader.ReadString();
-			if (str.Length <= InteropString256.MAX_LENGTH) {
-				return (InteropString256) str;
-			}
-			throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
-		}
-		public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString256 value) {
-			context.Writer.WriteString(value);
-		}
-	}
-#endif
+	//		for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) { context.WriteFloat(value[i]); }
+
+	//		context.EndArray();
+	//	}
+	//}
+	//public class InteropString32Serializer : SerializerBase<InteropString32> {
+	//	public override InteropString32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+	//		string str = context.Reader.ReadString();
+	//		if (str.Length <= InteropString32.MAX_LENGTH) {
+	//			return (InteropString32) str;
+	//		}
+	//		throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
+	//	}
+	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString32 value) {
+	//		context.Writer.WriteString(value);
+	//	}
+	//}
+	//public class InteropString256Serializer : SerializerBase<InteropString256> {
+	//	public override InteropString256 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
+	//		string str = context.Reader.ReadString();
+	//		if (str.Length <= InteropString256.MAX_LENGTH) {
+	//			return (InteropString256) str;
+	//		}
+	//		throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
+	//	}
+	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString256 value) {
+	//		context.Writer.WriteString(value);
+	//	}
+	//}
+
 }
 

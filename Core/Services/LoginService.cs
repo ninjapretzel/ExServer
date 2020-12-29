@@ -1,13 +1,12 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 #endif
 
 using System;
 using System.Collections.Generic;
 using System.Threading;
-// For whatever reason, unity doesn't like mongodb, so we have to only include it server-side.
+using BakaDB;
 #if !UNITY
-using MongoDB.Bson.Serialization.Attributes;
 using Isopoh.Cryptography.Argon2;
 using MiniHttp;
 #endif
@@ -106,25 +105,25 @@ namespace Ex {
 
 #if !UNITY
 		/// <summary> Database object storing user login info </summary>
-		[BsonIgnoreExtraElements]
-		public class UserLoginInfo : DBEntry {
+		public class UserLoginInfo {
 			/// <summary> Username </summary>
-			public string userName { get; set; }
+			public string userName;
 			/// <summary> password hash </summary>
-			public string hash { get; set; }
+			public string hash;
+			/// <summary> Unique identifier for </summary>
+			public Guid guid;
 			/// <summary> last login </summary>
-			public DateTime lastLogin { get; set; }
+			public DateTime lastLogin;
 		}
 
 		/// <summary> Database object storing user account creation info </summary>
-		[BsonIgnoreExtraElements]
-		public class UserAccountCreation : DBEntry {
+		public class UserAccountCreation {
 			/// <summary> Account name </summary>
-			public string userName { get; set; }
+			public string userName;
 			/// <summary> IP Address </summary>
-			public string ipAddress { get; set; }
+			public string ipAddress;
 			/// <summary> Time of account creation </summary>
-			public DateTime time { get; set; }
+			public DateTime time;
 		}
 
 		/// <summary> Results of a login attempt </summary>
@@ -153,24 +152,23 @@ namespace Ex {
 		}
 
 		/// <summary> Database object storing login attempts. </summary>
-		[BsonIgnoreExtraElements]
-		public class LoginAttempt : DBEntry {
+		public class LoginAttempt {
 			/// <summary> Username attempted for login </summary>
-			public string userName { get; set; }
+			public string userName;
 			/// <summary> Passhash provided for login </summary>
-			public string hash { get; set; }
+			public string hash;
 			/// <summary> Timestamp of login attempt </summary>
-			public DateTime timestamp { get; set; }
+			public DateTime timestamp;
 			/// <summary> Was the login a success? </summary>
-			public bool success { get; set; }
+			public bool success;
 			/// <summary> Was the login an account creation? (implies success) </summary>
-			public bool creation { get; set; }
+			public bool creation;
 			/// <summary> IP of client requesting login </summary>
-			public string ip { get; set; }
+			public string ip;
 			/// <summary> Enum result of login </summary>
-			public LoginResult result { get; set; }
+			public LoginResult result;
 			/// <summary> Descriptive result of login </summary>
-			public string result_desc { get; set; }
+			public string result_desc;
 		}
 		/// <summary> information about a logged in client </summary>
 		public struct Session {
@@ -256,11 +254,13 @@ namespace Ex {
 		/// <summary> Initializer for a newly logged in user </summary>
 		public Action<Guid> userInitializer;
 
-		/// <summary> Connected DBService </summary>
-		DBService dbService;
+		public static LocalDB<UserLoginInfo> userDB = DB.Of<UserLoginInfo>.db;
+		public static LocalDB<LoginAttempt> loginAttemptDB = DB.Of<LoginAttempt>.db;
+		public static LocalDB<List<UserAccountCreation>> accountCreationDB = DB.Of<List<UserAccountCreation>>.db;
 
 		public override void OnStart() {
-			dbService = GetService<DBService>();
+			
+			
 		}
 
 		public override void OnEnable() {
@@ -379,13 +379,9 @@ namespace Ex {
 				});
 
 			} else {
-				UserLoginInfo userInfo = outcome.userInfo;
 				var session = new Session(msg.sender, creds);
 				loginsByClient[msg.sender] = session;
 				loginsByUserId[creds.userId] = session;
-
-				userInfo.lastLogin = DateTime.UtcNow;
-				dbService.Save(userInfo);
 
 				msg.sender.Call(LoginResponse, "succ", creds.username, creds.token, creds.userId);
 
@@ -420,7 +416,8 @@ namespace Ex {
 			Credentials creds = null;
 			LoginResult result = LoginResult.Failed_Unspecified;
 			string reason = "none";
-			UserLoginInfo userInfo = null;
+			UserLoginInfo userInfo = userDB.Get(user);
+
 			if (version != versionCode) {
 				Log.Debug($"{nameof(LoginService)}: Version mismatch {version}, expected {versionCode}");
 				reason = VERSION_MISMATCH;
@@ -429,42 +426,37 @@ namespace Ex {
 				Log.Debug($"{nameof(LoginService)}: Bad username {user}");
 				reason = "Invalid Username";
 				result = LoginResult.Failed_BadUsername;
-			} else {
-				userInfo = dbService.Get<UserLoginInfo>(nameof(userInfo.userName), user);
+			} else if (userInfo == null) {
+				Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
 
-				if (userInfo == null) {
-					Log.Debug($"{nameof(LoginService)}: User {user} not found, creating them now. ");
+				userInfo = CreateNewUser(user, pass, remoteIP);
 
-					userInfo = CreateNewUser(user, pass, remoteIP);
-
-					if (userInfo != null) {
-						result = LoginResult.Success_Created;
-						string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
-						creds = new Credentials(user, token, userInfo.guid);
-					} else {
-						result = LoginResult.Failed_CreationCooldown;
-						reason = "Too many account creations";
-					}
-
+				if (userInfo != null) {
+					result = LoginResult.Success_Created;
+					string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+					creds = new Credentials(user, token, userInfo.guid);
 				} else {
-					// Check credentials against existing credentials.
-					if (loginsByUserId.ContainsKey(userInfo.guid)) {
-						reason = "Already logged in";
-						result = LoginResult.Failed_UserAlreadyLoggedIn;
-					} else if (!Verify(userInfo.hash, pass)) {
-						reason = "Bad credentials";
-						result = LoginResult.Failed_BadCredentials;
-					} else { // normal existing user login
-						string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
-						creds = new Credentials(user, token, userInfo.guid);
-						result = LoginResult.Success;
-					}
-
-
+					result = LoginResult.Failed_CreationCooldown;
+					reason = "Too many account creations";
+				}
+			} else {
+				// Check credentials against existing credentials.
+				if (loginsByUserId.ContainsKey(userInfo.guid)) {
+					reason = "Already logged in";
+					result = LoginResult.Failed_UserAlreadyLoggedIn;
+				} else if (!Verify(userInfo.hash, pass)) {
+					reason = "Bad credentials";
+					result = LoginResult.Failed_BadCredentials;
+				} else { // normal existing user login
+					string token = EncodeJWT(new JsonObject("user", user), "Reee", 60 * 60 * 24);
+					creds = new Credentials(user, token, userInfo.guid);
+					result = LoginResult.Success;
 				}
 			}
 
 			LoginAttempt attempt = new LoginAttempt();
+			
+
 			attempt.result = result;
 			attempt.result_desc = result.ToString();
 			attempt.timestamp = DateTime.UtcNow;
@@ -475,13 +467,11 @@ namespace Ex {
 			if (userInfo != null) {
 				attempt.success = true;
 				attempt.creation = result == LoginResult.Success_Created;
-				attempt.guid = userInfo.guid;
 			} else {
 				attempt.success = attempt.creation = false;
-				attempt.guid = Guid.Empty;
 			}
 
-			dbService.Save(attempt);
+			loginAttemptDB.Save($"{attempt.timestamp.UnixTimestamp()}-{attempt.userName}", attempt);
 
 			LoginOutcome outcome;
 			outcome.creds = creds;
@@ -498,12 +488,21 @@ namespace Ex {
 		/// <param name="remoteIP"> IP of client </param>
 		/// <returns> Created <see cref="UserLoginInfo"/> record </returns>
 		private UserLoginInfo CreateNewUser(string user, string pass, string remoteIP) {
-			List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), remoteIP);
+			var file = $"{remoteIP}.wtf";
+			// List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), remoteIP);
+			List<UserAccountCreation> accountCreations = accountCreationDB.Open(file);
+
 			Log.Info($"Client at {remoteIP} has {accountCreations.Count} account creations.");
 			if (accountCreations.Count > 5) {
+				Log.Info($"Too many account creations!.");
 				return null;
 			}
 
+			if (userDB.Exists(user)) {
+				Log.Info($"Username {user} already taken, can't create a new user!!");
+				return null;
+			}
+			
 			Guid userId = Guid.NewGuid();
 			UserLoginInfo userInfo = new UserLoginInfo();
 			userInfo.userName = user;
@@ -511,20 +510,21 @@ namespace Ex {
 			userInfo.hash = hash;
 			userInfo.guid = userId;
 			userInfo.lastLogin = DateTime.UtcNow;
-			dbService.Save(userInfo);
+			userDB.Save(user, userInfo);
 
 			try {
 				if (userInitializer == null) {
 					Log.Warning($"LoginService.CreateNewUser: No userInitializer found. Please set a function to set up a new user.");
 				}
+				Log.Info($"Creating new account for user {user} / {userId}");
 				userInitializer?.Invoke(userId);
 
-				dbService.Save(new UserAccountCreation() {
+				accountCreations.Add(new UserAccountCreation() {
 					userName = user,
-					guid = userId,
 					ipAddress = remoteIP,
 					time = DateTime.UtcNow
 				});
+				DB.Of<List<UserAccountCreation>>.Save(file, accountCreations);
 
 
 			} catch (Exception e) {
@@ -584,7 +584,7 @@ namespace Ex {
 
 							UserLoginInfo userInfo = outcome.userInfo;
 							userInfo.lastLogin = DateTime.UtcNow;
-							dbService.Save(userInfo);
+							userDB.Save(user, userInfo);
 
 							result["success"] = true;
 							result["username"] = creds.username;

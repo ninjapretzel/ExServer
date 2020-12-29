@@ -1,17 +1,20 @@
-using Ex;
-using Ex.Utils;
-using MongoDB.Bson.Serialization.Attributes;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
+using Ex;
 
 namespace Infinigrinder {
-	[BsonIgnoreExtraElements]
-	public class StatCalc : DBData {
-		// Basically a bunch of auto members.
+	public class StatCalc {
+		/// <summary> Used to defer storage of arbitrary data. </summary>
+		public JsonObject data = new JsonObject();
+		/// <summary> Helpful macro that grabs the calling member name of anything that calls it. 
+		/// <para>Makes it easier to make properties utilizing the <see cref="data"/> field, eg </para> <para><code>
+		/// public <see cref="JsonObject"/> Attributes { get { return data.Get&lt;<see cref="JsonObject"/>&gt;(MemberName()); } }
+		/// </code></para></summary>
+		/// <param name="caller"> Autofilled by compiler </param>
+		/// <returns> Name of member calling this method. </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static string MemberName([CallerMemberName] string caller = null) { return caller; }
 		public JsonObject Attributes { get { return data.Get<JsonObject>(MemberName()); } }
 		public JsonObject BaseStats { get { return data.Get<JsonObject>(MemberName()); } }
 		public JsonObject IntermediateStats { get { return data.Get<JsonObject>(MemberName()); } }
@@ -34,13 +37,12 @@ namespace Infinigrinder {
 		public JsonObject CombatStatCalc { get { return data.Get<JsonObject>(MemberName()); } }
 
 		public void FullRecalc(UnitRecord unit) {
-			unit.data.Set(unit.baseStats);
-			Log.Info($"Starting with base stats: {unit.baseStats.PrettyPrint()}");
+			Log.Info($"Starting with base stats: {unit.stats.baseStats}");
 
-			JsonObject result = CalcStats(unit.data);
-			Log.Info($"Calculated Stats: {result.PrettyPrint()}");
+			//JsonObject result = CalcStats(unit.data);
+			//Log.Info($"Calculated Stats: {result.PrettyPrint()}");
 
-			unit.data.Set(result);
+			//unit.data.Set(result);
 
 		}
 
@@ -213,7 +215,7 @@ namespace Infinigrinder {
 					}
 				} else if (stats.Has(pair.Key)) {
 					// Direct key, and present
-					result[pair.Key] = pair.Value;
+					result[pair.Key] = stats[pair.Key];
 				}
 			}
 

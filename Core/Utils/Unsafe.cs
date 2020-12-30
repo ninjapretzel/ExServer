@@ -798,78 +798,7 @@ namespace Ex {
 			}
 		}
 
-		
-
 	}
-
-
-	//public class InteropFloat64Serializer {
-	//	public override InteropFloat64 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-	//		InteropFloat64 nums;
-	//		context.StartArray();
-			
-	//		for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) {
-	//			// Ew.
-	//			try { nums[i] = context.ReadFloat(); } catch { break; }
-	//		}
-			
-	//		context.EndArray();
-			
-	//		return nums;
-	//	}
-	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat64 value) {
-	//		context.StartArray();
-			
-	//		for (int i = 0; i < InteropFloat64.MAX_LENGTH; i++) { context.WriteFloat(value[i]);	}
-			
-	//		context.EndArray();
-	//	}
-	//}
-	//public class InteropFloat32Serializer : SerializerBase<InteropFloat32> {
-	//	public override InteropFloat32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-	//		InteropFloat32 nums;
-	//		context.StartArray();
-
-	//		for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) {
-	//			// Ew.
-	//			try { nums[i] = context.ReadFloat(); } catch { break; }
-	//		}
-
-	//		context.EndArray();
-	//		return nums;
-	//	}
-	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropFloat32 value) {
-	//		context.StartArray();
-
-	//		for (int i = 0; i < InteropFloat32.MAX_LENGTH; i++) { context.WriteFloat(value[i]); }
-
-	//		context.EndArray();
-	//	}
-	//}
-	//public class InteropString32Serializer : SerializerBase<InteropString32> {
-	//	public override InteropString32 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-	//		string str = context.Reader.ReadString();
-	//		if (str.Length <= InteropString32.MAX_LENGTH) {
-	//			return (InteropString32) str;
-	//		}
-	//		throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
-	//	}
-	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString32 value) {
-	//		context.Writer.WriteString(value);
-	//	}
-	//}
-	//public class InteropString256Serializer : SerializerBase<InteropString256> {
-	//	public override InteropString256 Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args) {
-	//		string str = context.Reader.ReadString();
-	//		if (str.Length <= InteropString256.MAX_LENGTH) {
-	//			return (InteropString256) str;
-	//		}
-	//		throw new InvalidOperationException($"String is too long for InteropString32 struct: {{{{str}}}}");
-	//	}
-	//	public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, InteropString256 value) {
-	//		context.Writer.WriteString(value);
-	//	}
-	//}
 
 }
 

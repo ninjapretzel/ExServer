@@ -3,10 +3,11 @@
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
-using LevelUpper.Markdown;
 using Ex;
+using ExClient.Utils;
 #endif
 #endif
+using Ex.Utils;
 
 using System;
 using System.Collections;
@@ -15,7 +16,6 @@ using System.Reflection;
 using System.Linq;
 using System.IO;
 using System.Diagnostics;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace BakaTest {
@@ -497,7 +497,7 @@ namespace BakaTest {
 
 			var empty = new object[0];
 			MemoryStream logStream = new MemoryStream();
-			Encoding encoding = Encoding.ASCII;
+			System.Text.Encoding encoding = System.Text.Encoding.ASCII;
 			TextWriter logWriter = new StreamWriter(logStream, encoding);
 
 			int success = 0;

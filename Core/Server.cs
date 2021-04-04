@@ -164,11 +164,11 @@ namespace Ex {
 				listenThread = StartThread(Listen);
 			}
 
-			globalUpdateThread = StartThread(GlobalUpdate);
 			mainSendThread = StartThread(SendLoop);
 			mainRecrThread = StartThread(RecrLoop);
-
 			foreach (var pair in services) { pair.Value.Started(); }
+			globalUpdateThread = StartThread(GlobalUpdate);
+
 		}
 
 		public void Stop() {

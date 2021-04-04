@@ -24,7 +24,7 @@
 	// y is ignored in 2d mode. (server reads/writes vector-like primitives to database as an array)
 	bounds: [ 
 		0, 40, 0,
-		1000, 40, 0,
+		1000, 50, 1,
 	],
 	
 	// sparse maps update objects only around players, 

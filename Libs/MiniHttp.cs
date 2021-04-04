@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -61,6 +61,8 @@ namespace MiniHttp {
 		public Res res { get; private set; }
 		/// <summary> Raw, wrapped <see cref="HttpListenerContext"/> object </summary>
 		public HttpListenerContext raw { get; private set; }
+		/// <summary> Web socket context, if it is a websocket. </summary>
+		public HttpListenerWebSocketContext webSocketCtx { get; private set; }
 
 		/// <summary> JsonObject holding query parameters </summary>
 		public JsonObject query { get; private set; }
@@ -69,6 +71,8 @@ namespace MiniHttp {
 		/// <summary> JsonObject for custom middleware to use. </summary>
 		public JsonObject midData { get; private set; }
 
+		/// <summary> Current websocket, if present </summary>
+		public WebSocket webSocket { get; private set; }
 		/// <summary> Requested path split on '/' chars </summary>
 		public string[] pathSplit { get { return req.pathSplit; } }
 
@@ -83,17 +87,16 @@ namespace MiniHttp {
 			query = req.QueryString.ToJsonObject();
 			param = new JsonObject();
 			midData = new JsonObject();
-		
 		}
 		#region HttpListenerContext wrappers
 		/// <summary> Gets the <see cref="HttpListenerContext.User"/>. </summary>
 		public IPrincipal User { get { return raw.User; } }
 		/// <summary> Wraps <see cref="HttpListenerContext.AcceptWebSocketAsync(string)"/></summary>
-		public Task<HttpListenerWebSocketContext> AcceptWegbSocketAsync(string subProtocol) { 
+		public Task<HttpListenerWebSocketContext> AcceptWebSocketAsync(string subProtocol) { 
 			return raw.AcceptWebSocketAsync(subProtocol); 
 		}
 		/// <summary> Wraps <see cref="HttpListenerContext.AcceptWebSocketAsync(string, int, TimeSpan)"/></summary>
-		public Task<HttpListenerWebSocketContext> AcceptWegbSocketAsync(string subProtocol, int receiveBufferSize, TimeSpan keepAliveInterval) { 
+		public Task<HttpListenerWebSocketContext> AcceptWebSocketAsync(string subProtocol, int receiveBufferSize, TimeSpan keepAliveInterval) { 
 			return raw.AcceptWebSocketAsync(subProtocol, receiveBufferSize, keepAliveInterval); 
 		}
 		/// <summary> Wraps <see cref="HttpListenerContext.AcceptWebSocketAsync(string, int, TimeSpan, ArraySegment{byte})"/></summary>
@@ -101,7 +104,7 @@ namespace MiniHttp {
 			return raw.AcceptWebSocketAsync(subProtocol, receiveBufferSize, keepAliveInterval, internalBuffer); 
 		}
 		/// <summary> Wraps <see cref="HttpListenerContext.AcceptWebSocketAsync(string,  TimeSpan)"/></summary>
-		public Task<HttpListenerWebSocketContext> AcceptWegbSocketAsync(string subProtocol,  TimeSpan keepAliveInterval) { 
+		public Task<HttpListenerWebSocketContext> AcceptWebSocketAsync(string subProtocol,  TimeSpan keepAliveInterval) { 
 			return raw.AcceptWebSocketAsync(subProtocol, keepAliveInterval); 
 		}
 		#endregion
@@ -172,6 +175,15 @@ namespace MiniHttp {
 		public Stream OutputStream { get { return raw.Response.OutputStream; } }
 		#endregion
 		
+		/// <summary> Attempt to open a websocket, if this is a websocket request. </summary>
+		/// <returns> <see cref="WebSocket"/> opened from request </returns>
+		public async Task<WebSocket> OpenWebSocket(string protocol) {
+			if (IsWebSocketRequest) {
+				webSocketCtx = await AcceptWebSocketAsync(protocol);
+				return webSocket = webSocketCtx.WebSocket;
+			}
+			return null;
+		}
 
 		public override string ToString() {
 			return $"Ctx: {RemoteEndPoint} => {LocalEndPoint} | {HttpMethod} @ {UserHostName}{RawUrl} -> {StatusCode} ";
@@ -520,6 +532,7 @@ namespace MiniHttp {
 		/// <param name="ctx"> Request/Response <see cref="Ctx"/> object </param>
 		/// <returns> <see cref="Task"/> that completes when the <paramref name="ctx"/> has been finished</returns>
 		private static async Task Finish(Ctx ctx) {
+			if (ctx.IsWebSocketRequest) { return; }
 			ctx.res.Headers["Server"] = "MiniHttp/0.0.1 +";
 
 			if (ctx.body == null) {
@@ -819,6 +832,7 @@ namespace MiniHttp {
 		}
 		/// <summary> General "BodyParser" middleware, similar to ExpressJS. </summary>
 		public static readonly Middleware BodyParser = async (ctx, next) => {
+			if (ctx.IsWebSocketRequest) { await next(); return; }
 			byte[] buffer = new byte[2048];
 			using (MemoryStream stream = new MemoryStream()) {
 				int read = 0;

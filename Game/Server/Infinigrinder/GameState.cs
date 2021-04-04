@@ -13,16 +13,16 @@ namespace Infinigrinder {
 
 		public List<Guid> units { get; set; }
 		public JsonObject flags;
-		public Store<AccountLevels, int> levels;
-		public Store<AccountLevels, double> exp;
-		public Store<Currency, double> wallet; 
+		public Store<AccountLevels> levels;
+		public Store<AccountLevels> exp;
+		public Store<Currency> wallet; 
 		
 		public GameState() : base() { 
 			units = new List<Guid>();
 			flags = new JsonObject();
-			levels = new Store<AccountLevels, int>();
-			exp = new Store<AccountLevels, double>();
-			wallet = new Store<Currency, double>();
+			levels = new Store<AccountLevels>();
+			exp = new Store<AccountLevels>();
+			wallet = new Store<Currency>();
 
 		}
 
@@ -166,15 +166,16 @@ namespace Infinigrinder {
 
 	/// <summary> Holds collections of <see cref="Store{K, V}"/>s for all stat groups. </summary>
 	public class Stats {
-		public Store<Resource, double> max, rec, rep;
-		public Store<BaseStats, int> baseStats;
-		public Store<BaseStats, double> baseExp;
-		public Store<CombatStats, double> combatStats;
-		public Store<CombatRatios, double> combatRatios;
-		public Store<IntermediateStats, double> intermediateStats;
+		public Store<Resource> max, rec, rep;
+		public Store<BaseStats> baseStats;
+		public Store<BaseStats> baseExp;
+		public Store<CombatStats> combatStats;
+		public Store<CombatRatios> combatRatios;
+		public Store<IntermediateStats> intermediateStats;
 
 		public Stats Combine(Stats other) {
 			Stats result = Auto.Init<Stats>();
+			
 			
 			
 

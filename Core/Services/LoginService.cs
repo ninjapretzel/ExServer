@@ -92,9 +92,9 @@ namespace Ex {
 		/// <summary> Message type sent on server when a login attempt was successful. </summary>
 		public struct LoginSuccess_Server {
 			public readonly Client client;
-			public string username;
-			public LoginSuccess_Server(string username) { this.username = username; client = null; }
-			public LoginSuccess_Server(string username, Client client) { this.username = username; this.client = client; }
+			public readonly Credentials creds;
+			public LoginSuccess_Server(Credentials creds) { this.creds = creds; client = null; }
+			public LoginSuccess_Server(Credentials creds, Client client) { this.creds = creds; this.client = client; }
 		}
 		/// <summary> Message type sent on server when a login attempt was failed</summary>
 		public struct LoginFailure_Server {
@@ -387,7 +387,7 @@ namespace Ex {
 
 				Log.Info($"Client {msg.sender.identity} logged in as user {creds.username} / {creds.userId}. ");
 
-				server.On(new LoginSuccess_Server(user, msg.sender));
+				server.On(new LoginSuccess_Server(creds, msg.sender));
 			}
 
 #endif
@@ -590,7 +590,7 @@ namespace Ex {
 							result["username"] = creds.username;
 							result["userId"] = creds.userId.ToString();
 							result["token"] = creds.token;
-							server.On(new LoginSuccess_Server());
+							server.On(new LoginSuccess_Server(creds));
 
 						} catch (Exception e) {
 							Fail("Server Error");

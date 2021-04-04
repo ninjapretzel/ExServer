@@ -12,6 +12,9 @@ using Ex.Libs;
 
 using static MiniHttp.ProvidedMiddleware;
 using BakaDB;
+using System.Net.WebSockets;
+using System.Threading;
+using System.Text;
 
 namespace Ex {
 
@@ -216,9 +219,38 @@ namespace Ex {
 			middleware.Add(BodyParser);
 			Router router = new Router();
 			router.Any("/api/auth/*", server.GetService<LoginService>().router);
+			router.Any("/ws/test", async (ctx, next) => {
+				await ctx.OpenWebSocket("test");
+				WebSocket wsock = ctx.webSocket;
+				byte[] data = new byte[1024];
+				var seg = new ArraySegment<byte>(data);
+				var stupid = CancellationToken.None;
+				
+				try {
+					while (wsock.State == WebSocketState.Open) {
+						var result = await wsock.ReceiveAsync(seg, stupid);
+						string str = Encoding.UTF8.GetString(data, 0, result.Count);
+
+						if (result.MessageType == WebSocketMessageType.Close) {
+							Log.Info($"Web socket closing.");
+							await wsock.CloseAsync(WebSocketCloseStatus.NormalClosure, "", stupid);
+						} else {
+							Log.Info($"Got message {str}");
+							await wsock.SendAsync(new ArraySegment<byte>(data, 0, result.Count), WebSocketMessageType.Text, result.EndOfMessage, stupid);
+						}
+					}
+				} catch (Exception e) {
+					Log.Error("Websocket error", e);
+				} finally {
+					wsock.Dispose();
+				}
+			});
 			middleware.Add(router);
 
 			middleware.Add(Static("./public"));
+			
+
+
 			if (config.Has<JsonArray>("httpHost")) {
 				string[] hostnames = config.Get<string[]>("httpHost");
 				Console.WriteLine($"HTTP Listening at: ");

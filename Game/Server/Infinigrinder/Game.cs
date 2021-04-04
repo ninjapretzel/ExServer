@@ -138,7 +138,11 @@ namespace Infinigrinder {
 		/// <summary> Callback every global server tick </summary>
 		/// <param name="delta"> Delta between last tick and 'now' </param>
 		public override void OnTick(float delta) {
-			
+			if (liveGames.Count > 0) {
+
+				//Log.Info($"Ticking {liveGames.Count} games");
+			}
+
 		}
 
 		/// <summary> Callback with a client, called before any <see cref="OnConnected(Client)"/> calls have finished. </summary>

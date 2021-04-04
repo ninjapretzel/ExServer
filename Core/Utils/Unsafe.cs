@@ -11,8 +11,6 @@ using BakaTest;
 using Ex;
 
 namespace Ex {
-	
-
 	/// <summary> Static generic template-like class to cache information about structs </summary>
 	/// <typeparam name="T"> Struct type to cache information for </typeparam>
 	public static class StructInfo<T> where T : struct {

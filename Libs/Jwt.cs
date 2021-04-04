@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-
 using JWT;
 using JWT.Algorithms;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Ex {
 	/// <summary> Makes more sensible API to the <see cref="JWT"/> library. </summary>

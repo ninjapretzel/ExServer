@@ -155,8 +155,8 @@ namespace Ex {
 		public class LoginAttempt {
 			/// <summary> Username attempted for login </summary>
 			public string userName;
-			/// <summary> Passhash provided for login </summary>
-			public string hash;
+			// <summary> Passhash provided for login </summary>
+			//public string hash;
 			/// <summary> Timestamp of login attempt </summary>
 			public DateTime timestamp;
 			/// <summary> Was the login a success? </summary>
@@ -243,9 +243,9 @@ namespace Ex {
 		public string DefaultDecrypt(string encoded) { return Pgp.Decrypt(encoded, kp); }
 #if !UNITY
 		/// <summary> Hash function. Defaults to <see cref="Isopoh.Cryptography.Argon2.Argon2.Hash"/> with a default configuration </summary>
-		public HashFn Hash = DefaultHash;
+		public HashFn Hash = Argon2Hash(8, 1024 * 32, 8);
 		/// <summary> Hash verification function. Defaults to <see cref="Isopoh.Cryptography.Argon2.Argon2.Verify(string, Argon2Config)"/> with a default configuration </summary>
-		public VerifyFn Verify = DefaultVerify;
+		public VerifyFn Verify = Argon2Verify(8);
 		/// <summary> JWT Encode function. Defaults to <see cref="Jwt.Encode{T}(T, string, int?)"/>. </summary>
 		public EncodeJWTFn<JsonObject> EncodeJWT = Jwt.Encode;
 		/// <summary> JWT Decode function. Defaults to <see cref="Jwt.Decode{T}(string, out T, string)/>"/>. </summary>
@@ -259,7 +259,6 @@ namespace Ex {
 		public static LocalDB<List<UserAccountCreation>> accountCreationDB = DB.Of<List<UserAccountCreation>>.db;
 
 		public override void OnStart() {
-			
 			
 		}
 
@@ -460,8 +459,8 @@ namespace Ex {
 			attempt.result = result;
 			attempt.result_desc = result.ToString();
 			attempt.timestamp = DateTime.UtcNow;
-			string hash = Hash(pass);
-			attempt.hash = hash;
+			//string hash = Hash(pass);
+			//attempt.hash = hash;
 			attempt.userName = user;
 			attempt.ip = remoteIP;
 			if (userInfo != null) {
@@ -535,19 +534,38 @@ namespace Ex {
 			return userInfo;
 		}
 
-		/// <summary> Default Password 'Hash' function. </summary>
-		/// <param name="pass"> password to hash </param>
-		/// <returns> argon2 hash result. </returns>
-		/// <remarks> Literally just wraps <see cref="Argon2.Hash(string, string?, int, int, int, Argon2Type, int, Isopoh.Cryptography.SecureArray.SecureArrayCall?)"/> 
-		/// so that specific overload is found and used. </remarks>
-		public static string DefaultHash(string pass) { return Argon2.Hash(pass); }
 
-		/// <summary> Verifies an argon2 hash. </summary>
-		/// <param name="hash"> Hash to check </param>
-		/// <param name="pass"> Password to check </param>
-		/// <returns> True if password matches hash, false otherwise. </returns>
-		/// <remarks> Wraps <see cref="Argon2.Verify(string, string)"/> </remarks>
-		public static bool DefaultVerify(string hash, string pass) { return Argon2.Verify(hash, pass); }
+		/// <summary> Creates an Argon2 <see cref="HashFn"/> with the given parameters. </summary>
+		/// <param name="iterations"> Iterations/'timeCost' to use </param>
+		/// <param name="secret"> Optional secret to use </param>
+		/// <param name="memoryCost"> Memory Cost to use </param>
+		/// <param name="threads"> Threads to use </param>
+		/// <param name="type"> Variant of Argon2 to use </param>
+		/// <param name="size"> Hash length </param>
+		/// <returns> <see cref="HashFn"/> that performs Argon2 with the given parameters </returns>
+		public static HashFn Argon2Hash(int iterations = 3, int memoryCost = 1024*32, int threads = 8, string? secret = null, Argon2Type type = Argon2Type.HybridAddressing, int size = 32) {
+			return (pass) => {
+				DateTime start = DateTime.UtcNow;
+				var result = Argon2.Hash(pass, secret, iterations, memoryCost, threads, type, size);
+				DateTime end = DateTime.UtcNow;
+				Log.Debug($"Argon2.Hash({iterations}, {memoryCost}, {threads}, {type}, {size}) completed in {(end - start).TotalMilliseconds}ms");
+				return result;
+			};
+		}
+		/// <summary> Creates an Argon2 <see cref="VerifyFn"/></summary>
+		/// <param name="secret"> Optional secret to use </param>
+		/// <param name="threads"> Threads to use </param>
+		/// <returns></returns>
+		public static VerifyFn Argon2Verify(int threads = 8, string? secret = null) {
+			return (hash, pass) => {
+				DateTime start = DateTime.UtcNow;
+				var result = Argon2.Verify(hash, pass, threads);
+				DateTime end = DateTime.UtcNow;
+				Log.Debug($"Argon2.Verify({threads}) completed in {(end - start).TotalMilliseconds}ms");
+				return result;
+			};
+		}
+
 
 		private Router _router;
 		public Router router {

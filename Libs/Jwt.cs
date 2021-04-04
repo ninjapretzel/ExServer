@@ -1,10 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+
 using JWT;
 using JWT.Algorithms;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Ex {
 	/// <summary> Makes more sensible API to the <see cref="JWT"/> library. </summary>
 	public class Jwt {
+
 		/// <summary> Retarded. This is already a static API. Lets just add some extra pointers to jump through for no reason. </summary>
 		private sealed class StraightSerializer : IJsonSerializer {
 			public static readonly StraightSerializer instance = new StraightSerializer();
@@ -27,7 +34,8 @@ namespace Ex {
 		}
 
 		/// <summary> The implementation for <see cref="HMACSHA256Algorithm"/> is basically a static function already. </summary>
-		private static readonly IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
+		//private static readonly IJwtAlgorithm algorithm = new HMACSHA256Algorithm();
+		private static readonly IJwtAlgorithm algorithm = new HMACSHA512Algorithm();
 		/// <summary> <see cref="JwtEncoder"/>s do not have any state, and can just be static anyway. </summary>
 		private static readonly JwtEncoder encoder = new JwtEncoder(algorithm, StraightSerializer.instance, StraightEncoder.instance);
 		/// <summary> <see cref="JwtValidator"/>s do not have any state, and can just be static anyway. </summary>
@@ -55,8 +63,12 @@ namespace Ex {
 				var exp = UnixEpoch.GetSecondsSince(now);
 				encoded["exp"] = exp;
 			}
-			Console.WriteLine("Jwt.Encode");
-			return encoder.Encode(obj, secret);
+			
+			DateTime start = DateTime.UtcNow;
+			var result = encoder.Encode(obj, secret);
+			DateTime end = DateTime.UtcNow;
+			Log.Debug($"Jwt.Encode completed in {(end-start).TotalMilliseconds}ms");
+			return result;
 		}
 
 		/// <summary> Default unpacking a JWT function </summary>
@@ -69,9 +81,11 @@ namespace Ex {
 			#if DEBUG
 			if (secret == null) { secret = DEFAULT_SECRET; }
 			#endif
-			Console.WriteLine("Jwt.Decode");
 			try {
+				DateTime start = DateTime.Now;
 				string json = decoder.Decode(token, secret, true);
+				DateTime end = DateTime.Now;
+				Log.Debug($"Jwt.Decode completed in {(end-start).TotalMilliseconds}ms");
 
 				JsonObject obj = Json.Parse<JsonObject>(json);
 				if (obj == null) { result = default(T); return false; }

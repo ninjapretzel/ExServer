@@ -66,8 +66,10 @@ namespace Ex {
 			MemoryStream outs = new MemoryStream();
 			MemoryStream keys = new MemoryStream(publicKey.ToBytesUTF8());
 
+			DateTime start = DateTime.UtcNow;
 			instance.EncryptStream(ins, outs, keys, true, true);
-			
+			DateTime end = DateTime.UtcNow;
+			Log.Debug($"Pgp.Encrypt took {(end-start).TotalMilliseconds}ms");
 			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Encrypt the given <paramref name="payload"/> with the given <paramref name="keyPair"/>. </summary>
@@ -87,7 +89,10 @@ namespace Ex {
 			MemoryStream outs = new MemoryStream();
 			MemoryStream keys = new MemoryStream(privateKey.ToBytesUTF8());
 
+			DateTime start = DateTime.UtcNow;
 			instance.SignStream(ins, outs, keys, password, true, true);
+			DateTime end = DateTime.UtcNow;
+			Log.Debug($"Pgp.Sign took {(end - start).TotalMilliseconds}ms");
 
 			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
@@ -111,7 +116,10 @@ namespace Ex {
 			MemoryStream publicKeys = new MemoryStream(publicKey.ToBytesUTF8());
 			MemoryStream privateKeys = new MemoryStream(privateKey.ToBytesUTF8());
 
+			DateTime start = DateTime.UtcNow;
 			instance.EncryptStreamAndSign(ins, outs, publicKeys, privateKeys, password, true, true);
+			DateTime end = DateTime.UtcNow;
+			Log.Debug($"Pgp.EncryptAndSign took {(end - start).TotalMilliseconds}ms");
 
 			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
@@ -124,8 +132,11 @@ namespace Ex {
 			MemoryStream outs = new MemoryStream();
 			MemoryStream keys = new MemoryStream(privateKey.ToBytesUTF8());
 
+			DateTime start = DateTime.UtcNow;
 			instance.DecryptStream(ins, outs, keys, password);
-
+			DateTime end = DateTime.UtcNow;
+			Log.Debug($"Pgp.Decrypt took {(end - start).TotalMilliseconds}ms");
+			
 			return Encoding.UTF8.GetString(outs.ToArray()).Replace("\r\n", "\n");
 		}
 		/// <summary> Decrypt the given <paramref name="encrypted"/> payload with the given <paramref name="keyPair"/>. </summary>

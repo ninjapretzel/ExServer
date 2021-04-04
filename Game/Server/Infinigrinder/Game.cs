@@ -13,26 +13,52 @@ namespace Infinigrinder {
 	
 	/// <summary> Server side logic for the Eternus game </summary>
 	public class Game : Ex.Service {
-		LoginService logins;
-		SyncService sync;
-		EntityService entities;
-
-		StatCalc statCalc;
-
 		static LocalDB<GameState> gameStateDB = DB.Of<GameState>.db;
 		static LocalDB<UnitRecord> unitDB = DB.Of<UnitRecord>.db;
 		static LocalDB inventoryDB = DB.Local("Inventory");
+
+		LoginService login;
+		SyncService sync;
+		EntityService entity;
+
+		StatCalc statCalc;
+		Heap<LiveGame> liveGames;
+		Dictionary<string, LiveGame> logins;
+
+		public class LiveGame : IComparable<LiveGame> {
+			public DateTime lastUpdate { get; private set; }
+			public GameState state { get; private set; }
+			public Credentials creds { get; private set; }
+
+			public LiveGame(Credentials creds) {
+				this.creds = creds;
+				lastUpdate = DateTime.UtcNow;
+				state = gameStateDB.Open(""+creds.userId);
+			}
+			
+			public int CompareTo(LiveGame obj) { return lastUpdate.CompareTo(obj.lastUpdate); }
+		}
+
+
+		
+		
 
 
 		/// <summary> Callback when all services are loaded on the server.</summary>
 		public override void OnStart() {
 			Log.Info("Infinigrinder.Game.OnStart()");
-			logins = GetService<LoginService>();
-			sync = GetService<SyncService>();
-			entities = GetService<EntityService>();
+			string s = gameStateDB != null ? gameStateDB.ToString() : "null";
+			Log.Info($"DB is {s}");
 
-			entities.RegisterUserEntityInfo<GameState>();
-			logins.userInitializer += Initialize;
+			login = GetService<LoginService>();
+			sync = GetService<SyncService>();
+			entity = GetService<EntityService>();
+
+			liveGames = new Heap<LiveGame>();
+			logins = new Dictionary<string, LiveGame>();
+
+			entity.RegisterUserEntityInfo<GameState>();
+			login.userInitializer += Initialize;
 			
 			statCalc = DB.Local("Content").Get<StatCalc>("StatCalc");
 			DB.Drop<GameState>();
@@ -56,7 +82,13 @@ namespace Infinigrinder {
 		}
 
 		public void On(LoginService.LoginSuccess_Server succ) {
-			if (succ.client == null) { return; }
+			LiveGame live = new LiveGame(succ.creds);
+			
+			logins[succ.creds.username] = live;
+			liveGames.Push(live);
+
+
+			
 			
 
 		}

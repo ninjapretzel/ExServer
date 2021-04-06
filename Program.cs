@@ -219,6 +219,11 @@ namespace Ex {
 			middleware.Add(BodyParser);
 			Router router = new Router();
 			router.Any("/api/auth/*", server.GetService<LoginService>().router);
+			router.Any("/ws/ex", async (ctx, next) => {
+				await ctx.OpenWebSocket("ex");
+				WebSocket wsock = ctx.webSocket;
+				server.AcceptWebSocket(wsock);
+			});
 			router.Any("/ws/test", async (ctx, next) => {
 				await ctx.OpenWebSocket("test");
 				WebSocket wsock = ctx.webSocket;

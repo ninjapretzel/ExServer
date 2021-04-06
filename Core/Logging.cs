@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -236,6 +236,10 @@ namespace Ex {
 		public static long UnixTimestamp(this DateTime date) {
 			TimeSpan diff = date.ToUniversalTime().Subtract(epoch);
 			return (long)diff.TotalMilliseconds;
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static DateTime DateTimeFromUnixTimestamp(this long ms) {
+			return epoch.AddMilliseconds(ms);
 		}
 		/// <summary> Convert a file or folder path to only contain forward slashes '/' instead of backslashes '\'. </summary>
 		/// <param name="path"> Path to convert </param>

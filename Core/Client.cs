@@ -1,8 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
+using System.Threading;
 using Ex.Utils;
 using static Ex.RPCMessage;
 
@@ -29,6 +31,8 @@ namespace Ex {
 		public TcpClient tcp { get; private set; }
 		/// <summary> UDP connection for recieving unreliable but faster data transmission </summary>
 		public Socket udp { get; private set; }
+		/// <summary> Websocket connection </summary>
+		public WebSocket ws { get; private set; }
 		/// <summary> Underlying stream used to communicate with connected client </summary>
 		public NetworkStream tcpStream { get { return tcp?.GetStream(); } }
 		/// <summary> Socket connection to client </summary>
@@ -99,9 +103,28 @@ namespace Ex {
 		internal Crypt dec = (b) => b;
 		#endregion
 
-		public Client(Socket socket, Server server = null) {
+		private Client() {
+			this.id = Guid.NewGuid();
+			tcpReadState.Initialize();
+			udpReadState.Initialize();
+
+			tcpOutgoing = new ConcurrentQueue<string>();
+			udpOutgoing = new ConcurrentQueue<string>();
+
+			{ // Temp encryption
+				EncDec encryptor = new EncDec();
+				Crypt e = (b) => encryptor.Encrypt(b);
+				Crypt d = (b) => encryptor.Decrypt(b);
+				SetEncDec(e, d);
+				//enc = e;
+				//dec = d;
+			}
+		}
+
+		public Client(Socket socket, Server server = null) : this() {
 			this.tcpSocket = socket;
 			this.tcp = null;
+			this.ws = null;
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
 
@@ -111,23 +134,27 @@ namespace Ex {
 		}
 
 
-		public Client(TcpClient tcpClient, Server server = null) {
+		public Client(TcpClient tcpClient, Server server = null) : this() {
 			this.tcp = tcpClient;
 			this.tcpSocket = null;
+			this.ws = null;
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
-
 
 			var remoteEndPoint = tcpClient.Client.RemoteEndPoint;
 			var localEndpoint = tcpClient.Client.LocalEndPoint;
 			Initialize(remoteEndPoint, localEndpoint);
 		}
 
-		private void Initialize(EndPoint remoteEndPoint, EndPoint localEndpoint) {
-			this.id = Guid.NewGuid();
-			tcpReadState.Initialize();
-			udpReadState.Initialize();
+		public Client(WebSocket ws, Server server = null) : this() {
+			this.tcp = null;
+			this.tcpSocket = null;
+			this.ws = ws;
+			if (server == null) { server = Server.NullInstance; }
+			this.server = server;
+		}
 
+		private void Initialize(EndPoint remoteEndPoint, EndPoint localEndpoint) {
 			remoteIP = "????";
 			remotePort = -1;
 			localIP = "????";
@@ -172,17 +199,6 @@ namespace Ex {
 				tcpStream.WriteTimeout = DEFAULT_READWRITE_TIMEOUT;
 			}
 
-			tcpOutgoing = new ConcurrentQueue<string>();
-			udpOutgoing = new ConcurrentQueue<string>();
-
-			{ // Temp encryption
-				EncDec encryptor = new EncDec();
-				Crypt e = (b) => encryptor.Encrypt(b);
-				Crypt d = (b) => encryptor.Decrypt(b);
-				SetEncDec(e, d);
-				//enc = e;
-				//dec = d;
-			}
 		}
 
 		/// <summary> If a slave, this client connects to the server. </summary>
@@ -200,6 +216,7 @@ namespace Ex {
 				if (tcp != null) { tcp.Dispose(); }
 				else { tcpSocket.Dispose(); }
 				if (udp != null) { udp.Dispose(); }
+				if (ws != null) { ws.Dispose(); }
 			}
 		}
 
@@ -226,7 +243,7 @@ namespace Ex {
 		/// <param name="stuff"> Array of parameters to format. </param>
 		/// <returns> String of all objects in <paramref name="stuff"/> formatted to be sent over the network. </returns>
 		public static string FormatCall(RPCMessage.Handler callback, params System.Object[] stuff) {
-			string time = Pack.Base64(DateTime.UtcNow);
+			string time = Pack.Base64(DateTime.UtcNow.UnixTimestamp());
 			string methodName = callback.Method.Name;
 			string typeName = callback.Method.DeclaringType.ShortName();
 			string msg;
@@ -257,7 +274,7 @@ namespace Ex {
 		public void SendUDPMessageDirectly(string message) {
 			if (closed) { throw new InvalidOperationException("Cannot send messages on a closed Client"); }
 			if (udp == null) { return; }
-			tcpOutgoing.Enqueue(message);
+			udpOutgoing.Enqueue(message);
 		}
 
 		/// <summary> Closes the client's connection. </summary>
@@ -265,11 +282,15 @@ namespace Ex {
 			if (!closed) {
 				closed = true;
 
-				try { 
+				try {
+					
 					if (tcp != null) {
 						tcp.Close();
 					} else {
 						tcpSocket.Close();
+					}
+					if (ws != null) {
+						ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None); 
 					}
 
 					Log.Debug($"Client {identity} closed.");

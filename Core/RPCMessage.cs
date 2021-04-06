@@ -79,7 +79,7 @@ namespace Ex {
 			rawMessage = str;
 			recievedAt = DateTime.UtcNow;
 			content = rawMessage.Split(SEPARATOR);
-			sentAt = Utils.Unpack.Base64<DateTime>(content[SENDER_TIME]);
+			sentAt = Utils.Unpack.Base64<long>(content[SENDER_TIME]).DateTimeFromUnixTimestamp();
 		}
 
 		public void Reply(RPCMessage.Handler callback, params System.Object[] stuff) {

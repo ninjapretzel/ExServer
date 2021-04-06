@@ -1,10 +1,11 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -241,7 +242,12 @@ namespace Ex {
 			}
 
 			sendCheckQueue.Enqueue(client);
-			recrCheckQueue.Enqueue(client);
+			if (client.ws != null) {
+				Task.Run(async () => { await RecieveDataWebsocket(client); });
+			} else {
+				recrCheckQueue.Enqueue(client);
+			}
+
 		}
 
 		/// <summary>  Globally calls an <see cref="RPCMessage"/>, as if the given client had sent it. </summary>
@@ -347,12 +353,16 @@ namespace Ex {
 				}
 			}
 		}
-
+		
+		public void AcceptWebSocket(WebSocket ws) {
+			Client client = new Client(ws, this);
+			OnConnected(client);
+		}
 		
 		private void GlobalUpdate() {
 			while (Running) {
 				try {
-
+					
 					RPCMessage msg;
 					while (incoming.TryDequeue(out msg)) {
 						if (msg.sender.closed) {
@@ -362,13 +372,13 @@ namespace Ex {
 						}
 						HandleMessage(msg);
 					}
-
+					
 					HandleInternalEvents();
-
+				
 				} catch (Exception e) {
 					Log.Error("Failure in Server.GlobalUpdate during Handlers: ", e);
 				}
-
+				
 				DateTime now = DateTime.UtcNow;
 				TimeSpan diff = now - lastTick;
 				try {
@@ -382,7 +392,7 @@ namespace Ex {
 				} catch (Exception e) {
 					Log.Error("Failure in Server.GlobalUpdate during Ticks: ", e);
 				}
-
+				
 				
 				ThreadUtil.Hold(1);
 			}
@@ -490,13 +500,28 @@ namespace Ex {
 				}
 			}
 
-
+			Task last = null;
 			try {
 				while (!client.closed && client.tcpOutgoing.TryDequeue(out msg)) {
 					Log.Verbose($"Client {client.identity} sending message {msg}");
+					byte[] message;
+					if (client.ws != null) {
+						message = msg.ToBytesUTF8();
+						ArraySegment<byte> seg = new ArraySegment<byte>(msg.ToBytesUTF8(), 0, message.Length);
+						if (last == null) {
+							last = client.ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None);
+						} else {
+							last = last.ContinueWith((_)=>{
+								client.ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None);
+							});
+							
+						}
+						continue;
+					}
+
 
 					msg += RPCMessage.EOT;
-					byte[] message = msg.ToBytesUTF8();
+					message = msg.ToBytesUTF8();
 					message = client.enc(message);
 					
 					if (client.tcp != null) {
@@ -526,11 +551,47 @@ namespace Ex {
 
 		}
 
+		/// <summary> Attempts to read data from a client and enqueue in <see cref="incoming"/> </summary>
+		/// <param name="client"> Websocket client </param>
+		/// <returns> Task that completes when the client is closed. </returns>
+		public async Task RecieveDataWebsocket(Client client) {
+			byte[] buffer = new byte[1024];
+			ArraySegment<byte> seg = new ArraySegment<byte>(buffer);
+			var stupid = CancellationToken.None;
+			while (!client.closed && (client.ws.State == WebSocketState.Open || client.ws.State == WebSocketState.Connecting)) {
+				try {
+					var result = await client.ws.ReceiveAsync(seg, stupid);
+					if (result.MessageType == WebSocketMessageType.Close) {
+
+						client.Close();
+						break;
+
+					} else {
+
+						string str = Encoding.UTF8.GetString(buffer, 0, result.Count);
+						Log.Info($"Server.RecieveDataWebsocket(Client): Got message {result.Count} | {str}");
+						incoming.Enqueue(RPCMessage.TCP(client, str));
+
+					}
+
+				} catch (Exception e) {
+					Log.Error($"Server.RecieveDataWebsocket(Client): Error during read.", e);
+				}
+			}
+		}
+
 		const int UDP = 1;
 		const int TCP = 0;
 		/// <summary> Attempts to read data from a client once </summary>
 		/// <param name="client"> Client information to read data for </param>
 		public void RecieveData(Client client) {
+			// Clients that use websockets are handled in an async task, 
+			// since it fits the API better. 
+			if (client.ws != null) { 
+				Log.Warning("Server.RecieveData(Client): Client has websockets and is handled async. Exiting.");
+				return;
+			}
+
 			// Helper method to handle reading 
 			Client.ReadState read(Client.ReadState state, int kind) {
 				if (state.bytesRead > 0) {
@@ -604,7 +665,7 @@ namespace Ex {
 
 			
 		}
-
+		
 		private void HandleMessage(RPCMessage msg) {
 			RPCMessage.Handler handler = GetHandler(msg);
 			

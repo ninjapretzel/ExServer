@@ -1,3 +1,23 @@
+function base64Decode(base64) {
+	const binary = atob(base64);
+	const length = binary.length;
+	const bytes = new Uint8Array(length);
+	for (let i = 0; i < length; i++) {
+		bytes[i] = binary.charCodeAt(i);	
+	}
+	return bytes.buffer;
+}
+function base64Encode(bytes) {
+	if (typeof(bytes) === "string") { return btoa(bytes); }
+	
+	let s = "";
+	for (let i = 0; i < bytes.length; i++) {
+		s += String.fromCharCode(bytes[i]);
+	}
+	return btoa(s);
+}
+
+
 
 async function getPublicKey() {
 	let request = await fetch("/api/auth/publicKey");
@@ -6,9 +26,11 @@ async function getPublicKey() {
 
 const version = "v0.0.0";
 
+
+
+
 async function login(user, pass) {
 	let publicKey = await getPublicKey();
-	console.log(publicKey);
 	
 	let publicKeyRead = await openpgp.readKey({ armoredKey: publicKey });
 	
@@ -16,8 +38,6 @@ async function login(user, pass) {
 		message: await openpgp.Message.fromText(pass),
 		publicKeys: publicKeyRead,
 	});
-	console.log(pass);
-	
 	
 	let payload = { user, pass, version }
 	const rawResponse = await fetch("/api/auth/login", {
@@ -30,26 +50,51 @@ async function login(user, pass) {
 	return await rawResponse.json();
 }
 
-function openSocket() {
-	let wsock = new WebSocket("ws://localhost:3000/ws/test", "test");
-	
-	wsock.onopen = (e) => {
-		wsock.send("Yeet.");	
-	}
-	wsock.onmessage = (e) => {
-		console.log(e.data);
-	}
-	
+function openSocket(type) {
+	let wsock = new WebSocket(`ws://localhost:3000/ws/${type}`, type);
+
 	return wsock;
 }
+
 
 /** Promise wrapper to run code after a delay */
 function delay(ms) {
 	return new Promise((resolve, reject) => { setTimeout( ()=>{resolve(); }, ms); });
 }
+var pipe;
+var connected;
+const SEP = "\u0007";
+const EOT = "\u001f";
+function format() {
+	let str = "";
+	for (let i = 0; i < arguments.length; i++) {
+		str += arguments[i];
+		str += (i < arguments.length-1) ? SEP : "";
+	}
+	return str;
+}
+
+function show(name) {
+	$("#pageSwitcher").children(".page").addClass("hidden");
+	$("#pageSwitcher").children(`#${name}`).removeClass("hidden");
+}
+function onConnected(evt) {
+	
+}
 
 $(document).ready(()=>{
+	
 	console.log("Ready");
+	pipe = openSocket("ex");
+	const client = new Client(pipe);
+	
+	pipe.onopen = (e) => {
+		client.call("DebugService", "Ping");
+		show("loginPage");
+	}
+	
+	
+	
 	$("#login").click( async ()=>{
 		
 		let username = $("#username").val();
@@ -64,9 +109,8 @@ $(document).ready(()=>{
 		$("#username").removeClass("disabled");
 		$("#password").removeClass("disabled");
 		$("#login").removeClass("disabled");
-		console.log(result);
+		
 		if (result.success) {
-			
 			M.toast({
 				html: "Login Success!",
 				classes: "green"
@@ -77,6 +121,7 @@ $(document).ready(()=>{
 				html: `Login Failed: ${result.reason}!`,
 				classes: "red"
 			});
+			return;
 		}
 		
 		let wsock = openSocket();

@@ -45,7 +45,9 @@ export function base64Encode(bytes) {
 
 export function openSocket(type) {
 	let wsock = new WebSocket(`ws://localhost:3000/ws/${type}`, type);
-	
+	wsock.onerror = (e) => {
+		location.reload();
+	}
 	return wsock;
 }
 

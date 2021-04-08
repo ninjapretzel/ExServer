@@ -13,9 +13,10 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 		
 		<script src="js/openpgp/openpgp.min.js"></script>
-		<script src="js/exjs/client.js"></script>
 		
-		<script src="js/index.js"></script>
+		<script type="module" src="mjs/index.mjs"></script>
+		<script nomodule src="js/oops.js"></script>
+		
 		<link rel="stylesheet" href="css/styles.css" />
 		
 	</head>
@@ -26,6 +27,13 @@
 			<div id="waitingPage" class="card page blue-grey darken-4 center col s12 row">
 				<div class="col s3 spacer"></div>	
 				<div class="col s6 center">Waiting...</div>
+			</div>
+			<div id="oops" class="card page blue-grey darken-4 center col s12 row hidden">
+				<h1> 
+					OOPS,
+					<br/> JS Modules not supported. Please use a more modern browser. 
+					<br/> Thanks. 
+				</h1>	
 			</div>
 			
 			<div id="loginPage" class="card page blue-grey darken-4 center col s12 row hidden">

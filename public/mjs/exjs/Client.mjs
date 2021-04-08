@@ -43,10 +43,14 @@ export class Client {
 		const rpc = msg[1];
 		const time = msg[2]; // Todo: Logging?
 		const rest = msg.slice(3);
+		msg.time = time;
+		msg.service = service;
+		msg.rpc = rpc;
+		msg.client = this;
 		const sv = this._services[service];
 		if (sv && sv[rpc]) {
 			console.log(`Invoking ${service}.${rpc}(`, rest, `)`);
-			sv[rpc](this, rest);
+			sv[rpc](rest);
 		} else {
 			console.log(`Could not find RPC target ${service}.${rpc}`);	
 		}

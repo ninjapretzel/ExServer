@@ -286,7 +286,8 @@ namespace Ex {
 					
 					if (tcp != null) {
 						tcp.Close();
-					} else {
+					} else if (tcpSocket != null) {
+						
 						tcpSocket.Close();
 					}
 					if (ws != null) {

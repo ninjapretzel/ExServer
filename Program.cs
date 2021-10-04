@@ -25,7 +25,7 @@ namespace Ex {
 		/// for console visibility </summary>
 		public class zzz_RunMeLast_Tests { 
 			public static void Test() {
-				
+				// I should be empty when you commit!
 			}
 		}
 

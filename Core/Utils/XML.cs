@@ -4,13 +4,97 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Ex.Utils {
+	/// <summary> Class holding XML parsing and generating </summary>
 	public static class XML {
+
+		/// <summary> Class representing the basic structure returned by <see cref="Parse"/> in <see cref="JsonObject"/> form </summary>
+		public class Node {
+			/// <summary> Any leading whitespace present before the tag, if it was the first tag in the file. </summary>
+			public string leadingWhitespace;
+			/// <summary> name of the tag </summary>
+			public string tag;
+			/// <summary> attributes on the tag </summary>
+			public JsonObject attr;
+			/// <summary> flag if the tag was self closed </summary>
+			public bool selfClosed;
+			/// <summary> <see cref="string"/>|<see cref="Node"/>s that are the direct children of this object </summary>
+			public List<object> children;
+			/// <summary> comment contents, if this node is a comment (tag == "!--") </summary>
+			public string comment;
+		}
+
+		/// <summary> Parse an XML string into a traversable <see cref="JsonObject"/> holding its tree structure </summary>
+		/// <param name="xml"> XML to parse </param>
+		/// <returns> <see cref="JsonObject"/> holding XML structure mirroring <see cref="Node"/> </returns>
 		public static JsonObject Parse(string xml) {
 			var result = new Parser(xml).Parse();
 			return result as JsonObject;
 		}
+
+		/// <summary> Converts a <see cref="JsonValue"/> to an XML string </summary>
+		/// <param name="elem"> either <see cref="JsonObject"/> mirroring a <see cref="Node"/> or just a <see cref="JsonString"/>. </param>
+		/// <param name="indent"> Current indent level </param>
+		/// <param name="indentStr"> Current indent character </param>
+		/// <returns></returns>
+		public static string ToXML(JsonValue elem, int indent = 0, string indentStr = "\t") {
+			if (elem.isString) { return elem.stringVal; }
+			if (elem is JsonObject tag) {
+				StringBuilder tagstr = new StringBuilder();
+				if (tag.Has("leadingWhitespace")) { tagstr.Append(tag["leadingWhitespace"].stringVal); }
+				
+				for (int k = 0; k < indent; k++) { tagstr.Append(indentStr); }
+				tagstr.Append($"<{tag["tag"].stringVal}");
+				if (tag["attr"].Count > 0) {
+					tagstr.Append(' ');
+					foreach (var pair in tag["attr"] as JsonObject) {
+						tagstr.Append($"{pair.Key.stringVal}=\"{pair.Value.stringVal}\" ");
+					}
+				}
+				
+				if (tag["selfClosed"]) { 
+					tagstr.Append("/>"); 
+					return tagstr.ToString(); 
+				} else if (tag["comment"] != "") { 
+					tagstr.Append($"{tag["comment"].stringVal}-->"); 
+					return tagstr.ToString(); 
+				} else { tagstr.Append(">"); }
+
+				int i = 0;
+				bool prevWasText = false;
+				foreach (var child in tag["children"] as JsonArray) {
+					i++;
+					string childStr = ToXML(child, indent+=1, indentStr);
+
+					if (child is JsonString) { prevWasText = true; }
+					else {
+						if (prevWasText) {
+							// Unset flag and remove duplicate indentation
+							prevWasText = false;
+							childStr = childStr.Substring(indent);
+						} else {
+							tagstr.Append("\n");
+						}
+					}
+
+					tagstr.Append(childStr);
+				}
+
+				if (!prevWasText) {
+					tagstr.Append("\n");
+					//for (int k = 0; k < indent; k++) { tagstr.Append(indentStr); }
+				}
+				tagstr.Append($"</{tag["tag"].stringVal}>");
+
+				return tagstr.ToString();
+			}
+			return "";
+		}
+
+		/// <summary> Internal parser class </summary>
 		public class Parser {
+			/// <summary> actual index </summary>
 			private int _i;
+			/// <summary> property that counts lines and columns as index moves forwards </summary>
 			private int i {
 				get { return _i; }
 				set {
@@ -22,22 +106,38 @@ namespace Ex.Utils {
 					if (value < _i) { _i = value; }
 				}
 			}
+			/// <summary> Current line number </summary>
 			private int line;
+			/// <summary> Current column </summary>
 			private int col;
+			/// <summary> Source XML </summary>
 			private readonly string src;
+			/// <summary> Length of source </summary>
 			public int Length { get { return src.Length; } }
+			/// <summary> Character before current, '\0' if invalid. </summary>
 			public char prev{ get { return (i-1 >= 0 && i-1 < Length) ? src[i-1] : '\0'; } }
+			/// <summary> Current character , '\0' if invalid. </summary>
 			public char cur { get { return (i >= 0 && i < Length) ? src[i] : '\0'; } }
+			/// <summary> Character after current, '\0' if invalid. </summary>
 			public char next { get { return (i+1 >= 0 && i+1 < Length) ? src[i+1] : '\0'; } }
+			/// <summary> Flag if <see cref="cur"/> is null. </summary>
 			public bool eof { get { return cur == '\0'; } }
+			/// <summary> Property to quickly generate line:col information. </summary>
 			public string lineInfo { get { return $"@{line}:{col}"; } }
 
+			/// <summary> Is a character of the whitespace class?. </summary>
 			public static bool IsWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+			/// <summary> Is a character of the alpha class?. </summary>
 			public static bool IsAlpha(char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'); }
+			/// <summary> Is a character of the alphanum class?. </summary>
 			public static bool IsAlphaNum(char c) { return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'); }
+			/// <summary> Is the current character <paramref name="c"/>? </summary>
 			public bool At(char c) { return cur == c; }
+			/// <summary> Is the current character one of <paramref name="chars"/>? </summary>
 			public bool At(string chars) { char c = cur; for (int i = 0; i < chars.Length; i++) { if (chars[i] == c) { return true; } } return false; }
 
+			/// <summary> Constructor </summary>
+			/// <param name="src"> Source to parse </param>
 			public Parser(string src) {
 				_i = 0;
 				line = 0;
@@ -45,17 +145,20 @@ namespace Ex.Utils {
 				this.src = src;
 			}
 
+			/// <summary> Actually parse </summary>
+			/// <returns> Parsed structure as a <see cref="JsonObject"/> mirroring <see cref="Node"/>, otherwise the <see cref="string"/> of text. </returns>
 			public JsonValue Parse() {
-				
 				string leadingWhitespace = SkipWhitespace();
 
 				if (At("<")) {
 					i++;
 					string tagName = ReadName();
-					SkipWhitespace();
 					JsonObject tag = new JsonObject();
 					JsonObject attr = new JsonObject();
 					JsonArray children = new JsonArray();
+					if (leadingWhitespace.Length > 0) {
+						tag["leadingWhitespace"] = leadingWhitespace;
+					}
 					tag["tag"] = tagName;
 					tag["attr"] = attr;
 					tag["selfClosed"] = false;
@@ -66,6 +169,7 @@ namespace Ex.Utils {
 						tag["comment"] = ReadComment();
 						return tag;
 					}
+					SkipWhitespace();
 					while (!At("/") && !At(">")) {
 						if (eof) { return tag; }
 						string attrName = ReadName();
@@ -109,7 +213,7 @@ namespace Ex.Utils {
 					return tag;
 				}
 				// Not tag, but text:
-				StringBuilder text = new StringBuilder();
+				StringBuilder text = new StringBuilder(leadingWhitespace);
 				while (!At("<")) {
 					if (eof) { return text.ToString(); }
 					text.Append(cur);
@@ -118,6 +222,8 @@ namespace Ex.Utils {
 				return text.ToString();
 			}
 
+			/// <summary> Reads a string from the current position </summary>
+			/// <returns> read string </returns>
 			public string ReadString() {
 				StringBuilder val = new StringBuilder();
 				char openChar = '\0';
@@ -136,7 +242,8 @@ namespace Ex.Utils {
 				
 				return val.ToString();
 			}
-
+			/// <summary> Reads a name from the current position </summary>
+			/// <returns> read string </returns>
 			public string ReadName() {
 				StringBuilder tag = new StringBuilder();
 				while (!(IsWhitespace(cur)) && !At("=") && !At("/") && !At(">")) {
@@ -146,7 +253,8 @@ namespace Ex.Utils {
 				}
 				return tag.ToString();
 			}
-
+			/// <summary> Skips whitespace from the current position </summary>
+			/// <returns> read whitespace </returns>
 			public string SkipWhitespace() {
 				StringBuilder ws = new StringBuilder();
 				while (IsWhitespace(cur)) {
@@ -156,7 +264,8 @@ namespace Ex.Utils {
 				}
 				return ws.ToString();
 			}
-
+			/// <summary> Reads a comment from the current position </summary>
+			/// <returns> read string </returns>
 			public string ReadComment() {
 				StringBuilder text = new StringBuilder();
 				while (!(prev == '-' && cur == '-' && next == '>')) {
@@ -194,38 +303,45 @@ namespace Ex.Utils {
 		Some Text
 	</test4>
 	<!-- THIS IS A COMMENT -->
-</test>
-";
+</test>".Replace('\'', '\"');
 			JsonObject parsed = XML.Parse(test);
 			//Log.Info(parsed.PrettyPrint());
-			parsed.ShouldNotBe(null);
-			parsed["tag"].ShouldEqual("test");
-			parsed["selfClosed"].ShouldEqual(false);
-			parsed["children"].Count.ShouldBe(12);
-			parsed["attr"].Count.ShouldBe(0);
 
-			parsed["children"][1]["tag"].ShouldEqual("!--");
+			void check(JsonObject parsed) {
+				parsed.ShouldNotBe(null);
+				parsed["tag"].ShouldEqual("test");
+				parsed["selfClosed"].ShouldEqual(false);
+				parsed["children"].Count.ShouldBe(12);
+				parsed["attr"].Count.ShouldBe(0);
 
-			parsed["children"][3]["tag"].ShouldEqual("test2");
-			parsed["children"][3]["selfClosed"].ShouldEqual(true);
+				parsed["children"][1]["tag"].ShouldEqual("!--");
+
+				parsed["children"][3]["tag"].ShouldEqual("test2");
+				parsed["children"][3]["selfClosed"].ShouldEqual(true);
 
 
-			parsed["children"][5]["tag"].ShouldEqual("!--");
+				parsed["children"][5]["tag"].ShouldEqual("!--");
 
-			parsed["children"][7]["tag"].ShouldEqual("test3");
-			parsed["children"][7]["selfClosed"].ShouldEqual(false);
-			parsed["children"][7]["children"].Count.ShouldBe(4);
-			parsed["children"][7]["attr"]["a"].ShouldEqual("b");
-			parsed["children"][7]["attr"]["c"].ShouldEqual("d");
+				parsed["children"][7]["tag"].ShouldEqual("test3");
+				parsed["children"][7]["selfClosed"].ShouldEqual(false);
+				parsed["children"][7]["children"].Count.ShouldBe(4);
+				parsed["children"][7]["attr"]["a"].ShouldEqual("b");
+				parsed["children"][7]["attr"]["c"].ShouldEqual("d");
 
-			parsed["children"][9]["tag"].ShouldEqual("test4");
-			parsed["children"][9]["children"].Count.ShouldBe(5);
-			parsed["children"][9]["children"][1]["tag"].ShouldEqual("test5");
-			parsed["children"][9]["children"][1]["selfClosed"].ShouldEqual(true);
-			parsed["children"][9]["children"][3]["tag"].ShouldEqual("test5");
-			parsed["children"][9]["children"][3]["selfClosed"].ShouldEqual(true);
+				parsed["children"][9]["tag"].ShouldEqual("test4");
+				parsed["children"][9]["children"].Count.ShouldBe(5);
+				parsed["children"][9]["children"][1]["tag"].ShouldEqual("test5");
+				parsed["children"][9]["children"][1]["selfClosed"].ShouldEqual(true);
+				parsed["children"][9]["children"][3]["tag"].ShouldEqual("test5");
+				parsed["children"][9]["children"][3]["selfClosed"].ShouldEqual(true);
+			}
 
-			
+			check(parsed);
+			string toStringd = XML.ToXML(parsed);
+			// Can't guarantee that the generated XML looks anything like what was originally parsed
+			// but we can guarantee there's a similar structure and certain contents.
+			JsonObject backToXML = XML.Parse(toStringd);
+			check(backToXML);
 			
 		}
 	}

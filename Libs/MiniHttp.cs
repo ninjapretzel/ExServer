@@ -487,6 +487,7 @@ namespace MiniHttp {
 					});
 				}
 			} catch (Exception e) {
+				if (e is ObjectDisposedException) { return -1; }
 				if (e is HttpListenerException && (e as HttpListenerException).ErrorCode == 995 ) { return 0; }
 				Console.WriteLine("HttpServer.Listen: Internal Error - " + e);
 				return -1;

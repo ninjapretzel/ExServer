@@ -21,6 +21,14 @@ namespace Ex {
 	
 	public static class Program {
 
+		/// <summary> Class to hold tests-level to be run after all other tests, 
+		/// for console visibility </summary>
+		public class zzz_RunMeLast_Tests { 
+			public static void Test() {
+				
+			}
+		}
+
 		public static string SourceFileDirectory([CallerFilePath] string callerPath = "[NO PATH]") {
 			return callerPath.Substring(0, callerPath.Replace('\\', '/').LastIndexOf('/'));
 		}
@@ -34,10 +42,22 @@ namespace Ex {
 		public static JsonObject config;
 		public static Task<int> httpTask = null;
 		private static bool running = true;
-		
+
 		[STAThread]
 		/// <summary> The main entry point for the application. </summary>
-		static void Main() {
+		static void Main(string[] args) {
+			bool stopAfterTests = false;
+			bool copySources = true;
+			if (args.Length > 0) {
+				if (args[0] == "--test" || args[0] == "test" || args[0] == "-t") {
+					stopAfterTests = true;
+					copySources = false;
+				}
+				if (args[0] == "--noCopy" || args[0] == "noCopy" || args[0] == "-nc") {
+					copySources = false;
+				}
+			}
+
 			Console.Clear();
 			// This is disgusting, but the only way I can be sure any `\r\n` get replaced with `\n`.
 			Macros.FixSourceFiles(SourceFileDirectory());
@@ -49,8 +69,10 @@ namespace Ex {
 				// Saves me a ton of work syncing these files into unity as I change them though.
 				// Still more visible than doing some weird VS build command hook.
 				try {
-					Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-					Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					if (copySources) {
+						Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+						Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+					}
 					
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
@@ -64,6 +86,7 @@ namespace Ex {
 				//Self Test:
 				BakaTest.BakaTestHook.logger = (str) => { Log.Info(str, "Tests"); };
 				BakaTest.BakaTestHook.RunTestsSync();
+				if (stopAfterTests) { return; }
 
 				ActualProgram();
 

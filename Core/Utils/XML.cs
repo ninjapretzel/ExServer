@@ -31,6 +31,16 @@ namespace Ex.Utils {
 			return result as JsonObject;
 		}
 
+		public static void Traverse(JsonObject node, Action<JsonObject> action) {
+			if (node == null) { return; }
+			action(node);
+			var children = node["children"] as JsonArray;
+			if (children == null) { return; }
+			foreach (var child in children) {
+				if (child is JsonObject obj) { Traverse(obj, action); }
+			}
+		}
+
 		/// <summary> Converts a <see cref="JsonValue"/> to an XML string </summary>
 		/// <param name="elem"> either <see cref="JsonObject"/> mirroring a <see cref="Node"/> or just a <see cref="JsonString"/>. </param>
 		/// <param name="indent"> Current indent level </param>
@@ -123,7 +133,35 @@ namespace Ex.Utils {
 			/// <summary> Flag if <see cref="cur"/> is null. </summary>
 			public bool eof { get { return cur == '\0'; } }
 			/// <summary> Property to quickly generate line:col information. </summary>
-			public string lineInfo { get { return $"@{line}:{col}"; } }
+			public string lineInfo { get { return $"@{line+1}:{col}"; } }
+
+			public string nearbyText { 
+				get {
+					StringBuilder str = new StringBuilder();
+					int k = i;
+					int atLine = line;
+					int linesUp = 0;
+					while (k > 0 && linesUp < 3) {
+						k--;
+						if (src[k] == '\n') { linesUp++; atLine--; }
+					}
+
+					int linesDown = 0;
+					while (k < Length) { 
+						str.Append(src[k]);
+						if (src[k] == '\n') {
+							atLine++;
+							linesDown++;
+							if (linesDown == 8) { break; }
+							string s = ""+ (1 + atLine);
+							while (s.Length < 8) { s = (atLine == line ? ">" : " ") + s; }
+							str.Append($"{s}: ");
+						}
+						k++;
+					}
+					return str.ToString();
+				}
+			}
 
 			/// <summary> Is a character of the whitespace class?. </summary>
 			public static bool IsWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
@@ -152,7 +190,14 @@ namespace Ex.Utils {
 
 				if (At("<")) {
 					i++;
+
+
 					string tagName = ReadName();
+					if (tagName == "!DOCTYPE" || tagName == "?xml") {
+						while (!At(">")) { i++; }
+						i++;
+						return Parse();
+					}
 					JsonObject tag = new JsonObject();
 					JsonObject attr = new JsonObject();
 					JsonArray children = new JsonArray();
@@ -165,7 +210,8 @@ namespace Ex.Utils {
 					tag["children"] = children;
 					tag["comment"] = "";
 
-					if (tagName == "!--") {
+					Log.Info($"Saw tag TagName: {tagName}");
+					if (tagName.StartsWith("!--")) {
 						tag["comment"] = ReadComment();
 						return tag;
 					}
@@ -175,7 +221,7 @@ namespace Ex.Utils {
 						string attrName = ReadName();
 						SkipWhitespace();
 
-						if (!At("=")) { throw new Exception($"Expected '=' after attribute name, had '{cur}'. {lineInfo}"); }
+						if (!At("=")) { throw new Exception($"Expected '=' after attribute name, had '{cur}'. {lineInfo}\n{nearbyText}"); }
 						i++;
 						SkipWhitespace();
 
@@ -205,9 +251,9 @@ namespace Ex.Utils {
 
 					i += 2;
 					string endName = ReadName();
-					if (endName != tagName) { throw new Exception($"Wrong ending tag for '{tagName}', saw '{endName}'. {lineInfo}"); }
+					if (endName != tagName) { throw new Exception($"Wrong ending tag for '{tagName}', saw '{endName}'. {lineInfo}\n{nearbyText}"); }
 					SkipWhitespace();
-					if (!At(">")) { throw new Exception($"Expected end angle bracket '>', got '{cur}' {lineInfo}"); }
+					if (!At(">")) { throw new Exception($"Expected end angle bracket '>', got '{cur}' {lineInfo}\n{nearbyText}"); }
 
 					i++;
 					return tag;

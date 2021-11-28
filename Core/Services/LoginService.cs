@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using BakaDB;
 #if !UNITY
@@ -181,9 +182,9 @@ namespace Ex {
 		}
 		
 		/// <summary> Serverside, maps client to user ID </summary>
-		private Dictionary<Client, Session> loginsByClient;
+		private IDictionary<Client, Session> loginsByClient;
 		/// <summary> Serverside, maps user ID to client </summary>
-		private Dictionary<Guid, Session> loginsByUserId;
+		private IDictionary<Guid, Session> loginsByUserId;
 
 		/// <summary> Gets a login by a user ID </summary>
 		/// <param name="userId"> ID of user to check for </param>
@@ -263,8 +264,8 @@ namespace Ex {
 		}
 
 		public override void OnEnable() {
-			loginsByClient = new Dictionary<Client, Session>();
-			loginsByUserId = new Dictionary<Guid, Session>();
+			loginsByClient = new ConcurrentDictionary<Client, Session>();
+			loginsByUserId = new ConcurrentDictionary<Guid, Session>();
 			EncryptPassword = DefaultEncrypt;
 			DecryptPassword = DefaultDecrypt;
 
@@ -281,7 +282,16 @@ namespace Ex {
 			}
 			
 		}
-		
+
+		public override void OnDisconnected(Client client) {
+			if (isMaster) {
+				if (loginsByClient.ContainsKey(client)) {
+					Log.Info($"Disconnection by {client.identity} is causing a logout.");
+					loginsByClient.Remove(client);
+				}
+			}
+		}
+
 		public override void OnFinishedDisconnected(Client client) {
 			if (loginsByClient.ContainsKey(client)) {
 				Log.Verbose($"Logging out {client.identity}");

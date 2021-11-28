@@ -506,6 +506,10 @@ namespace Ex {
 					Log.Verbose($"Client {client.identity} sending message {msg}");
 					byte[] message;
 					if (client.ws != null) {
+						if (client.ws.State != WebSocketState.Open) {
+							Log.Warning($"Client {client.identity} websocket closed unexpectedly during send.");
+							break;
+						}
 						message = msg.ToBytesUTF8();
 						ArraySegment<byte> seg = new ArraySegment<byte>(msg.ToBytesUTF8(), 0, message.Length);
 						if (last == null) {
@@ -562,8 +566,8 @@ namespace Ex {
 				try {
 					var result = await client.ws.ReceiveAsync(seg, stupid);
 					if (result.MessageType == WebSocketMessageType.Close) {
-
-						client.Close();
+						Log.Info($"Client {client.identity} got normal closure message.");
+						Close(client);
 						break;
 
 					} else {
@@ -614,7 +618,6 @@ namespace Ex {
 				}
 				return state;
 			}
-
 
 			if (client.udp != null) {
 				try {

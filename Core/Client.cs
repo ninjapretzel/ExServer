@@ -152,6 +152,7 @@ namespace Ex {
 			this.ws = ws;
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
+			Log.Info($"\\eClient \\y{identity}\\e connected from websocket \\y {ws}");
 		}
 
 		private void Initialize(EndPoint remoteEndPoint, EndPoint localEndpoint) {

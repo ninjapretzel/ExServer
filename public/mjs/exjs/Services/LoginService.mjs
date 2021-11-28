@@ -21,16 +21,32 @@ export default class LoginService extends Service {
 		this._isAttemptingLogin = true;
 		this.loginName = user;
 		
-		this.client.call("LoginService", "Login", user, await this.encryptPass(pass), lib.VERSION);
+		const encrypted =  await this.encryptPass(pass);
+		this.client.call("LoginService", "Login", user, encrypted, lib.VERSION);
 		return true;
+	}
+	
+	async LoginResponse(args) {
+		console.log("Login response", args);
+		this._isAttemptingLogin = false;
+		
+		if (args[0] === "succ" && args[1] === this.loginName) { 
+			//...success...etc
+			const user = args[1];
+			const token = args[2];
+			const guid = args[3];
+			this.login = { user, token, guid };
+		} else {
+			//...failure...etc
+		}
 	}
 	
 	async encryptPass(pass) {
 		let publicKeyRead = await OpenPGP.readKey({ armoredKey: this.publicKey });
-		await OpenPGP.encrypt({
+		const encrypted = await OpenPGP.encrypt({
 			message: await OpenPGP.Message.fromText(pass),
 			publicKeys: publicKeyRead,
 		});
-		return pass;
+		return encrypted;
 	}
 }

@@ -6,8 +6,13 @@ export default class LoginPage extends Component {
 		super(element);
 		
 		element.find("#login").click(async (e)=> {
-			const res = await globals.client._services.LoginService.RequestLogin("test", "test");
-			console.log("Did it work? ", res);
+			
+			const user = element.find("#username").val();
+			const pass = element.find("#password").val();
+			const requestSent = await globals.client._services.LoginService.RequestLogin(user, pass);
+			
+			
+			console.log("Request Sent?", requestSent);
 		});
 	}
 	

@@ -355,8 +355,6 @@ namespace Ex {
 	/// </summary>
 	public static class Unsafe {
 		/// <summary> Are we running on the Mono Runtime? </summary>
-		/// @TODO: Eventually check to see the version.
-		/// We may need to further branch if mono changes the TypedReference struct in a later version.
 		public static readonly bool MonoRuntime = Type.GetType("Mono.Runtime") != null;
 
 		public static class Info<T> where T : unmanaged {

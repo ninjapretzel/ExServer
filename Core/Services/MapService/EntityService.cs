@@ -549,7 +549,6 @@ namespace Ex {
 
 				Log.Debug($"slave.SetComponentInfo: Setting info for {id}.{typeName}, {msg.numArgs-2} fields.");
 				Comp component = GetComponent(id, type);
-				TypedReference cref = __makeref(component);
 				
 				if (component != null) {
 					if (component.lastServerModification < msg.sentAt) {

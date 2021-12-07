@@ -184,9 +184,11 @@ public static class Server_Tests {
 				throw new Exception("Test Failed: Test service did not finish pinging!");
 			}
 
-			if (!WaitFor(testService.MapFinished, 3333)) {
-				throw new Exception("Test Failed: MapChange was not sent!!");
-			}
+			// Decision: It's up to the game what happens on login.
+			// This way a game can allow for logins through a web client, and possibly not create map-entities.
+			//if (!WaitFor(testService.MapFinished, 3333)) {
+			//	throw new Exception("Test Failed: MapChange was not sent!!");
+			//}
 
 		} finally {
 

@@ -210,7 +210,7 @@ namespace Ex.Utils {
 					tag["children"] = children;
 					tag["comment"] = "";
 
-					Log.Info($"Saw tag TagName: {tagName}");
+					// Log.Info($"Saw tag TagName: {tagName}");
 					if (tagName.StartsWith("!--")) {
 						tag["comment"] = ReadComment();
 						return tag;

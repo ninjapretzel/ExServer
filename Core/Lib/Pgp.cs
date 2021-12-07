@@ -5,9 +5,19 @@ using System.Text;
 using PgpCore;
 
 namespace Ex {
+	[System.Flags]
+	public enum Combo {
+		None = 0, 
+		Foo = 1, 
+		Bar = 2, 
+		FooBar = Foo | Bar,
+		Bix = 4, 
+		Baz = 8
+	}
 
 	/// <summary> Wrapper around <see cref="PgpCore.PGP"/> to make it easier to operate. </summary>
 	public class Pgp {
+		Combo c = Combo.Bar | Combo.Foo;
 		/// <summary> Class holding a pair of public/private keys </summary>
 		public sealed class KeyPair {
 			/// <summary> Public key </summary>

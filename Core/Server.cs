@@ -1,4 +1,18 @@
-﻿using System;
+﻿#if UNITY_2017_1_OR_NEWER
+#define UNITY
+#endif
+#if UNITY_EDITOR
+#endif
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define UNITY_BROWSER
+#endif
+
+#if UNITY_WEBGL
+#define NOTHREADS
+#endif
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -20,32 +34,6 @@ namespace Ex {
 	/// <returns> Encrypted/decrypted version of source </returns>
 	public delegate byte[] Crypt(byte[] source);
 
-	public static class ThreadUtil {
-		/// <summary> Pause for the given <paramref name="ms"/> or yield. </summary>
-		/// <param name="ms"> Ms to pause for, or if &lt;= 0, yield.</param>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void Hold(int ms) { 
-			if (ms <= 0) { Thread.Yield(); } 
-			else { Thread.Sleep(ms); } 
-		}
-		/// <summary> Kill a thread if and only if it is not the active thread. </summary>
-		/// <param name="t"> Thread to try to kill </param>
-		/// <returns> Returns true if an abort was attempted, false if it was the current thread or null. </returns>
-		public static bool TerminateIfNotActive(this Thread t) {
-			if (t != null && t != Thread.CurrentThread) {
-				try { t.Abort(); } catch { }
-				return true;
-			}
-			return false;
-		}
-		/// <summary> Try to abort all passed threads. </summary>
-		/// <param name="threads"> Threads to terminate </param>
-		public static void TerminateAll(params Thread[] threads) {
-			foreach (var thread in threads) { TerminateIfNotActive(thread); }
-			if (threads.Contains(Thread.CurrentThread)) { Thread.CurrentThread.Abort(); }
-		}
-	}
-
 	/// <summary> Primary class for ExServer </summary>
 	public class Server {
 		
@@ -56,12 +44,16 @@ namespace Ex {
 		/// <param name="priority"> Priority of thread </param>
 		/// <returns> Created and started thread. </returns>
 		private static Thread StartThread(ThreadStart start, ThreadPriority priority = ThreadPriority.Normal) {
+			#if NOTHREADS
+			return null;
+			#else
 			Thread t = new Thread(start);
 			t.Name = start.GetMethodInfo().Name + " Thread";
 			t.Priority = priority;
 			t.Start();
 
 			return t;
+			#endif
 		}
 
 		/// <summary> Update thread. </summary>
@@ -159,7 +151,7 @@ namespace Ex {
 		}
 		
 		public void Start() {
-			
+
 			Running = true;
 			if (isMaster) {
 				listenThread = StartThread(Listen);
@@ -168,10 +160,9 @@ namespace Ex {
 			mainSendThread = StartThread(SendLoop);
 			mainRecrThread = StartThread(RecrLoop);
 			foreach (var pair in services) { pair.Value.Started(); }
-			globalUpdateThread = StartThread(GlobalUpdate);
-
+			globalUpdateThread = StartThread(GlobalUpdateLoop);
 		}
-
+		
 		public void Stop() {
 			if (!Running || Stopping) { return; }
 			/// Set flags and push to RAM.
@@ -297,18 +288,6 @@ namespace Ex {
 			}
 		}
 
-		/// <summary> Handles internal events, called every global tick after handling RPC messages. </summary>
-		private void HandleInternalEvents() {
-			Action action; 
-			while (doLater.TryDequeue(out action)) {
-				try {
-					action();
-				} catch (Exception e) {
-					Log.Error("Error during event", e);
-				}
-			}
-		}
-
 		private void Listen() {
 			while (Running) {
 				try {
@@ -358,47 +337,69 @@ namespace Ex {
 			Client client = new Client(ws, this);
 			OnConnected(client);
 		}
+
+		/// <summary> Call this to control where update logic happens in single-threaded environments like Unity WebGL </summary>
+		public void SingleThreadedUpdate() {
+			GlobalUpdatePass();
+			SendPass();
+			RecrPass();
+		}
 		
-		private void GlobalUpdate() {
+		private void GlobalUpdateLoop() {
 			while (Running) {
-				try {
-					
-					RPCMessage msg;
-					while (incoming.TryDequeue(out msg)) {
-						if (msg.sender.closed) {
-							// early break???
-							// maybe we still want to handle messages when closed 
-							//		eg, ServerShuttingDown
-						}
-						HandleMessage(msg);
-					}
-					
-					HandleInternalEvents();
-				
-				} catch (Exception e) {
-					Log.Error("Failure in Server.GlobalUpdate during Handlers: ", e);
-				}
-				
-				DateTime now = DateTime.UtcNow;
-				TimeSpan diff = now - lastTick;
-				try {
-					if (diff.TotalMilliseconds > tickRate) {
-						lastTick = now;
-						float d = (float) diff.TotalSeconds;
-						foreach (var pair in services) {
-							pair.Value.OnTick(d);
-						}
-					}
-				} catch (Exception e) {
-					Log.Error("Failure in Server.GlobalUpdate during Ticks: ", e);
-				}
-				
-				
+				GlobalUpdatePass();
+
 				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"Updates stopping for {id} and cleaning up.");
 			//Todo: Cleanup work
+		}
+
+		/// <summary> Performs a single global update pass. Used for single-threaded environments like Unity WebGL </summary>
+		private void GlobalUpdatePass() {
+			try {
+				RPCMessage msg;
+				while (incoming.TryDequeue(out msg)) {
+					if (msg.sender.closed) {
+						// early break???
+						// maybe we still want to handle messages when closed 
+						//		eg, ServerShuttingDown
+					}
+					HandleMessage(msg);
+				}
+
+				HandleInternalEvents();
+
+			} catch (Exception e) {
+				Log.Error("Failure in Server.GlobalUpdate during Handlers: ", e);
+			}
+
+			DateTime now = DateTime.UtcNow;
+			TimeSpan diff = now - lastTick;
+			try {
+				if (diff.TotalMilliseconds > tickRate) {
+					lastTick = now;
+					float d = (float)diff.TotalSeconds;
+					foreach (var pair in services) {
+						pair.Value.OnTick(d);
+					}
+				}
+			} catch (Exception e) {
+				Log.Error("Failure in Server.GlobalUpdate during Ticks: ", e);
+			}
+		}
+
+		/// <summary> Handles internal events, called every global tick after handling RPC messages. </summary>
+		private void HandleInternalEvents() {
+			Action action;
+			while (doLater.TryDequeue(out action)) {
+				try {
+					action();
+				} catch (Exception e) {
+					Log.Error("Error during event", e);
+				}
+			}
 		}
 
 		/// <summary> Creates an Update thread bound to the lifetime of the server, or until the inner code wants to stop.  </summary>
@@ -431,43 +432,43 @@ namespace Ex {
 						if (stopOnError) { break; }
 
 					}
-					ThreadUtil.Hold(rate ?? 1);
+					ThreadUtil.Hold(rate ?? 1); 
 				}
 
 			};
 
 		}
 
-
 		/// <summary> Loop for sending data to connected clients. @Todo: Pool this. </summary>
 		private void SendLoop() {
 			while (Running) {
-				try {
-					Client c;
-					if (sendCheckQueue.TryDequeue(out c)) {
-						SendData(c);
-						if (!c.closed) { sendCheckQueue.Enqueue(c); }
-					}
-
-				} catch (Exception e) {
-					Log.Error("Failure in Server.SendLoop", e);
-				}
+				SendPass();
 				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"SendLoop Ending for {id}");
 		}
 
+		/// <summary> Performs a single send attempt. Used for single-threaded environments like Unity WebGL </summary>
+		private void SendPass() {
+			try {
+				Client c;
+				if (sendCheckQueue.TryDequeue(out c)) {
+					SendData(c);
+					if (!c.closed) { sendCheckQueue.Enqueue(c); }
+				}
+
+			} catch (Exception e) {
+				Log.Error("Failure in Server.SendLoop", e);
+			}
+		}
+
 		/// <summary> Loop for recieving data from connected clients. @Todo: Pool this. </summary>
 		private void RecrLoop() {
 			while (Running) {
 				try {
-					Client c;
-					if (recrCheckQueue.TryDequeue(out c)) {
-						RecieveData(c);
-						if (!c.closed) { recrCheckQueue.Enqueue(c); } 
-					}
-					
+					RecrPass();
+
 				} catch (Exception e) {
 					Log.Error("Failure in Server.RecrLoop", e);
 				}
@@ -475,6 +476,15 @@ namespace Ex {
 			}
 			string id = isSlave ? "Slave" : "Master";
 			Log.Info($"RecrLoop Ending for {id}");
+		}
+
+		/// <summary> Performs a single receive attempt. Used for single-threaded environments like Unity WebGL </summary>
+		private void RecrPass() {
+			Client c;
+			if (recrCheckQueue.TryDequeue(out c)) {
+				RecieveData(c);
+				if (!c.closed) { recrCheckQueue.Enqueue(c); }
+			}
 		}
 
 		/// <summary> Sends all pending messages to a client. </summary>
@@ -523,14 +533,23 @@ namespace Ex {
 						continue;
 					}
 
+					if (client.sink != null) { 
+						try {
+							client.sink(msg); 
+						} catch (Exception e) {
+							Log.Warning($"Server.SendData(Client): Error in sink function {client.sink.Method.Name}", e);
+						}
+
+					}
 
 					msg += RPCMessage.EOT;
 					message = msg.ToBytesUTF8();
 					message = client.enc(message);
+
 					
 					if (client.tcp != null) {
 						client.tcpStream.Write(message, 0, message.Length);
-					} else {
+					} else if (client.tcpSocket != null) {
 						client.tcpSocket.Send(message, message.Length, SocketFlags.None);
 					}
 				}
@@ -589,8 +608,19 @@ namespace Ex {
 		/// <summary> Attempts to read data from a client once </summary>
 		/// <param name="client"> Client information to read data for </param>
 		public void RecieveData(Client client) {
+			if (client.source != null) {
+				try {
+					string msg = client.source();
+					if (msg != null) { incoming.Enqueue(RPCMessage.TCP(client, msg)); }
+
+				} catch (Exception e) {
+					Log.Warning($"Server.RecieveData(Client): Error in source function {client.source.Method.Name}", e);
+				}
+				return;
+			}
 			// Clients that use websockets are handled in an async task, 
 			// since it fits the API better. 
+
 			if (client.ws != null) { 
 				Log.Warning("Server.RecieveData(Client): Client has websockets and is handled async. Exiting.");
 				return;
@@ -644,7 +674,7 @@ namespace Ex {
 					client.tcpReadState.bytesRead = !client.closed && client.tcpStream.CanRead && client.tcpStream.DataAvailable
 						? client.tcpStream.Read(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length)
 						: -1;
-				} else {
+				} else if (client.tcpSocket != null) {
 					client.tcpReadState.bytesRead = !client.closed && (client.tcpSocket.Available > 0)
 						? client.tcpSocket.Receive(client.tcpReadState.buffer, 0, client.tcpReadState.buffer.Length, SocketFlags.None)
 						: -1;

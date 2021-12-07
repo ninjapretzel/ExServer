@@ -1,4 +1,8 @@
-﻿using System;
+﻿#if UNITY_WEBGL
+#define NOTHREADS
+#endif
+
+using System;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -65,6 +69,7 @@ namespace Ex {
 		/// <summary> Initializes thread that handles logging </summary>
 		private static Thread InitializeLoggingThread() {
 			go = true;
+			#if !NOTHREADS
 			Thread t = new Thread(() => {
 				LogInfo info;
 				while (go) {
@@ -78,6 +83,9 @@ namespace Ex {
 			});
 			t.Start();
 			return t;
+			#else
+			return null;
+			#endif
 		}
 		/// <summary> Stops the logging thread (after a delay) </summary>
 		public static void Stop() {
@@ -86,8 +94,10 @@ namespace Ex {
 		/// <summary> Restarts the logging thread </summary>
 		public static void Restart() {
 			go = false;
+			#if !NOTHREADS
 			logThread.Join();
 			logThread = InitializeLoggingThread();
+			#endif
 		}
 
 		/// <summary> Logs a message using the Verbose LogLevel. </summary>
@@ -210,8 +220,13 @@ namespace Ex {
 				+ (ex != null ? $"\n{ex.InfoString()}" : "")
 				+ callerInfo;
 
+			#if !NOTHREADS
 			logs.Enqueue(new LogInfo(level, message, tag));
-			
+			#else
+			if (go) {
+				logHandler.Invoke(new LogInfo(level, message, tag));
+			}
+			#endif
 		}
 
 

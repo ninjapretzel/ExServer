@@ -19,9 +19,6 @@ namespace Ex {
 		public const int METHOD_NAME = 1;
 		/// <summary> Reserved position for Sender's UTC timestamp </summary>
 		public const int SENDER_TIME = 2;
-		
-		/// <summary> Client message was recieved from </summary>
-		public Client sender;
 
 		/// <summary> Raw message sent </summary>
 		public string rawMessage { get; private set; }
@@ -44,6 +41,9 @@ namespace Ex {
 		public int numArgs { get { return content.Length - FIXED_SIZE; } }
 		/// <summary> Returns true if this was sent over UDP, false if was sent over TCP. </summary>
 		public bool wasUDP { get; private set; } = false;
+		
+		/// <summary> Client message was recieved from </summary>
+		public Client sender;
 
 		/// <summary> Creates an RPCMessage flagged as if it came over UDP. </summary>
 		/// <param name="client">client who sent</param>
@@ -63,14 +63,12 @@ namespace Ex {
 			msg.wasUDP = false;
 			return msg;
 		}
-
-
+	
 		/// <summary> Indexer for arguments. Valid indexes are in [0, numArgs-1] </summary>
 		/// <param name="index"></param>
 		/// <returns></returns>
 		public string this[int index] { get { return content[index + FIXED_SIZE]; } }
 
-		
 		/// <summary> Constructs an RPC message sent from the given client </summary>
 		/// <param name="client"></param>
 		/// <param name="str"></param>
@@ -90,11 +88,9 @@ namespace Ex {
 			}
 		}
 
-
 		public void Forward(IEnumerable<Client> clients, RPCMessage.Handler callback, params System.Object[] stuff) {
 
 		}
-
 
 		/// <summary> Delegate type used to search for messages to invoke from network messages </summary>
 		/// <param name="Client"> Client whomst'd've sent the message </param>

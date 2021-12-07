@@ -26,6 +26,7 @@ namespace Ex {
 		public class zzz_RunMeLast_Tests { 
 			public static void Test() {
 				// I should be empty when you commit!
+
 			}
 		}
 
@@ -70,14 +71,16 @@ namespace Ex {
 				// Still more visible than doing some weird VS build command hook.
 				try {
 					if (copySources) {
-						Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
-						Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
+						Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Eternus/Assets/Plugins/ExClient/Core");
+						//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
+						//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 					}
 					
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 					//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "/media/d/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
-				} catch (Exception) {
+				} catch (Exception e) {
 					Console.WriteLine("Copying source files failed.");
+					Console.WriteLine(e);
 				}
 #endif
 				SetupLogger();

@@ -13,6 +13,7 @@
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 		
 		<script type="module" src="mjs/index.mjs"></script>
+		
 		<script nomodule src="js/oops.js"></script>
 		
 		<link rel="stylesheet" href="css/styles.css" />
@@ -34,6 +35,24 @@
 				</h1>	
 			</div>
 			
+			<div id="GamePage" class="card page blue-grey darken-4 center col s12 row">
+				<div id="unity-container" class="unity-desktop">
+					<canvas id="unity-canvas" width=960 height=600></canvas>
+					<div id="unity-loading-bar">
+						<div id="unity-logo"></div>
+						<div id="unity-progress-bar-empty">
+							<div id="unity-progress-bar-full"></div>
+						</div>
+					</div>
+					<div id="unity-warning"> </div>
+					<div id="unity-footer">
+						<div id="unity-webgl-logo"></div>
+						<div id="unity-fullscreen-button"></div>
+						<div id="unity-build-title">Eternus</div>
+					</div>
+				</div>
+			</div>
+			
 			<div id="LoginPage" class="card page blue-grey darken-4 center col s12 row hidden">
 				<div class="col s3 spacer"></div>
 				<div class="col s6 row">
@@ -49,6 +68,7 @@
 					<a class="btn col s6" id="login">Login</a>
 				</div>
 			</div>
+			
 			
 			
 		</div>

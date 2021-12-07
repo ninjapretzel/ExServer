@@ -4,7 +4,8 @@ using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
 using Ex;
-using ExClient.Utils;
+//using ExClient.Utils;
+using Lib.Markdown;
 #endif
 #endif
 using Ex.Utils;

@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
 #define UNITY
 using UnityEngine;
 #else
@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using BakaTest;
+using System.Reflection;
 
 namespace Ex.Utils {
 
@@ -24,13 +25,13 @@ namespace Ex.Utils {
 		/// <param name="value"> Parameter to pack </param>
 		/// <returns> Base64 from converting struct into byte[], then encoding byte array </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static string Base64<T>(T value) where T : struct {
+		public static string Base64<T>(T value) where T : unmanaged {
 			byte[] copy = Unsafe.ToBytes(value);
 			return Convert.ToBase64String(copy);
 		}
 
 	}
-
+	
 	/// <summary> Class holding code for unpacking structs </summary>
 	public static class Unpack {
 
@@ -40,7 +41,7 @@ namespace Ex.Utils {
 		/// <param name="ret"> Return location </param>
 		/// <returns> True if successful, false if failure, and sets ret to the resulting unpacked data, or default, respectively.  </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static bool Base64Out<T>(string encoded, out T ret) where T : struct {
+		public static bool Base64Out<T>(string encoded, out T ret) where T : unmanaged {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
 				Unsafe.FromBytes(bytes, out ret);
@@ -56,7 +57,7 @@ namespace Ex.Utils {
 		/// <param name="encoded"> Encoded Base64 string </param>
 		/// <returns> Unpacked data, or default value if anything failed (data size mismatch). </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static T Base64<T>(string encoded) where T : struct {
+		public static T Base64<T>(string encoded) where T : unmanaged {
 			try {
 				byte[] bytes = Convert.FromBase64String(encoded);
 				return Unsafe.FromBytes<T>(bytes);

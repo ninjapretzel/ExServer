@@ -1,4 +1,15 @@
-﻿using System;
+﻿#if UNITY_2017_1_OR_NEWER
+#define UNITY
+#endif
+#if UNITY_EDITOR
+
+#endif
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+#define UNITY_BROWSER
+#endif
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
@@ -10,7 +21,6 @@ using static Ex.RPCMessage;
 
 namespace Ex {
 	
-
 	public class Client {
 
 		#region Constants/Static stuff
@@ -33,6 +43,10 @@ namespace Ex {
 		public Socket udp { get; private set; }
 		/// <summary> Websocket connection </summary>
 		public WebSocket ws { get; private set; }
+		/// <summary> Sink function, for "Connectionless" clients. </summary>
+		public Action<string> sink { get; private set; }
+		/// <summary> Source function, for "Connectionless" clients. </summary>
+		public Func<string> source { get; private set; }
 		/// <summary> Underlying stream used to communicate with connected client </summary>
 		public NetworkStream tcpStream { get { return tcp?.GetStream(); } }
 		/// <summary> Socket connection to client </summary>
@@ -103,6 +117,7 @@ namespace Ex {
 		internal Crypt dec = (b) => b;
 		#endregion
 
+		/// <summary> Common constructor logic </summary>
 		private Client() {
 			this.id = Guid.NewGuid();
 			tcpReadState.Initialize();
@@ -121,6 +136,9 @@ namespace Ex {
 			}
 		}
 
+		/// <summary> Constructor that wraps a <see cref="Socket"/> </summary>
+		/// <param name="socket"> <see cref="Socket"/> to wrap </param>
+		/// <param name="server"> <see cref="Server"/> model client is connected to </param>
 		public Client(Socket socket, Server server = null) : this() {
 			this.tcpSocket = socket;
 			this.tcp = null;
@@ -133,7 +151,9 @@ namespace Ex {
 			Initialize(remoteEndPoint, localEndPoint);
 		}
 
-
+		/// <summary> Constructor that wraps a <see cref="TcpClient"/> </summary>
+		/// <param name="tcpClient"> <see cref="TcpClient"/> to wrap </param>
+		/// <param name="server"> <see cref="Server"/> model client is connected to </param>
 		public Client(TcpClient tcpClient, Server server = null) : this() {
 			this.tcp = tcpClient;
 			this.tcpSocket = null;
@@ -146,6 +166,9 @@ namespace Ex {
 			Initialize(remoteEndPoint, localEndpoint);
 		}
 
+		/// <summary> Constructor that wraps a <see cref="WebSocket"/> </summary>
+		/// <param name="ws"> <see cref="WebSocket"/> to wrap </param>
+		/// <param name="server"> <see cref="Server"/> model client is connected to </param>
 		public Client(WebSocket ws, Server server = null) : this() {
 			this.tcp = null;
 			this.tcpSocket = null;
@@ -153,6 +176,21 @@ namespace Ex {
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
 			Log.Info($"\\eClient \\y{identity}\\e connected from websocket \\y {ws}");
+		}
+
+		/// <summary> Constructor that models a connectionless/redirected/"unconnected" client </summary>
+		/// <param name="source"> Source for incoming data </param>
+		/// <param name="sink"> Sink for outgoing data </param>
+		/// <param name="server"> <see cref="Server"/> model client is connected to </param>
+		public Client(Func<string> source, Action<string> sink, Server server = null) : this() {
+			this.tcpSocket = null;
+			this.tcp = null;
+			this.ws = null;
+			if (server == null) { server = Server.NullInstance; }
+			this.server = server;
+			this.sink = sink;
+			this.source = source;
+			Log.Info($"\\eClient \\y{identity}\\e initialized in unconnected mode with Source/Sink \\y{source.Method.Name} / {sink.Method.Name}");
 		}
 
 		private void Initialize(EndPoint remoteEndPoint, EndPoint localEndpoint) {
@@ -239,6 +277,7 @@ namespace Ex {
 			string msg = FormatCall(callback, stuff);
 			udpOutgoing.Enqueue(msg);
 		}
+
 
 		/// <summary> Formats a message into a string intended to be sent over the network. </summary>
 		/// <param name="stuff"> Array of parameters to format. </param>

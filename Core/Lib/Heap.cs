@@ -45,7 +45,7 @@ namespace Ex.Utils {
 		/// <param name="cnt"> maximum index to consider. </param>
 		/// <param name="compare"> Optional override comparison function. If not provided, default `<see cref="IComparable{T}.CompareTo(T?)"/> is used. </param>
 		public static void SiftUp(T[] ts, int index, int cnt, Compare compare = null) {
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			// [MethodImpl(MethodImplOptions.AggressiveInlining)]
 			int cmp(T a, T b) { return (compare == null) ? a.CompareTo(b) : compare(a, b); }
 
 			if (index < 0 || index >= cnt) { return; }
@@ -69,7 +69,7 @@ namespace Ex.Utils {
 		/// <param name="cnt"> maximum index to consider. </param>
 		/// <param name="compare"> Optional override comparison function. If not provided, default `<see cref="IComparable{T}.CompareTo(T?)"/> is used. </param>
 		public static void SiftDown(T[] ts, int index, int cnt, Compare compare = null) {
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
+			// [MethodImpl(MethodImplOptions.AggressiveInlining)]
 			int cmp(T a, T b) { return (compare == null) ? a.CompareTo(b) : compare(a, b); }
 
 			if (index < 0 || index >= cnt) { return; }

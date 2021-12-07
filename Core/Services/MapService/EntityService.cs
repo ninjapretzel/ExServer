@@ -44,6 +44,9 @@ namespace Ex {
 
 		/// <summary> Message sent when an entity is marked as the local entity. Sent once when the entity is first sync'd to its own client. </summary>
 		public struct SetLocalEntity { public Guid id; }
+
+		/// <summary> </summary>
+		public struct CreateEntityForUser { public Guid userId; }
 		#endregion
 
 
@@ -97,10 +100,10 @@ namespace Ex {
 
 		}
 
-		/// <summary> Called when a login occurs. </summary>
+		/// <summary> Called to create an entity for a user. </summary>
 		/// <param name="succ"></param>
-		public void On(LoginService.LoginSuccess_Server succ) {
-			if (succ.client == null) { return; }
+		public void On(CreateEntityForUser message) {
+			
 			if (!isMaster) { return; }
 			// Log.Info("EntityService.On(LoginSuccess_Server)");
 			if (FindUser == null) {
@@ -108,11 +111,15 @@ namespace Ex {
 				return;
 			}
 
-			Client client = succ.client;
-			Guid clientId = client.id;
-			Log.Info($"{nameof(EntityService)}: Got LoginSuccess for {succ.client.identity} !");
-			var user = loginService.GetLogin(client);
-			Guid userId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
+			
+			//Guid clientId = client.id;
+			//Log.Info($"{nameof(EntityService)}: Got LoginSuccess for {succ.client.identity} !");
+			Guid userId = message.userId;
+			// var user = loginService.GetLogin(client);
+			var user = loginService.GetLogin(userId);
+			var client = user.HasValue ? user.Value.client : null;
+			Guid clientId = client?.id ?? Guid.Empty;
+			// Guid userId = user.HasValue ? user.Value.credentials.userId : Guid.Empty;
 			string username = user.HasValue ? user.Value.credentials.username : "[NoUser]";
 			
 			UserEntityInfo info = FindUser(userId);

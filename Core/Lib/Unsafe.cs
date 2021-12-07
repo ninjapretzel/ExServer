@@ -9,14 +9,19 @@ using System.Runtime.InteropServices;
 using Ex.Utils;
 using BakaTest;
 using Ex;
+using System.Reflection;
+using System.Collections.Generic;
 
 namespace Ex {
 	/// <summary> Static generic template-like class to cache information about structs </summary>
 	/// <typeparam name="T"> Struct type to cache information for </typeparam>
-	public static class StructInfo<T> where T : struct {
+	public static class StructInfo<T> where T : unmanaged {
 		/// <summary> Size of struct in bytes </summary>
 		public static readonly int size = Unsafe.SizeOf<T>();
+
 	}
+
+
 	#region Util Structs
 
 	/// <summary> Interop struct for packing a float[] into a struct, to allow proper use of network arrays embedded in structs </summary>
@@ -219,6 +224,129 @@ namespace Ex {
 	}
 
 	#endregion
+	
+	public class Safer {
+		public static class Info<T> where T : unmanaged {
+			public static readonly int size = Safer.SizeOf<T>();
+		}
+
+
+		private struct Two<T> where T : unmanaged { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
+		/// <summary> Generic, runtime sizeof() for value types with the added restriction of unmanaged interopability. </summary>
+		/// <typeparam name="T"> Type to check size of </typeparam>
+		/// <returns> Size of the type passed, in bytes. Returns the pointer size for </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal unsafe static int SizeOf<T>() where T : unmanaged {
+			Two<T> two = Two<T>.instance;
+			void* a = &two.first;
+			void* b = &two.second;
+			return (int)b - (int)a;
+		}
+		/// <summary>Extracts the bytes from a generic value type.</summary>
+		/// <typeparam name="T">Generic type. </typeparam>
+		/// <param name="obj">Instance of generic type <paramref name="T"/> to convert</param>
+		/// <returns>Raw byte array of the given object</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe byte[] ToBytes<T>(T t) where T : unmanaged {
+			byte[] bytes = new byte[Info<T>.size];
+			byte* pt = (byte*)&t;
+			for (int i = 0; i < bytes.Length; ++i) {bytes[i] = pt[i];}
+			return bytes;
+		}
+		/// <summary> Extracts bytes from a struct value into an existing byte[] array, starting at a position </summary>
+		/// <typeparam name="T"> Generic type of value parameter </typeparam>
+		/// <param name="value"> Value to extract data from </param>
+		/// <param name="bytes"> byte[] to place data into </param>
+		/// <param name="start"> starting index </param>
+		/// <returns> Modified byte[] </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe byte[] ToBytes<T>(T t, byte[] bytes, int start) where T: unmanaged {
+			byte* pt = (byte*)&t;
+			for (int i = 0; i+start < bytes.Length && i < Info<T>.size; ++i) {
+				bytes[i+start] = pt[i];
+			}
+			return bytes;
+		}
+
+		/// <summary> Extracts an arbitrary struct from a byte array, at a given position </summary>
+		/// <typeparam name="T"> Generic type of struct to extract </typeparam>
+		/// <param name="source"> Source byte[] </param>
+		/// <param name="start"> Index struct exists at </param>
+		/// <returns> Struct built from byte array, starting at index </returns>
+		public static unsafe T FromBytes<T>(byte[] source, int start) where T : unmanaged {
+			int sizeOfT = Info<T>.size;
+			if (start < 0) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): start index must be 0 or greater, was {start}");
+			}
+			if (sizeOfT + start > source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, start at {start}, and target is {sizeOfT} bytes in size, out of range.");
+			}
+			T result = default(T);
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i+start]; }
+
+			return result;
+		}
+
+		/// <summary>Converts a byte[] back into a struct.</summary>
+		/// <typeparam name="T">Generic type</typeparam>
+		/// <param name="source">Data source</param>
+		/// <returns>Object of type T assembled from bytes in source</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe T FromBytes<T>(byte[] source) where T: unmanaged {
+			int sizeOfT = Info<T>.size;
+			if (sizeOfT != source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
+			}
+			T result = default(T);
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
+
+			return result;
+		}
+
+		/// <summary>Converts a byte[] back into a struct.</summary>
+		/// <typeparam name="T">Generic type</typeparam>
+		/// <param name="source">Data source</param>
+		/// <returns>Object of type T assembled from bytes in source</returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : unmanaged {
+			int sizeOfT = StructInfo<T>.size;
+			if (sizeOfT != source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
+			}
+			T result = default(T);
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
+			ret = result;
+		}
+		/// <summary> Reinterprets an object's data from one type to another.</summary>
+		/// <typeparam name="TIn">Input struct type</typeparam>
+		/// <typeparam name="TOut">Output struct type</typeparam>
+		/// <param name="val">Value to convert</param>
+		/// <returns><paramref name="val"/>'s bytes converted into a <paramref name="TOut"/></returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static unsafe TOut Reinterpret<TIn, TOut>(TIn val) 
+			where TIn : unmanaged
+			where TOut : unmanaged {
+
+			int sizeIn = Info<TIn>.size;
+			int sizeOut = Info<TOut>.size;
+			if (sizeIn != sizeOut) { 
+				throw new Exception($"Unsafe.Reinterpret<{typeof(TIn)}, {typeof(TOut)}>(): Size of these types are different- {sizeIn} vs {sizeOut}.");
+			}
+
+			int size = sizeIn;
+			TOut result = default(TOut);
+			byte* pt = (byte*)&result;
+			byte* pv = (byte*)&val;
+			for (int i = 0; i < size; i++) { pt[i] = pv[i]; }
+
+			return result;
+		}
+
+
+	}
 
 	/// <summary> 
 	/// Not your safe-space. 
@@ -231,34 +359,33 @@ namespace Ex {
 		/// We may need to further branch if mono changes the TypedReference struct in a later version.
 		public static readonly bool MonoRuntime = Type.GetType("Mono.Runtime") != null;
 
+		public static class Info<T> where T : unmanaged {
+			public static readonly int size = Safer.SizeOf<T>();
+		}
+
+
+		private struct Two<T> where T : unmanaged { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
+		/// <summary> Generic, runtime sizeof() for value types with the added restriction of unmanaged interopability. </summary>
+		/// <typeparam name="T"> Type to check size of </typeparam>
+		/// <returns> Size of the type passed, in bytes. Returns the pointer size for </returns>
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal unsafe static int SizeOf<T>() where T : unmanaged {
+			Two<T> two = Two<T>.instance;
+			void* a = &two.first;
+			void* b = &two.second;
+			return (int)b - (int)a;
+		}
 		/// <summary>Extracts the bytes from a generic value type.</summary>
 		/// <typeparam name="T">Generic type. </typeparam>
 		/// <param name="obj">Instance of generic type <paramref name="T"/> to convert</param>
 		/// <returns>Raw byte array of the given object</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe byte[] ToBytes<T>(T value) where T : struct {
-			byte[] bytes = new byte[StructInfo<T>.size];
-			TypedReference valueRef = __makeref(value);
-			// Debug.Log($"Memory around ref of {typeof(T)}:\n{InspectMemory(&valueRef)}");
-
-			// Unsafe Abuse
-			// First of all we're getting a pointer to valueref (so that's a reference to our reference), 
-			// and treating it as a pointer to an IntPtr instead of a pointer to a TypedReference. 
-			// This works because the first 4/8 bytes in the TypedReference struct are an IntPtr 
-			// specifically the pointer to value. Then we dereference that IntPtr pointer to a regular old IntPtr, 
-			// and finally cast that IntPtr to a byte* so we can use it in the copy code below.
-
-			// @oddity @hack
-			// Mono's implementation of the TypedReference struct has the type first and the reference second
-			// So we have to dereference the second segment to get the actual reference.
-			byte* valuePtr = MonoRuntime ? ((byte*)*(((IntPtr*)&valueRef)+1)) : ((byte*)*((IntPtr*)&valueRef));
-			
-			for (int i = 0; i < bytes.Length; ++i) {
-				bytes[i] = valuePtr[i];
-			}
+		public static unsafe byte[] ToBytes<T>(T t) where T : unmanaged {
+			byte[] bytes = new byte[Info<T>.size];
+			byte* pt = (byte*)&t;
+			for (int i = 0; i < bytes.Length; ++i) { bytes[i] = pt[i]; }
 			return bytes;
 		}
-
 		/// <summary> Extracts bytes from a struct value into an existing byte[] array, starting at a position </summary>
 		/// <typeparam name="T"> Generic type of value parameter </typeparam>
 		/// <param name="value"> Value to extract data from </param>
@@ -266,46 +393,30 @@ namespace Ex {
 		/// <param name="start"> starting index </param>
 		/// <returns> Modified byte[] </returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe byte[] ToBytes<T>(T value, byte[] bytes, int start) where T : struct {
-			TypedReference valueRef = __makeref(value);
-
-			// @oddity @hack
-			// Mono's implementation of the TypedReference struct has the type first and the reference second
-			// So we have to dereference the second segment to get the actual reference.
-			byte* valuePtr = MonoRuntime ? ((byte*)*(((IntPtr*)&valueRef) + 1)) : ((byte*)*((IntPtr*)&valueRef));
-			
-			for (int i = 0; i+start < bytes.Length; i++) {
-				bytes[i+start] = valuePtr[i];
+		public static unsafe byte[] ToBytes<T>(T t, byte[] bytes, int start) where T : unmanaged {
+			byte* pt = (byte*)&t;
+			for (int i = 0; i + start < bytes.Length && i < Info<T>.size; ++i) {
+				bytes[i + start] = pt[i];
 			}
-
 			return bytes;
 		}
+
 		/// <summary> Extracts an arbitrary struct from a byte array, at a given position </summary>
 		/// <typeparam name="T"> Generic type of struct to extract </typeparam>
 		/// <param name="source"> Source byte[] </param>
 		/// <param name="start"> Index struct exists at </param>
 		/// <returns> Struct built from byte array, starting at index </returns>
-		public static unsafe T FromBytes<T>(byte[] source, int start) where T : struct {
-			int sizeOfT = StructInfo<T>.size;
+		public static unsafe T FromBytes<T>(byte[] source, int start) where T : unmanaged {
+			int sizeOfT = Info<T>.size;
 			if (start < 0) {
 				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): start index must be 0 or greater, was {start}");
 			}
 			if (sizeOfT + start > source.Length) {
 				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, start at {start}, and target is {sizeOfT} bytes in size, out of range.");
 			}
-
-			// has exactly the same idea behind it as the similar line in the ToBytes method- 
-			// we're getting the pointer to result.
 			T result = default(T);
-			TypedReference resultRef = __makeref(result);
-			// @oddity @hack
-			// Mono's implementation of the TypedReference struct has the type first and the reference second
-			// So we have to dereference the second segment to get the actual reference.
-			byte* resultPtr = MonoRuntime ? ((byte*)*(((IntPtr*)&resultRef) + 1)) : ((byte*)*((IntPtr*)&resultRef));
-
-			for (int i = 0; i < sizeOfT; ++i) {
-				resultPtr[i] = source[start+i];
-			}
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i + start]; }
 
 			return result;
 		}
@@ -315,21 +426,14 @@ namespace Ex {
 		/// <param name="source">Data source</param>
 		/// <returns>Object of type T assembled from bytes in source</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe T FromBytes<T>(byte[] source) where T : struct {
-			int sizeOfT = StructInfo<T>.size;
-			if (sizeOfT != source.Length) { 
-				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size."); 
+		public static unsafe T FromBytes<T>(byte[] source) where T : unmanaged {
+			int sizeOfT = Info<T>.size;
+			if (sizeOfT != source.Length) {
+				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
 			}
-
-			// has exactly the same idea behind it as the similar line in the ToBytes method- 
-			// we're getting the pointer to result.
 			T result = default(T);
-			TypedReference resultRef = __makeref(result);
-			byte* resultPtr = MonoRuntime ? ((byte*) *( ((IntPtr*)&resultRef) + 1 )) : ((byte*)*((IntPtr*)&resultRef));
-
-			for (int i = 0; i < sizeOfT; ++i) {
-				resultPtr[i] = source[i];
-			}
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
 
 			return result;
 		}
@@ -339,102 +443,68 @@ namespace Ex {
 		/// <param name="source">Data source</param>
 		/// <returns>Object of type T assembled from bytes in source</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : struct {
+		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : unmanaged {
 			int sizeOfT = StructInfo<T>.size;
 			if (sizeOfT != source.Length) {
 				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
 			}
-
-			// has exactly the same idea behind it as the similar line in the ToBytes method- 
-			// we're getting the pointer to result.
 			T result = default(T);
-			TypedReference resultRef = __makeref(result);
-			// @oddity @hack
-			// Mono's implementation of the TypedReference struct has the type first and the reference second
-			// So we have to dereference the second segment to get the actual reference.
-			byte* resultPtr = MonoRuntime ? ((byte*) *( ((IntPtr*)&resultRef) + 1 )) : ((byte*)*((IntPtr*)&resultRef));
-
-			for (int i = 0; i < sizeOfT; ++i) {
-				resultPtr[i] = source[i];
-			}
+			byte* pt = (byte*)&result;
+			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
 			ret = result;
 		}
-
-		/// <summary> Helper class for generic SizeOf&lt;T&gt; method</summary>
-		/// <typeparam name="T">Struct type to hold two of </typeparam>
-		private static class ArrayOfTwoElements<T> where T : struct { public static readonly T[] Value = new T[2]; }
-		/// <summary> Helper class for generic SizeOf&lt;T&gt; method</summary>
-		/// <typeparam name="T"> Struct type to whole two of </typeparam>
-		[StructLayout(LayoutKind.Sequential, Pack=1)]
-		private struct Two<T> where T : struct { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
-
-		/// <summary> Generic, runtime sizeof() for value types. </summary>
-		/// <typeparam name="T">Type to check size of </typeparam>
-		/// <returns>Size of the type passed, in bytes. Returns the pointer size for </returns>
+		/// <summary> Reinterprets an object's data from one type to another.</summary>
+		/// <typeparam name="TIn">Input struct type</typeparam>
+		/// <typeparam name="TOut">Output struct type</typeparam>
+		/// <param name="val">Value to convert</param>
+		/// <returns><paramref name="val"/>'s bytes converted into a <paramref name="TOut"/></returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal static int SizeOf<T>() where T : struct {
-			Type type = typeof(T);
+		public static unsafe TOut Reinterpret<TIn, TOut>(TIn val)
+			where TIn : unmanaged
+			where TOut : unmanaged {
 
-			TypeCode typeCode = Type.GetTypeCode(type);
-			switch (typeCode) {
-				case TypeCode.Boolean:
-					return sizeof(bool);
-				case TypeCode.Char:
-					return sizeof(char);
-				case TypeCode.SByte:
-					return sizeof(sbyte);
-				case TypeCode.Byte:
-					return sizeof(byte);
-				case TypeCode.Int16:
-					return sizeof(short);
-				case TypeCode.UInt16:
-					return sizeof(ushort);
-				case TypeCode.Int32:
-					return sizeof(int);
-				case TypeCode.UInt32:
-					return sizeof(uint);
-				case TypeCode.Int64:
-					return sizeof(long);
-				case TypeCode.UInt64:
-					return sizeof(ulong);
-				case TypeCode.Single:
-					return sizeof(float);
-				case TypeCode.Double:
-					return sizeof(double);
-				case TypeCode.Decimal:
-					return sizeof(decimal);
-				default: unsafe {
-#if USE_ARRAY
-					T[] array = ArrayOfTwoElements<T>.Value;
-					GCHandle pin = GCHandle.Alloc(array, GCHandleType.Pinned);
-					try {
-						var ref0 = __makeref(array[0]);
-						var ref1 = __makeref(array[1]);
-						// @oddity @hack
-						// Mono's implementation of the TypedReference struct has the type first and the reference second
-						// So we have to dereference the second segment to get the actual reference.
-						IntPtr p0 = MonoRuntime ? (*( ((IntPtr*)&ref0) + 1)) : (*((IntPtr*)&ref0));
-						IntPtr p1 = MonoRuntime ? (*( ((IntPtr*)&ref1) + 1)) : (*((IntPtr*)&ref1));
-						
-						return (int)(((byte*)p1) - ((byte*)p0));
-					} finally { pin.Free(); }
-#else
-					Two<T> two = Two<T>.instance;
-					TypedReference ref0 = __makeref(two.first);
-					TypedReference ref1 = __makeref(two.second);
-					// @oddity @hack
-					// Mono's implementation of the TypedReference struct has the type first and the reference second
-					// So we have to dereference the second segment to get the actual reference.
-					IntPtr p0 = MonoRuntime ? (*(((IntPtr*)&ref0) + 1)) : (*((IntPtr*)&ref0));
-					IntPtr p1 = MonoRuntime ? (*(((IntPtr*)&ref1) + 1)) : (*((IntPtr*)&ref1));
-#endif
-					
-					return (int)(((byte*)p1) - ((byte*)p0));
-					
-				}
+			int sizeIn = Info<TIn>.size;
+			int sizeOut = Info<TOut>.size;
+			if (sizeIn != sizeOut) {
+				throw new Exception($"Unsafe.Reinterpret<{typeof(TIn)}, {typeof(TOut)}>(): Size of these types are different- {sizeIn} vs {sizeOut}.");
 			}
+
+			int size = sizeIn;
+			TOut result = default(TOut);
+			byte* pt = (byte*)&result;
+			byte* pv = (byte*)&val;
+			for (int i = 0; i < size; i++) { pt[i] = pv[i]; }
+
+			return result;
 		}
 
+
+		/// <summary> Inspect a <see cref="TypedReference"/> in gory detail.  </summary>
+		/// <param name="tr"> <see cref="TypedReference"/> to inspect </param>
+		public static unsafe string Inspect(TypedReference tr) {
+			Type type = __reftype(tr);
+			string pt(IntPtr p) { return $"0x{p.ToInt64():X16}"; }
+			string pp(IntPtr* p) { return pt((IntPtr)p); }
+			IntPtr ptrToTr = (IntPtr)(&tr);
+			IntPtr* ptrToPtrToData = (IntPtr*)&tr;
+			IntPtr* ptrToPtrToType = (IntPtr*)&tr;
+			if (MonoRuntime) { ptrToPtrToData++; } else { ptrToPtrToType++; }
+			IntPtr ptrToData = *ptrToPtrToData;
+			IntPtr ptrToType = *ptrToPtrToType;
+
+			string msg = MonoRuntime
+				? "We're on mono runtime, so the pointer to the type comes first, then the pointer to the thing."
+				: "We're on .net runtime, so the pointer to the thing comes first, then the pointer to the type.";
+
+			return $"Unsafe.Inspect(TypedReference): MonoRuntime Reports: {MonoRuntime}."
+				+ $"\nTypedReference @ {pt(ptrToTr)} points to a {type} object."
+				// Depending on the endianness of your system, you may need to swap this call...
+				+ $"\n{InspectMemoryReverse(&tr)}"
+				+ $"\n{msg}"
+				+ $"\nptrToThing: {pt(ptrToData)} @ {pp(ptrToPtrToData)}"
+				+ $"\nptrToType : {pt(ptrToType)} @ {pp(ptrToPtrToType)}";
+
+		}
 		/// <summary> Inspect the raw memory around a pointer </summary>
 		/// <param name="p"> Pointer to inspect </param>
 		/// <param name="length"> Total number of bytes to inspect </param>
@@ -443,6 +513,7 @@ namespace Ex {
 		public static unsafe string InspectMemory(IntPtr p, int length = 16, int stride = 8) {
 			return InspectMemory((void*)p, length, stride);
 		}
+
 
 		/// <summary> Inspect the raw memory around a pointer </summary>
 		/// <param name="p"> Pointer to inspect </param>
@@ -461,35 +532,27 @@ namespace Ex {
 			return str.ToString();
 		}
 
+		/// <summary> Inspect the raw memory around a pointer </summary>
+		/// <param name="p"> Pointer to inspect </param>
+		/// <param name="length"> Total number of bytes to inspect </param>
+		/// <param name="stride"> Number of bytes to put on a single line </param>
+		/// <returns> String holding hexdump of the memory at the given location </returns>
+		public static unsafe string InspectMemoryReverse(void* p, int length = 16, int stride = 8) {
+			StringBuilder str = "";
+			byte* bp = (byte*)p;
+			int lines = length / stride;
 
-		/// <summary> Reinterprets an object's data from one type to another.</summary>
-		/// <typeparam name="TIn">Input struct type</typeparam>
-		/// <typeparam name="TOut">Output struct type</typeparam>
-		/// <param name="val">Value to convert</param>
-		/// <returns><paramref name="val"/>'s bytes converted into a <paramref name="TOut"/></returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe TOut Reinterpret<TIn, TOut>(TIn val)
-			where TIn : struct
-			where TOut : struct {
-			
-			TOut result = default(TOut);
-			int sizeBytes = StructInfo<TIn>.size;
-			if (sizeBytes != StructInfo<TOut>.size) { return result; }
+			for (int i = 0; i < lines; i++) {
+				str += (i == 0 ? "0x" : "\n0x");
+				for (int k = 0; k < stride; k++) {
+					str += String.Format("{0:X2}", bp[i * stride + stride - k - 1]);
 
-			TypedReference resultRef = __makeref(result);
-			TypedReference valRef = __makeref(val);
-			// @oddity @hack
-			// Mono's implementation of the TypedReference struct has the type first and the reference second
-			// So we have to dereference the second segment to get the actual reference.
-			byte* resultPtr = MonoRuntime ? ((byte*)*(((IntPtr*)&resultRef + 1))) : ((byte*)*(((IntPtr*)&resultRef)));
-			byte* valPtr = MonoRuntime ? ((byte*)*(((IntPtr*)&valRef + 1))) : ((byte*)*(((IntPtr*)&valRef)));
-
-			for (int i = 0; i < sizeBytes; ++i) {
-				resultPtr[i] = valPtr[i];
+				}
+				
 			}
-
-			return result;
+			return str.ToString();
 		}
+
 		
 	}
 

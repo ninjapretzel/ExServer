@@ -553,7 +553,7 @@ namespace Ex {
 		/// <param name="type"> Variant of Argon2 to use </param>
 		/// <param name="size"> Hash length </param>
 		/// <returns> <see cref="HashFn"/> that performs Argon2 with the given parameters </returns>
-		public static HashFn Argon2Hash(int iterations = 3, int memoryCost = 1024*32, int threads = 8, string? secret = null, Argon2Type type = Argon2Type.HybridAddressing, int size = 32) {
+		public static HashFn Argon2Hash(int iterations = 3, int memoryCost = 1024*32, int threads = 8, string secret = null, Argon2Type type = Argon2Type.HybridAddressing, int size = 32) {
 			return (pass) => {
 				DateTime start = DateTime.UtcNow;
 				var result = Argon2.Hash(pass, secret, iterations, memoryCost, threads, type, size);
@@ -566,7 +566,7 @@ namespace Ex {
 		/// <param name="secret"> Optional secret to use </param>
 		/// <param name="threads"> Threads to use </param>
 		/// <returns></returns>
-		public static VerifyFn Argon2Verify(int threads = 8, string? secret = null) {
+		public static VerifyFn Argon2Verify(int threads = 8, string secret = null) {
 			return (hash, pass) => {
 				DateTime start = DateTime.UtcNow;
 				var result = Argon2.Verify(hash, pass, threads);

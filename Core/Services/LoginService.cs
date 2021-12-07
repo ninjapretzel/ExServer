@@ -287,19 +287,14 @@ namespace Ex {
 			if (isMaster) {
 				if (loginsByClient.ContainsKey(client)) {
 					Log.Info($"Disconnection by {client.identity} is causing a logout.");
+					Guid guid = loginsByClient[client].credentials.userId;
 					loginsByClient.Remove(client);
+					loginsByUserId.Remove(guid);
 				}
 			}
 		}
 
 		public override void OnFinishedDisconnected(Client client) {
-			if (loginsByClient.ContainsKey(client)) {
-				Log.Verbose($"Logging out {client.identity}");
-				Guid guid = loginsByClient[client].credentials.userId;
-				
-				loginsByClient.Remove(client);
-				loginsByUserId.Remove(guid);
-			}
 			
 		}
 #else
@@ -310,6 +305,7 @@ namespace Ex {
 #endif
 
 		private int _isAttemptingLogin;
+		/// <summary> Returns true if there is currently a login attempt, false otherwise. </summary>
 		public bool isAttemptingLogin { get { return _isAttemptingLogin != 0; } }
 		private string loginName;
 		/// <summary> Begins a login for the given username/password pair </summary>
@@ -333,15 +329,23 @@ namespace Ex {
 		public void LoginResponse(RPCMessage msg) {
 			if (!isMaster) {
 				Interlocked.Exchange(ref _isAttemptingLogin, 0);
-				Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}] / [{msg[2]}] / [{msg[3]}]");
+				if (msg.numArgs > 2) {
+					Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}] / [{msg[2]}] / [{msg[3]}]");
+				} else {
+					Log.Info($"LoginResponse: {msg[0]}, [{msg[1]}]");
+				}
 				if (msg[0] == "succ" && msg[1] == loginName) {
+					Log.Info($"LoginSuccess_Client");
+
 					localLogin = new Credentials(loginName, msg[2], msg[3]);
 					server.On(new LoginSuccess_Client() { credentials = localLogin } );
 				} else {
-					if (msg[1] != loginName) {
-						server.On(new LoginFailure_Client() { reason = $"Server responded with wrong name. Expected {loginName} got {msg[1]}." });
-					} else {
+					if (msg[0] == "fail") {
+						Log.Info($"LoginFailure_Client / {msg[1]}");
 						server.On(new LoginFailure_Client() { reason = msg[1] });
+					} else {
+						Log.Info($"LoginFailure_Client / Wrong name");
+						server.On(new LoginFailure_Client() { reason = $"Server responded with wrong name. Expected {loginName} got {msg[1]}." });
 					}
 				}
 			}	

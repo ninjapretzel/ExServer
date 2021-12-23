@@ -185,14 +185,15 @@
 	// This is the base data that any unit
 	// that does not have a custom "BaseCombatStats"
 	// stats are added to.
+	
 	BaseCombatStats: {
 		vitals: [ "Health", ],
 		resources: [ "Health", ],
 		maxHealth:	100.000,
 		// The following are omitted from most units to disable resource recovery.
-		//recHealth:	000.000,
-		//repHealth:	000.000,
-		//useHealth:	000.000,
+		//reCHealth:	000.000, // recovery constant _____
+		//rePHealth:	000.000, // recovery percentage _____
+		//useHealth:	000.000, // use item health recovery+ _____%
 		// Players and such will have them.
 		
 		atka:		005.000,	atkb:		010.000,
@@ -214,7 +215,7 @@
 		maxHealth:	000.100,	recHealth:	001.000,	repHealth:	002.000,
 		
 		atka:		000.200,	atkb:		000.200,
-		acc:		010.000,	def:		000.400,
+		acc:		001.000,	def:		000.400,
 		
 		// these still don't potentially contribute much exp even when near 100% 
 		res:		010.000,	eva:		010.000,

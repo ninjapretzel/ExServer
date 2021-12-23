@@ -475,34 +475,7 @@ namespace Ex {
 
 			return result;
 		}
-
-
-		/// <summary> Inspect a <see cref="TypedReference"/> in gory detail.  </summary>
-		/// <param name="tr"> <see cref="TypedReference"/> to inspect </param>
-		public static unsafe string Inspect(TypedReference tr) {
-			Type type = __reftype(tr);
-			string pt(IntPtr p) { return $"0x{p.ToInt64():X16}"; }
-			string pp(IntPtr* p) { return pt((IntPtr)p); }
-			IntPtr ptrToTr = (IntPtr)(&tr);
-			IntPtr* ptrToPtrToData = (IntPtr*)&tr;
-			IntPtr* ptrToPtrToType = (IntPtr*)&tr;
-			if (MonoRuntime) { ptrToPtrToData++; } else { ptrToPtrToType++; }
-			IntPtr ptrToData = *ptrToPtrToData;
-			IntPtr ptrToType = *ptrToPtrToType;
-
-			string msg = MonoRuntime
-				? "We're on mono runtime, so the pointer to the type comes first, then the pointer to the thing."
-				: "We're on .net runtime, so the pointer to the thing comes first, then the pointer to the type.";
-
-			return $"Unsafe.Inspect(TypedReference): MonoRuntime Reports: {MonoRuntime}."
-				+ $"\nTypedReference @ {pt(ptrToTr)} points to a {type} object."
-				// Depending on the endianness of your system, you may need to swap this call...
-				+ $"\n{InspectMemoryReverse(&tr)}"
-				+ $"\n{msg}"
-				+ $"\nptrToThing: {pt(ptrToData)} @ {pp(ptrToPtrToData)}"
-				+ $"\nptrToType : {pt(ptrToType)} @ {pp(ptrToPtrToType)}";
-
-		}
+		
 		/// <summary> Inspect the raw memory around a pointer </summary>
 		/// <param name="p"> Pointer to inspect </param>
 		/// <param name="length"> Total number of bytes to inspect </param>

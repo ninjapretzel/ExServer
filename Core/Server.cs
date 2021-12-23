@@ -522,13 +522,13 @@ namespace Ex {
 						}
 						message = msg.ToBytesUTF8();
 						ArraySegment<byte> seg = new ArraySegment<byte>(msg.ToBytesUTF8(), 0, message.Length);
+						// Unfortunately websockets are async only...
 						if (last == null) {
 							last = client.ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None);
 						} else {
 							last = last.ContinueWith((_)=>{
 								client.ws.SendAsync(seg, WebSocketMessageType.Text, true, CancellationToken.None);
 							});
-							
 						}
 						continue;
 					}
@@ -541,11 +541,9 @@ namespace Ex {
 						}
 
 					}
-
-					msg += RPCMessage.EOT;
-					message = msg.ToBytesUTF8();
-					message = client.enc(message);
-
+					msg += RPCMessage.EOT; // mark end of message
+					message = msg.ToBytesUTF8(); // convert to utf8
+					message = client.enc(message); // encrypt
 					
 					if (client.tcp != null) {
 						client.tcpStream.Write(message, 0, message.Length);
@@ -553,7 +551,6 @@ namespace Ex {
 						client.tcpSocket.Send(message, message.Length, SocketFlags.None);
 					}
 				}
-				
 					
 			} catch (ObjectDisposedException e) {
 				Log.Verbose($"Server.SendData(Client): {client.identity} Probably Disconnected. {e.GetType()}", e);

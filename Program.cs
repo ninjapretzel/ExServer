@@ -71,7 +71,8 @@ namespace Ex {
 				// Still more visible than doing some weird VS build command hook.
 				try {
 					if (copySources) {
-						Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Eternus/Assets/Plugins/ExClient/Core");
+						//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Eternus/Assets/Plugins/ExClient/Core");
+						
 						//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 						//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
 					}
@@ -284,10 +285,8 @@ namespace Ex {
 
 			if (config.Has<JsonArray>("httpHost")) {
 				string[] hostnames = config.Get<string[]>("httpHost");
-				Console.WriteLine($"HTTP Listening at: ");
-				foreach (var host in hostnames) {
-					Console.WriteLine($"\t{host}");
-				}
+				Log.Info($"HTTP Listening at:\n\t{string.Join("\n\t", hostnames)}");
+				
 				httpTask = HttpServer.Watch(hostnames, ()=>running, 1000, middleware.ToArray());
 
 			} else {

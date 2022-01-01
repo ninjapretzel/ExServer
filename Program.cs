@@ -303,7 +303,7 @@ namespace Ex {
 			server = new Server(32055, 100);
 
 			// server.AddService<Poly.PolyGame>();
-			// server.AddService<Eternus.Game>();
+			server.AddService<Eternus.Game>();
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
 			server.AddService<EntityService>();

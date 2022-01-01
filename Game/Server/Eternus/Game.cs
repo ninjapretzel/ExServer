@@ -9,12 +9,13 @@ using Ex.Utils;
 using Ex.Utils.Ext;
 using Random = System.Random;
 
-namespace Infinigrinder {
+namespace Eternus {
 	
 	/// <summary> Server side logic for the Eternus game </summary>
 	public class Game : Ex.Service {
+
 		static LocalDB<GameState> gameStateDB = DB.Of<GameState>.db;
-		static LocalDB<UnitRecord> unitDB = DB.Of<UnitRecord>.db;
+		//static LocalDB<UnitRecord> unitDB = DB.Of<UnitRecord>.db;
 		static LocalDB inventoryDB = DB.Local("Inventory");
 
 		LoginService login;
@@ -23,6 +24,7 @@ namespace Infinigrinder {
 
 		StatCalc statCalc;
 		Heap<LiveGame> liveGames;
+		ConcurrentSet<LiveGame> loggedOut;
 		Dictionary<string, LiveGame> logins;
 
 		public class LiveGame : IComparable<LiveGame> {
@@ -35,6 +37,10 @@ namespace Infinigrinder {
 				lastUpdate = DateTime.UtcNow;
 				state = gameStateDB.Open(""+creds.userId);
 			}
+			public void Updated() {
+				lastUpdate = DateTime.UtcNow;
+				Log.Info($"Updated {creds.username} at {lastUpdate}");
+			}
 			
 			public int CompareTo(LiveGame obj) { return lastUpdate.CompareTo(obj.lastUpdate); }
 		}
@@ -46,15 +52,16 @@ namespace Infinigrinder {
 
 		/// <summary> Callback when all services are loaded on the server.</summary>
 		public override void OnStart() {
-			Log.Info("Infinigrinder.Game.OnStart()");
+			Log.Info("Eternus.Game.OnStart()");
 			string s = gameStateDB != null ? gameStateDB.ToString() : "null";
-			Log.Info($"DB is {s}");
+			// Log.Info($"DB is {s}");
 
 			login = GetService<LoginService>();
 			sync = GetService<SyncService>();
 			entity = GetService<EntityService>();
 
 			liveGames = new Heap<LiveGame>();
+			loggedOut = new ConcurrentSet<LiveGame>();
 			logins = new Dictionary<string, LiveGame>();
 
 			entity.RegisterUserEntityInfo<GameState>();
@@ -65,6 +72,8 @@ namespace Infinigrinder {
 			DB.Drop<UnitRecord>();
 			DB.Drop("Inventory");
 
+			DB.Drop<List<LoginService.UserAccountCreation>>();
+
 			JsonObject test = new JsonObject(
 				"str", 5, "dex", 12, 
 				"maxHealth", 200,
@@ -72,26 +81,34 @@ namespace Infinigrinder {
 				"what", 123123
 			);
 
-			JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
-			JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
-			Log.Info(result1);
-			Log.Info(result2);
+			//JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
+			//JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
+			//Log.Info(result1);
+			//Log.Info(result2);
 			
 
-			
 		}
+			
 
 		public void On(LoginService.LoginSuccess_Server succ) {
 			LiveGame live = new LiveGame(succ.creds);
-			
 			logins[succ.creds.username] = live;
 			liveGames.Push(live);
 
+		}
+		public void On(LoginService.Logout_Server logout) {
+			var name = logout.creds.username;
+			if (logins.ContainsKey(name)) {
+				Log.Info($"On(Logout_Server): user {name} being logged out next tick");
+				LiveGame live = logins[name];
+				loggedOut.Add(live);
 
-			
-			
+			} else {
+				Log.Warning($"On(Logout_Server): user {name} never bound to a LiveGame!");
+			}
 
 		}
+		
 
 		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
@@ -101,6 +118,9 @@ namespace Infinigrinder {
 			Log.Info($"Initializing user {guid}...");
 			
 			GameState gs = new GameState();
+
+			gs.stats = Auto.Init<Stats>();
+			gs.stats.baseStats += 10;
 
 			gs.map = "avalon";
 			gs.position = new Vector3(-160, -360, 0);
@@ -112,19 +132,19 @@ namespace Infinigrinder {
 				gs.exp[kind] = 0;
 			}
 			gs.color = new Vector4(1, .5f, .5f, 1).Hex();
-			gs.wallet[Currency.Gold] = 100;
-			gs.wallet[Currency.Plat] = 0;
-			gs.wallet[Currency.Crystal] = 10;
+			gs.wallet[Currency.Brouzouf] = 100;
+			gs.wallet[Currency.Eternium] = 0;
+			gs.wallet[Currency.Forevite] = 10;
 			gameStateDB.Save(id, gs);
 
 			JsonObject inv = new JsonObject();
 			inventoryDB.Save(id, inv);
 			
-			UnitRecord unit = new UnitRecord();
-			unit.owner = guid;
-			unit.stats.baseStats += 5;
+			//UnitRecord unit = new UnitRecord();
+			//unit.owner = guid;
+			//unit.stats.baseStats += 5;
 			
-			unitDB.Save(id, unit);
+			//unitDB.Save(id, unit);
 
 
 			
@@ -135,12 +155,36 @@ namespace Infinigrinder {
 			
 		}
 
+		const float TickTime = 6f;
 		/// <summary> Callback every global server tick </summary>
 		/// <param name="delta"> Delta between last tick and 'now' </param>
 		public override void OnTick(float delta) {
 			if (liveGames.Count > 0) {
+				LiveGame peek = liveGames.Peek();
+				TimeSpan diff = DateTime.UtcNow - peek.lastUpdate;
+				while (diff.TotalSeconds > TickTime && liveGames.Count > 0) {
+					LiveGame next = liveGames.Peek();
+					Guid id = next.creds.userId;
+					string name = next.creds.username;
+					diff = DateTime.UtcNow - next.lastUpdate;
+					if (diff.TotalSeconds < TickTime) { break; }
+					try {
+						next = liveGames.Pop();
+						next.Updated();
+						Log.Info($"Ticking {name}'s game data. ID={id}");
+						next.state.stats.baseExp += 1;
 
-				//Log.Info($"Ticking {liveGames.Count} games");
+						gameStateDB.Save($"{id}", next.state);
+					} catch (Exception e) {
+						Log.Warning($"Game.OnTick: Error during tick", e);
+					} finally {
+						if (loggedOut.Contains(next)) { 
+							Log.Info($"Stopping ticks for {name}");
+						} else {
+							liveGames.Push(next);
+						}
+					}
+				}
 			}
 
 		}

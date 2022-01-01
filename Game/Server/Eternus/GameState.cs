@@ -6,19 +6,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Infinigrinder {
+namespace Eternus {
 	
 	/// <summary> Database object for the primary user save data. </summary>
 	public class GameState : EntityService.UserEntityInfo {
 
-		public List<Guid> units { get; set; }
+		//public List<Guid> units { get; set; }
 		public JsonObject flags;
+		public Stats stats;
 		public Store<AccountLevels> levels;
 		public Store<AccountLevels> exp;
 		public Store<Currency> wallet; 
 		
 		public GameState() : base() { 
-			units = new List<Guid>();
+			//units = new List<Guid>();
 			flags = new JsonObject();
 			levels = new Store<AccountLevels>();
 			exp = new Store<AccountLevels>();
@@ -45,48 +46,109 @@ namespace Infinigrinder {
 	}
 
 	public enum Currency {
-		Gold, Plat, Crystal,
+		/// <summary> Primary in-game currency. </summary>
+		Brouzouf,
+		/// <summary> Premium currency earned in-game. </summary>
+		Eternium,
+		/// <summary> Premium currency purchased. </summary>
+		Forevite,
 	}
 	public enum AccountLevels {
-		Primary,
-		Gathering, Refining,
-		Cooking, Alchemy, 
-		Armorsmith, Weaponsmith, Jewelcraft,
-	}
-	public enum UnitLevels {
 		Primary, Job,
-		
-
+		//Gathering, Refining,
+		//Cooking, Alchemy, 
+		//Armorsmith, Weaponsmith, Jewelcraft,
 	}
-
+	
 	public enum Element {
-		Fast, Heavy, Long,
-		Slash, Pierce, Impact,
-		Light, Fire, Earth,
-		Dark, Water, Wind,
+		/// <summary> Represents fast weapons like daggers or claws </summary>
+		Fast, 
+		/// <summary> Represents heavy weapons like axes and hammers </summary>
+		Heavy, 
+		/// <summary> Represents long weapons like axes and hammers </summary>
+		Long,
+
+		/// <summary> Represents damage like slashing, rending, tearing </summary>
+		Slash, 
+		/// <summary> Represents damage like puncturing, pricking, stabbing  </summary>
+		Pierce, 
+		/// <summary> Represents damage like impacting, crushing, smashing </summary>
+		Impact,
+
+		/// <summary> Represents damage from light magic </summary>
+		Light, 
+		/// <summary> Represents damage from fire magic </summary>
+		Fire, 
+		/// <summary> Represents damage from earth magic </summary>
+		Earth,
+		/// <summary> Represents damage from dark magic </summary>
+		Dark, 
+		/// <summary> Represents damage from water magic </summary>
+		Water, 
+		/// <summary> Represents damage from wind magic </summary>
+		Wind,
 	}
 
 	public enum Resource {
-		Health, Mana, Spirit, Stamina,
+		/// <summary> Primary resource for staying alive </summary>
+		Health, 
+		/// <summary> Resource for magic skills </summary>
+		Mana, 
+		/// <summary> Resource for non-magic skills </summary>
+		Spirit, 
+		/// <summary> Resource for improved movement </summary>
+		Stamina,
+		/// <summary> Resource for protecting from damage </summary>
+		Shield, 
 	}
 
 	public enum BaseStats {
-		Pow, Grd, Sta,
-		Skl, Agi, Spr,
+		/// <summary> Stat for damaging things more </summary>
+		Pow, 
+		/// <summary> Stat for being more accurate </summary>
+		Aim,
+		/// <summary> Stat for taking less damage </summary>
+		Grd, 
+		/// <summary> Stat for having more health </summary>
+		Sta,
+		/// <summary> Stat for being lucky </summary>
 		Lck,
 	}
 	public enum IntermediateStats {
-		Armor, Shell,
-		Rflex, Intut,
-		Sight, Tough,
+		/// <summary> Gives additional <see cref="CombatRatios.Res"/> </summary>
+		Armor, 
+		/// <summary> Gives additional <see cref="CombatRatios.Eva"/> </summary>
+		Rflex, 
+		/// <summary> Gives additional <see cref="CombatRatios.Crit"/> </summary>
+		Sight, 
+		/// <summary> Gives additional <see cref="CombatRatios.Flex"/> </summary>
+		Tough,
 	}
 	public enum CombatStats {
-		Atka, Atkb, Acc, Def,
-		Aspd, Cspd, Mspd,
+		/// <summary> Additional damage </summary>
+		Atka, 
+		/// <summary> Base damage </summary>
+		Atkb, 
+		/// <summary> Accuracy </summary>
+		Acc, 
+		/// <summary> Defense, exact damage reduction </summary>
+		Def,
+		/// <summary> Attack Speed </summary>
+		Aspd, 
+		/// <summary> Cast/Channel/ Ability Speed </summary>
+		Cspd, 
+		/// <summary> Movement Speed </summary>
+		Mspd,
 	}
 	public enum CombatRatios {
-		Res, Eva,
-		Crit, Flex,
+		/// <summary> Resistance, percentage damage reduction </summary>
+		Res, 
+		/// <summary> Evasion, subtracted from accuracy </summary>
+		Eva,
+		/// <summary> Critical chance </summary>
+		Crit, 
+		/// <summary> Flexibility, crit reduction percentage. (50% crit vs 50% flex = 25% crit) </summary>
+		Flex,
 	}
 
 	/// <summary> Data for a function to derive stat values used in stat calculations. </summary>
@@ -166,22 +228,43 @@ namespace Infinigrinder {
 
 	/// <summary> Holds collections of <see cref="Store{K, V}"/>s for all stat groups. </summary>
 	public class Stats {
-		public Store<Resource> max, rec, rep;
+		/// <summary> Maximum of resources </summary>
+		public Store<Resource> max;
+		/// <summary> REcover Constant</summary>
+		public Store<Resource> rec;
+		/// <summary> REcover Percentage </summary>
+		public Store<Resource> rep;
+		/// <summary> base stats </summary>
 		public Store<BaseStats> baseStats;
+		/// <summary> exp for increasing base stats </summary>
 		public Store<BaseStats> baseExp;
+		/// <summary> current combat stats </summary>
 		public Store<CombatStats> combatStats;
+		/// <summary> current combat ratios </summary>
 		public Store<CombatRatios> combatRatios;
+		/// <summary> current intermediate stats </summary>
 		public Store<IntermediateStats> intermediateStats;
 
 		public Stats Combine(Stats other) {
 			Stats result = Auto.Init<Stats>();
 			
-			
-			
+			result.max = max + other.max;
+			result.rec = rec + other.rec;
+			result.rep = rep + other.rep;
 
+			result.baseStats += other.baseStats;
+			result.baseExp += other.baseExp;
+			result.combatStats += other.combatStats;
+			result.combatRatios = combatRatios.CombineAsRatios(other.combatRatios);
+			result.intermediateStats += other.intermediateStats;
+			
 			return result;
 		}
+
+
 	}
+
+		
 
 
 }

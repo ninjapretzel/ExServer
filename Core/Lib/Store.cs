@@ -403,7 +403,7 @@ namespace Ex.Utils {
 		/// <param name="a"> First Store to combine </param>
 		/// <param name="b"> Second Store to combine </param>
 		/// <returns> Store derived from two parameters. </returns>
-		public static Store<K> Combine(Store<K> a, Store<K> b) {
+		public static Store<K> CombineAsRatios(Store<K> a, Store<K> b) {
 			Store<K> result = new Store<K>();
 			foreach (var k in Enum<K>.items) {
 				float aa = a[k]; float bb = b[k];
@@ -411,6 +411,8 @@ namespace Ex.Utils {
 			}
 			return result;
 		}
+
+		public Store<K> CombineAsRatios(Store<K> other) { return CombineAsRatios(this, other); }
 
 		#region Operators
 		public static Store<K> operator -(Store<K> a) {

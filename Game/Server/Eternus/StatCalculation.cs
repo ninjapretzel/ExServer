@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Ex;
 
-namespace Infinigrinder {
+namespace Eternus {
 	public class StatCalc {
 		/// <summary> Used to defer storage of arbitrary data. </summary>
 		public JsonObject data = new JsonObject();

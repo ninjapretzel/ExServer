@@ -333,8 +333,8 @@ namespace Ex {
 			}
 		}
 		
-		public void AcceptWebSocket(WebSocket ws) {
-			Client client = new Client(ws, this);
+		public void AcceptWebSocket(WebSocket ws, string remoteIP) {
+			Client client = new Client(ws, remoteIP, this);
 			OnConnected(client);
 		}
 
@@ -346,9 +346,11 @@ namespace Ex {
 		}
 		
 		private void GlobalUpdateLoop() {
+			long i = 0;
 			while (Running) {
 				GlobalUpdatePass();
-
+				// Log.Info($"On update tick {i}");
+				i++;
 				ThreadUtil.Hold(1);
 			}
 			string id = isSlave ? "Slave" : "Master";

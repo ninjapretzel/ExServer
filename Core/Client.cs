@@ -169,10 +169,29 @@ namespace Ex {
 		/// <summary> Constructor that wraps a <see cref="WebSocket"/> </summary>
 		/// <param name="ws"> <see cref="WebSocket"/> to wrap </param>
 		/// <param name="server"> <see cref="Server"/> model client is connected to </param>
-		public Client(WebSocket ws, Server server = null) : this() {
+		public Client(WebSocket ws, string remoteIP, Server server = null) : this() {
 			this.tcp = null;
 			this.tcpSocket = null;
 			this.ws = ws;
+			this.remoteIP = remoteIP;
+			
+			string[] split = remoteIP.Split(':');
+			if (split.Length > 1) {
+				if (remoteIP.Contains('[') && remoteIP.Contains(']')) {
+					// IPv6
+					if (remoteIP.LastIndexOf(':') > remoteIP.LastIndexOf(']')) {
+						this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(':'));
+					}
+				} else { 
+					// IPv4
+					this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(':'));
+				}
+
+				short port; 
+				if (short.TryParse(split[split.Length-1], out port)) { this.remotePort = port; }
+				else { this.remotePort = -1; }
+			}
+
 			if (server == null) { server = Server.NullInstance; }
 			this.server = server;
 			Log.Info($"\\eClient \\y{identity}\\e connected from websocket \\y {ws}");

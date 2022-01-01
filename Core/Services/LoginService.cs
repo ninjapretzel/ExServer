@@ -102,6 +102,13 @@ namespace Ex {
 			public string ip;
 			public string reason;
 		}
+		public struct Logout_Server {
+			public readonly Client client;
+			public readonly Credentials creds;
+			public string reason;
+			public Logout_Server(Credentials creds, string reason = "none") { this.creds = creds; client = null; this.reason = reason; }
+			public Logout_Server(Credentials creds, Client client, string reason = "none") { this.creds = creds; this.client = client; this.reason = reason; }
+		}
 		#endregion
 
 #if !UNITY
@@ -287,9 +294,11 @@ namespace Ex {
 			if (isMaster) {
 				if (loginsByClient.ContainsKey(client)) {
 					Log.Info($"Disconnection by {client.identity} is causing a logout.");
-					Guid guid = loginsByClient[client].credentials.userId;
+					Session login = loginsByClient[client];
+					Guid guid = login.credentials.userId;
 					loginsByClient.Remove(client);
 					loginsByUserId.Remove(guid);
+					server.On(new Logout_Server(login.credentials, client, "Disconnected"));
 				}
 			}
 		}
@@ -501,11 +510,13 @@ namespace Ex {
 		/// <param name="remoteIP"> IP of client </param>
 		/// <returns> Created <see cref="UserLoginInfo"/> record </returns>
 		private UserLoginInfo CreateNewUser(string user, string pass, string remoteIP) {
-			var file = $"{remoteIP}.wtf";
+			if (remoteIP == null) { remoteIP = "--NULL--"; }
+			if (remoteIP == "") { remoteIP = "--EMPTY--"; }
 			// List<UserAccountCreation> accountCreations = dbService.GetAll<UserAccountCreation>(nameof(UserAccountCreation.ipAddress), remoteIP);
+			var file = $"{remoteIP}.wtf";
+			if (file.Contains(":")) { file = file.Replace(":", "."); }
 			List<UserAccountCreation> accountCreations = accountCreationDB.Open(file);
-
-			Log.Info($"Client at {remoteIP} has {accountCreations.Count} account creations.");
+			Log.Info($"Client at <{remoteIP}> has {accountCreations.Count} account creations.");
 			if (accountCreations.Count > 5) {
 				Log.Info($"Too many account creations!.");
 				return null;
@@ -592,6 +603,9 @@ namespace Ex {
 						ctx.body = result;
 						
 						string remoteIP = ctx.RemoteEndPoint.Address.ToString();
+						if (remoteIP == null) {
+							Log.Info("Client requesting login has no IP address!");
+						}
 						void Fail(string reason) { 
 							result["success"] = false; 
 							result["reason"] = reason;

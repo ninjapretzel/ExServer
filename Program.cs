@@ -249,7 +249,7 @@ namespace Ex {
 			router.Any("/ws/ex", async (ctx, next) => {
 				await ctx.OpenWebSocket("ex");
 				WebSocket wsock = ctx.webSocket;
-				server.AcceptWebSocket(wsock);
+				server.AcceptWebSocket(wsock, ctx.RemoteEndPoint.ToString());
 			});
 			router.Any("/ws/test", async (ctx, next) => {
 				await ctx.OpenWebSocket("test");
@@ -303,7 +303,7 @@ namespace Ex {
 			server = new Server(32055, 100);
 
 			// server.AddService<Poly.PolyGame>();
-			server.AddService<Infinigrinder.Game>();
+			// server.AddService<Eternus.Game>();
 			server.AddService<DebugService>();
 			server.AddService<LoginService>();
 			server.AddService<EntityService>();

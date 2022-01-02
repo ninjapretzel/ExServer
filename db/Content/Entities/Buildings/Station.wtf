@@ -1,0 +1,15 @@
+{
+	type: "Radar",
+	global: true,
+	components: [
+		{
+			type: "Ex.Display",
+			data: {
+				prefab: "BG/Station",
+				position: [ 0, 0, 0, ],
+				rotation: [ 0, 0, 0, ],
+			},
+		},
+	]
+	
+}

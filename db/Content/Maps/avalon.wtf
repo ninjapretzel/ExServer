@@ -46,8 +46,8 @@
 		//	scale: [ 1, 1, 1 ],
 		//},
 		{
-			type: "Buildings/Radar",
-			position: [ 0, 0, 0 ], 
+			type: "Buildings/Station",
+			position: [ 0, -50, 0 ], 
 			rotation: [ 0, 0, 0 ],
 			scale: [ 1, 1, 1 ],
 		}

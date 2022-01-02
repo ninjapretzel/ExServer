@@ -24,7 +24,7 @@
 	// y is ignored in 2d mode. (server reads/writes vector-like primitives to database as an array)
 	bounds: [ 
 		0, 40, 0,
-		1000, 50, 1,
+		1000, 100, 1000,
 	],
 	
 	// sparse maps update objects only around players, 
@@ -39,12 +39,18 @@
 	// Information about entities on the map.
 	// These objects are placed both on the server and client.
 	entities: [
+		//{
+		//	type: "Terrain/Terrain2",
+		//	position: [ 0, 0, 0 ], 
+		//	rotation: [ 0, 0, 0 ],
+		//	scale: [ 1, 1, 1 ],
+		//},
 		{
-			type: "Terrain/Terrain2",
+			type: "Buildings/Radar",
 			position: [ 0, 0, 0 ], 
 			rotation: [ 0, 0, 0 ],
 			scale: [ 1, 1, 1 ],
-		},
+		}
 	],
 	
 	

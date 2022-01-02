@@ -1,4 +1,4 @@
-﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 // using UnityEngine; // This file basically becomes a no-op if inside of unity, as it defines equivelant vector structs.
 #else
@@ -13,6 +13,7 @@
 // #define V3I_SWIZZLES
 // #define V4_SWIZZLES
 
+using BakaTest;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -3117,6 +3118,13 @@ namespace Ex.Utils {
 			Vector3 q = relativePoint.Abs() - extents;
 
 			return Vector3.Max(q, Vector3.zero).magnitude + Min(Max(q.x, Max(q.y, q.z)), 0.0f);
+		}
+
+		public static class Bounds_Tests {
+			public static void TestContains() {
+				Bounds b = new Bounds(new Vector3(0,40,0), new Vector3(1000, 100, 1f));
+				b.Contains(Vector3.zero).ShouldBeTrue();
+			}
 		}
 
 	}

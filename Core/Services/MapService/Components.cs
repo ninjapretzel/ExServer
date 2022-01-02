@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 #endif
 
@@ -128,7 +128,7 @@ namespace Ex {
 	public class Display : Comp {
 		/// <summary> Prefab to display </summary>
 		public InteropString32 prefab;
-		/// <summary> Adjustment to position, euler</summary>
+		/// <summary> Adjustment to position </summary>
 		public Vector3 position;
 		/// <summary> Adjustment to rotation, euler angles</summary>
 		public Vector3 rotation;
@@ -175,6 +175,15 @@ namespace Ex {
 	[OwnerOnlySync]
 	public class SomeSecretData : Comp {
 		public int key = 1337;
+	}
+
+	/// <summary> Component used to tell a client what controller to use </summary>
+	[OwnerOnlySync]
+	public class Control : Comp {
+		/// <summary> Name of script type to attach for local control </summary>
+		public InteropString32 mode;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} control mode {mode}"; }
 	}
 
 	/// <summary> Component that holds procedural terrain information. </summary>

@@ -1,4 +1,4 @@
-﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 using UnityEngine;
 #endif
@@ -225,129 +225,6 @@ namespace Ex {
 
 	#endregion
 	
-	public class Safer {
-		public static class Info<T> where T : unmanaged {
-			public static readonly int size = Safer.SizeOf<T>();
-		}
-
-
-		private struct Two<T> where T : unmanaged { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
-		/// <summary> Generic, runtime sizeof() for value types with the added restriction of unmanaged interopability. </summary>
-		/// <typeparam name="T"> Type to check size of </typeparam>
-		/// <returns> Size of the type passed, in bytes. Returns the pointer size for </returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		internal unsafe static int SizeOf<T>() where T : unmanaged {
-			Two<T> two = Two<T>.instance;
-			void* a = &two.first;
-			void* b = &two.second;
-			return (int)b - (int)a;
-		}
-		/// <summary>Extracts the bytes from a generic value type.</summary>
-		/// <typeparam name="T">Generic type. </typeparam>
-		/// <param name="obj">Instance of generic type <paramref name="T"/> to convert</param>
-		/// <returns>Raw byte array of the given object</returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe byte[] ToBytes<T>(T t) where T : unmanaged {
-			byte[] bytes = new byte[Info<T>.size];
-			byte* pt = (byte*)&t;
-			for (int i = 0; i < bytes.Length; ++i) {bytes[i] = pt[i];}
-			return bytes;
-		}
-		/// <summary> Extracts bytes from a struct value into an existing byte[] array, starting at a position </summary>
-		/// <typeparam name="T"> Generic type of value parameter </typeparam>
-		/// <param name="value"> Value to extract data from </param>
-		/// <param name="bytes"> byte[] to place data into </param>
-		/// <param name="start"> starting index </param>
-		/// <returns> Modified byte[] </returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe byte[] ToBytes<T>(T t, byte[] bytes, int start) where T: unmanaged {
-			byte* pt = (byte*)&t;
-			for (int i = 0; i+start < bytes.Length && i < Info<T>.size; ++i) {
-				bytes[i+start] = pt[i];
-			}
-			return bytes;
-		}
-
-		/// <summary> Extracts an arbitrary struct from a byte array, at a given position </summary>
-		/// <typeparam name="T"> Generic type of struct to extract </typeparam>
-		/// <param name="source"> Source byte[] </param>
-		/// <param name="start"> Index struct exists at </param>
-		/// <returns> Struct built from byte array, starting at index </returns>
-		public static unsafe T FromBytes<T>(byte[] source, int start) where T : unmanaged {
-			int sizeOfT = Info<T>.size;
-			if (start < 0) {
-				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): start index must be 0 or greater, was {start}");
-			}
-			if (sizeOfT + start > source.Length) {
-				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, start at {start}, and target is {sizeOfT} bytes in size, out of range.");
-			}
-			T result = default(T);
-			byte* pt = (byte*)&result;
-			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i+start]; }
-
-			return result;
-		}
-
-		/// <summary>Converts a byte[] back into a struct.</summary>
-		/// <typeparam name="T">Generic type</typeparam>
-		/// <param name="source">Data source</param>
-		/// <returns>Object of type T assembled from bytes in source</returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe T FromBytes<T>(byte[] source) where T: unmanaged {
-			int sizeOfT = Info<T>.size;
-			if (sizeOfT != source.Length) {
-				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
-			}
-			T result = default(T);
-			byte* pt = (byte*)&result;
-			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
-
-			return result;
-		}
-
-		/// <summary>Converts a byte[] back into a struct.</summary>
-		/// <typeparam name="T">Generic type</typeparam>
-		/// <param name="source">Data source</param>
-		/// <returns>Object of type T assembled from bytes in source</returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : unmanaged {
-			int sizeOfT = StructInfo<T>.size;
-			if (sizeOfT != source.Length) {
-				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
-			}
-			T result = default(T);
-			byte* pt = (byte*)&result;
-			for (int i = 0; i < sizeOfT; i++) { pt[i] = source[i]; }
-			ret = result;
-		}
-		/// <summary> Reinterprets an object's data from one type to another.</summary>
-		/// <typeparam name="TIn">Input struct type</typeparam>
-		/// <typeparam name="TOut">Output struct type</typeparam>
-		/// <param name="val">Value to convert</param>
-		/// <returns><paramref name="val"/>'s bytes converted into a <paramref name="TOut"/></returns>
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static unsafe TOut Reinterpret<TIn, TOut>(TIn val) 
-			where TIn : unmanaged
-			where TOut : unmanaged {
-
-			int sizeIn = Info<TIn>.size;
-			int sizeOut = Info<TOut>.size;
-			if (sizeIn != sizeOut) { 
-				throw new Exception($"Unsafe.Reinterpret<{typeof(TIn)}, {typeof(TOut)}>(): Size of these types are different- {sizeIn} vs {sizeOut}.");
-			}
-
-			int size = sizeIn;
-			TOut result = default(TOut);
-			byte* pt = (byte*)&result;
-			byte* pv = (byte*)&val;
-			for (int i = 0; i < size; i++) { pt[i] = pv[i]; }
-
-			return result;
-		}
-
-
-	}
-
 	/// <summary> 
 	/// Not your safe-space. 
 	/// Primary place for putting methods that need to make use of unsafe blocks of code.
@@ -358,9 +235,8 @@ namespace Ex {
 		public static readonly bool MonoRuntime = Type.GetType("Mono.Runtime") != null;
 
 		public static class Info<T> where T : unmanaged {
-			public static readonly int size = Safer.SizeOf<T>();
+			public static readonly int size = SizeOf<T>();
 		}
-
 
 		private struct Two<T> where T : unmanaged { public T first, second; public static readonly Two<T> instance = default(Two<T>); }
 		/// <summary> Generic, runtime sizeof() for value types with the added restriction of unmanaged interopability. </summary>

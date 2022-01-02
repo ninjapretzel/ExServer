@@ -1,4 +1,4 @@
-﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 using UnityEngine;
 #if UNITY_EDITOR
@@ -426,7 +426,10 @@ namespace BakaTest {
 			int tests = 0;
 			int success = 0;
 			int failure = 0;
-			foreach (var type in types) {
+			List<Type> typeList = types.ToList();
+			typeList.Sort((a,b)=>a.Name.CompareTo(b.Name));
+
+			foreach (var type in typeList) {
 				try {
 					var result = await RunTests(type);
 					tests += result.tests;

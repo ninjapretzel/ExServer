@@ -1,3 +1,5 @@
+﻿using BakaTest;
+using Ex.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -78,6 +80,20 @@ namespace Ex.Libs {
 				return new Color(a, r, g, b);
 			}
 
+			public override bool Equals(object obj) {
+				if (obj is Color other) {
+					return Mathf.Approximately(other.a, a)
+						&& Mathf.Approximately(other.r, r)
+						&& Mathf.Approximately(other.g, g)
+						&& Mathf.Approximately(other.b, b);
+
+				}
+				return false;
+			}
+
+			public static implicit operator Vector4(Color c) { return new Vector4(c.r, c.g, c.b, c.a); }
+			public static implicit operator Color(Vector4 v) { return new Color(v.x, v.y, v.z, v.w); }
+
 			public static Color operator +(Color a, Color b) { return new Color(a.a + b.a, a.r + b.r, a.g + b.g, a.b + b.b); }
 			public static Color operator -(Color a, Color b) { return new Color(a.a - b.a, a.r - b.r, a.g - b.g, a.b - b.b); }
 			
@@ -89,7 +105,7 @@ namespace Ex.Libs {
 			public static Color Lerp(Color a, Color b, float f) { return a + (b - a) * f; }
 		}
 
-		/// <summary> Create a hex string from a Color32, in the form #RRGGBBAA </summary>
+		/// <summary> Create a hex string from a Color32, in the form "RRGGBBAA" </summary>
 		public static string HexString(this SDColor c) {
 			string str = "";
 			str += c.R.ToHex();
@@ -98,7 +114,7 @@ namespace Ex.Libs {
 			if (c.A < 255) { str += c.A.ToHex(); }
 			return str;
 		}
-		/// <summary> Create a hex string from a Color32, in the form #AARRGGBB </summary>
+		/// <summary> Create a hex string from a Color32, in the form "AARRGGBB" </summary>
 		public static string HexStringARGB(this SDColor c) {
 			string str = "";
 			if (c.A < 255) { str += c.A.ToHex(); }
@@ -108,24 +124,28 @@ namespace Ex.Libs {
 			return str;
 		}
 
-		public static SDColor ParseHex(this string s) {
+		private static Color ParseHex(this string s) {
 			Color c = new Color();
 			try {
-				int pos = s.StartsWith("#") ? 1 : 0;
+				int pos = s.StartsWith("0x") ? 2 : (s.StartsWith("#") ? 1 : 0);
+
 				string r = s.Substring(pos + 0, 2);
 				string g = s.Substring(pos + 2, 2);
 				string b = s.Substring(pos + 4, 2);
-				string a = (s.Length > (pos+6)) ? s.Substring(pos + 6, 2) : "FF";
-				c.r = r.ParseByte();
-				c.g = g.ParseByte();
-				c.b = b.ParseByte();
-				c.a = a.ParseByte();
-			} catch (Exception) { }
+				string a = (s.Length > (pos + 6)) ? s.Substring(pos + 6, 2) : "FF";
+				c.r = r.ParseByte() / 255f;
+				c.g = g.ParseByte() / 255f;
+				c.b = b.ParseByte() / 255f;
+				c.a = a.ParseByte() / 255f;
 
-
+			} catch(Exception) { }
 			return c;
 		}
-		/// <summary> Wraps the parse in a try...catch block and writes to <paramref name="col"/> Writes <see cref="Color.White"/> if parse fails. </summary>
+
+		public static SDColor ParseHexColor(this string s) { return ParseHex(s); }
+		public static Vector4 ParseHexVector4(this string s) { return ParseHex(s); }
+
+		/// <summary> Wraps the parse in a try...catch block and writes to <paramref name="col"/> Writes <see cref="SDColor.White"/> if parse fails. </summary>
 		/// <param name="s"> String to parse </param>
 		/// <param name="col"> Color to write to </param>
 		/// <returns> true if parse successful, false if parse fails. </returns>
@@ -138,6 +158,21 @@ namespace Ex.Libs {
 				return false;
 			}
 		}
+
+		/// <summary> Wraps the parse in a try...catch block and writes to <paramref name="col"/> Writes <see cref="Vector4.one"/> if parse fails. </summary>
+		/// <param name="s"> String to parse </param>
+		/// <param name="col"> Color to write to </param>
+		/// <returns> true if parse successful, false if parse fails. </returns>
+		public static bool TryParse(this string s, out Vector4 col) {
+			try {
+				col = ParseHex(s);
+				return true;
+			} catch (System.Exception) {
+				col = Vector4.one;
+				return false;
+			}
+		}
+
 
 		private static float Floor(float a) { return (float) Math.Floor(a); }
 		private static float Clamp01(float a) { return (a < 0 ? 0 : (a > 1 ? 1 : a));}
@@ -294,5 +329,32 @@ namespace Ex.Libs {
 		}
 		#endregion
 
+		public static class Color_Tests {
+			public static void TestParse() {
+				void Check(string a, Color col) { Color c = ParseHex(a); c.ShouldEqual(col); }
+				Color red = new Color(1, 0, 0);
+				Check("0xFF0000", red);
+				Check("0xFF0000FF", red);
+				Check("#FF0000", red);
+				Check("#FF0000FF", red);
+				Check("FF0000", red);
+				Check("FF0000FF", red);
+				
+				HexString(red).ShouldEqual("FF0000");
+
+				Color special = new Color(0xA2/255f, 0xB3/255f, 0xC4/255f);
+				Check("0xA2B3C4", special);
+				Check("0xA2B3C4FF", special);
+				Check("#A2B3C4", special);
+				Check("#A2B3C4FF", special);
+				Check("A2B3C4", special);
+				Check("A2B3C4FF", special);
+
+				HexString(special).ShouldEqual("A2B3C4");
+
+			}
+
+			
+		}
 	}
 }

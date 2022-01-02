@@ -17,14 +17,14 @@ namespace Eternus {
 		public Store<AccountLevels> levels;
 		public Store<AccountLevels> exp;
 		public Store<Currency> wallet; 
-		
+		public string controlMode;
+
 		public GameState() : base() { 
 			//units = new List<Guid>();
 			flags = new JsonObject();
 			levels = new Store<AccountLevels>();
 			exp = new Store<AccountLevels>();
 			wallet = new Store<Currency>();
-
 		}
 
 

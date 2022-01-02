@@ -1,4 +1,4 @@
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+#if UNITY_2017_1_OR_NEWER
 #define UNITY
 #endif
 #if UNITY
@@ -263,6 +263,7 @@ namespace Ex {
 
 					var delta = oldPos - move.newPos;
 					bool posInMap = Contains(info.bounds, info.boundsShape, move.newPos);
+					Log.Info($"Entity {move.id} trying to move inside {info.bounds} {info.boundsShape} to {move.newPos}");
 
 					if (posInMap && (move.serverMove || delta.magnitude < speedCap)) {
 						// Log.Debug($"Moving {move.id}\n\tposition {move.oldPos} => {move.newPos}\n\trotation {move.oldRot} => {move.newRot}");

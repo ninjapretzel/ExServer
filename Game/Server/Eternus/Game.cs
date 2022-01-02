@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using BakaDB;
 using Ex;
+using Ex.Libs;
 using Ex.Utils;
 using Ex.Utils.Ext;
 using Random = System.Random;
@@ -21,11 +22,12 @@ namespace Eternus {
 		LoginService login;
 		SyncService sync;
 		EntityService entity;
+		MapService map;
 
-		StatCalc statCalc;
 		Heap<LiveGame> liveGames;
+		Dictionary<string, LiveGame> gamesByUsername;
+		Dictionary<Guid, LiveGame> gamesByGUID;
 		ConcurrentSet<LiveGame> loggedOut;
-		Dictionary<string, LiveGame> logins;
 
 		public class LiveGame : IComparable<LiveGame> {
 			public DateTime lastUpdate { get; private set; }
@@ -59,48 +61,61 @@ namespace Eternus {
 			login = GetService<LoginService>();
 			sync = GetService<SyncService>();
 			entity = GetService<EntityService>();
+			map = GetService<MapService>();
 
 			liveGames = new Heap<LiveGame>();
+			gamesByUsername = new Dictionary<string, LiveGame>();
+			gamesByGUID = new Dictionary<Guid, LiveGame>();
 			loggedOut = new ConcurrentSet<LiveGame>();
-			logins = new Dictionary<string, LiveGame>();
 
 			entity.RegisterUserEntityInfo<GameState>();
 			login.userInitializer += Initialize;
 			
-			statCalc = DB.Local("Content").Get<StatCalc>("StatCalc");
+			// statCalc = DB.Local("Content").Get<StatCalc>("StatCalc");
 			DB.Drop<GameState>();
 			DB.Drop<UnitRecord>();
 			DB.Drop("Inventory");
 
+			// @TODO: For testing, remove for release
 			DB.Drop<List<LoginService.UserAccountCreation>>();
 
-			JsonObject test = new JsonObject(
-				"str", 5, "dex", 12, 
-				"maxHealth", 200,
-				"recHealth", 1.5,
-				"what", 123123
-			);
+			//JsonObject test = new JsonObject(
+			//	"str", 5, "dex", 12, 
+			//	"maxHealth", 200,
+			//	"recHealth", 1.5,
+			//	"what", 123123
+			//);
 
 			//JsonObject result1 = statCalc.SmartMask(test, statCalc.ExpStatRates);
 			//JsonObject result2 = statCalc.SmartMask(test, statCalc.CombatStats);
 			//Log.Info(result1);
 			//Log.Info(result2);
 			
-
+			
 		}
 			
 
 		public void On(LoginService.LoginSuccess_Server succ) {
 			LiveGame live = new LiveGame(succ.creds);
-			logins[succ.creds.username] = live;
+			gamesByUsername[succ.creds.username] = live;
+			gamesByGUID[succ.creds.userId] = live;
 			liveGames.Push(live);
+			var game = live.state;
+			var createEntity = new EntityService.CreateEntityForUser();
+			createEntity.userId = succ.creds.userId;
+			server.On(createEntity);
+
+			var ctrl = entity.AddComponent<Control>(succ.client.id);
+			ctrl.mode = game.controlMode;
+			ctrl.Send();
 
 		}
+
 		public void On(LoginService.Logout_Server logout) {
 			var name = logout.creds.username;
-			if (logins.ContainsKey(name)) {
+			if (gamesByUsername.ContainsKey(name)) {
 				Log.Info($"On(Logout_Server): user {name} being logged out next tick");
-				LiveGame live = logins[name];
+				LiveGame live = gamesByUsername[name];
 				loggedOut.Add(live);
 
 			} else {
@@ -108,7 +123,6 @@ namespace Eternus {
 			}
 
 		}
-		
 
 		/// <summary> Initialize the game for the player with the given guid. Deletes existing data. </summary>
 		/// <param name="guid"> Guid of player to initialize game state of. </param>
@@ -118,14 +132,21 @@ namespace Eternus {
 			Log.Info($"Initializing user {guid}...");
 			
 			GameState gs = new GameState();
+			
 
 			gs.stats = Auto.Init<Stats>();
 			gs.stats.baseStats += 10;
 
 			gs.map = "avalon";
-			gs.position = new Vector3(-160, -360, 0);
+			gs.controlMode = "TopDown";
+			gs.position = new Vector3(5, 0, -10);
 			gs.rotation = Vector3.zero;
 			gs.skin = "Default";
+			gs.color = "0xD5E3FFFF";
+			gs.color2 = "0xA9CBD9FF";
+			gs.color3 = "0x2364F1FF";
+			gs.color4 = "0x6086E0FF";
+
 			gs.flags["test"] = true;
 			foreach (var kind in Enum<AccountLevels>.items) {
 				gs.levels[kind] = 1;
@@ -145,8 +166,6 @@ namespace Eternus {
 			//unit.stats.baseStats += 5;
 			
 			//unitDB.Save(id, unit);
-
-
 			
 		}
 
@@ -162,16 +181,20 @@ namespace Eternus {
 			if (liveGames.Count > 0) {
 				LiveGame peek = liveGames.Peek();
 				TimeSpan diff = DateTime.UtcNow - peek.lastUpdate;
+
 				while (diff.TotalSeconds > TickTime && liveGames.Count > 0) {
 					LiveGame next = liveGames.Peek();
 					Guid id = next.creds.userId;
 					string name = next.creds.username;
+
 					diff = DateTime.UtcNow - next.lastUpdate;
 					if (diff.TotalSeconds < TickTime) { break; }
 					try {
 						next = liveGames.Pop();
 						next.Updated();
 						Log.Info($"Ticking {name}'s game data. ID={id}");
+
+						// Actual tick logic goes here:
 						next.state.stats.baseExp += 1;
 
 						gameStateDB.Save($"{id}", next.state);
@@ -180,6 +203,9 @@ namespace Eternus {
 					} finally {
 						if (loggedOut.Contains(next)) { 
 							Log.Info($"Stopping ticks for {name}");
+							gamesByGUID.Remove(id);
+							gamesByUsername.Remove(name);
+							loggedOut.Remove(next);
 						} else {
 							liveGames.Push(next);
 						}

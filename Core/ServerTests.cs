@@ -1,5 +1,5 @@
 ﻿
-#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+#if UNITY_2017_1_OR_NEWER
 #define UNITY
 using UnityEngine;
 #else

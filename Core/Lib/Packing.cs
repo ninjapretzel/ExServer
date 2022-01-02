@@ -1,4 +1,4 @@
-﻿#if UNITY_2017 || UNITY_2018 || UNITY_2019 || UNITY_2020
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 using UnityEngine;
 #else
@@ -16,6 +16,26 @@ using BakaTest;
 using System.Reflection;
 
 namespace Ex.Utils {
+
+	public static class WarmPacking {
+		//#if UNITY
+		public static string Warmup() {
+			return "" 
+				+ Warm<byte>()+ Warm<sbyte>()+ Warm<short>()+ Warm<ushort>()
+				+ Warm<int>()+ Warm<uint>()+ Warm<long>()+ Warm<ulong>()
+				+ Warm<decimal>()+ Warm<float>()+ Warm<double>()
+				+ Warm<bool>() + Warm<char>()
+				+ Warm<Vector2>()+ Warm<Vector3>()+ Warm<Vector4>()
+				+ Warm<DateTime>()
+				+ Warm<InteropFloat32>()+ Warm<InteropFloat64>()
+				+ Warm<InteropString32>()+ Warm<InteropString256>()
+			;
+		}
+		public static string Warm<T>() where T : unmanaged {
+			return ""+Unpack.Base64<T>(Pack.Base64(default(T)));
+		}
+		//#endif
+	}
 
 	/// <summary> Class holding code for packing structs </summary>
 	public static class Pack {

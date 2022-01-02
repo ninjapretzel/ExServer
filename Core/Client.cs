@@ -177,14 +177,14 @@ namespace Ex {
 			
 			string[] split = remoteIP.Split(':');
 			if (split.Length > 1) {
-				if (remoteIP.Contains('[') && remoteIP.Contains(']')) {
+				if (remoteIP.Contains("[") && remoteIP.Contains("]")) {
 					// IPv6
-					if (remoteIP.LastIndexOf(':') > remoteIP.LastIndexOf(']')) {
-						this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(':'));
+					if (remoteIP.LastIndexOf(":") > remoteIP.LastIndexOf("]")) {
+						this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(":"));
 					}
 				} else { 
 					// IPv4
-					this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(':'));
+					this.remoteIP = remoteIP.Substring(0, remoteIP.LastIndexOf(":"));
 				}
 
 				short port; 

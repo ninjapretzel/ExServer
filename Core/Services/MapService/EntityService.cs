@@ -125,7 +125,7 @@ namespace Ex {
 			UserEntityInfo info = FindUser(userId);
 
 			if (info == null) {
-				Log.Error($"OnLoginSuccess_Server for user {clientId} -> {username} / UserID={userId} found no entity information!\nDid you forget to set LoginService.userInitializer ?");
+				Log.Error($"OnCreateEntityForUser for user {clientId} -> {username} / UserID={userId} found no entity information!\nDid you forget to set LoginService.userInitializer ?");
 			}
 			var trs = AddComponent<TRS>(clientId);
 			var nameplate = AddComponent<Nameplate>(clientId);
@@ -142,7 +142,7 @@ namespace Ex {
 
 
 
-			Log.Info($"OnLoginSuccess_Server for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
+			Log.Info($"OnCreateEntityForUser for user {clientId} -> { username } / UserID={userId }, EntityInfo={info}, TRS={trs}");
 			if (username != "admin") {
 				nameplate.name = username;
 				display.prefab = "Models/" + info.skin;
@@ -366,12 +366,14 @@ namespace Ex {
 				
 		}
 
+
 		/// <summary> Loads a ECS Component type by name. Prepares getters and setters for any value-type data fields </summary>
-		/// <param name="name"> Name of type to load </param>
+		/// <param name="name"> Fully Qualified Name of type to load </param>
 		/// <returns> Type of given ECS component by name, if valid and found. Null otherwise. </returns>
 		public Type GetCompType(string name) {
 			if (componentTypes.ContainsKey(name)) { return componentTypes[name].type; }
 			Type t = Type.GetType(name);
+			//Type t = ReflectionUtil.FindType(name);
 			if (t != null) {
 				if (typeof(Comp).IsAssignableFrom(t)) {
 					LoadCompType(name, t);
@@ -382,7 +384,7 @@ namespace Ex {
 				componentTypes[name] = null;
 
 			}
-			Log.Warning($"No valid Type {name} could be found");
+			Log.Warning($"No valid Component Type {name} could be found");
 			componentTypes[name] = null;
 			return null;
 		}

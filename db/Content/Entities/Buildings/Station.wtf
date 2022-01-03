@@ -10,6 +10,12 @@
 				rotation: [ 0, 0, 0, ],
 			},
 		},
+		{
+			type: "Ex.AttachScript",
+			data: {
+				script: "StationButton"
+			}
+		}
 	]
 	
 }

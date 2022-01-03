@@ -186,6 +186,14 @@ namespace Ex {
 		public override string ToString() { return $"{entityId} control mode {mode}"; }
 	}
 
+	/// <summary> Component used to tell all clients to attach a script to an entity </summary>
+	public class AttachScript : Comp {
+		/// <summary> Name of script type to attach for local control </summary>
+		public InteropString32 script;
+		/// <inheritdoc />
+		public override string ToString() { return $"{entityId} attach script {script}"; }
+	}
+
 	/// <summary> Component that holds procedural terrain information. </summary>
 	public class Terrain : Comp {
 		/// <summary> Size of each terrain segment </summary>

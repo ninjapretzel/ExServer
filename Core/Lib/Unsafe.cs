@@ -13,13 +13,6 @@ using System.Reflection;
 using System.Collections.Generic;
 
 namespace Ex {
-	/// <summary> Static generic template-like class to cache information about structs </summary>
-	/// <typeparam name="T"> Struct type to cache information for </typeparam>
-	public static class StructInfo<T> where T : unmanaged {
-		/// <summary> Size of struct in bytes </summary>
-		public static readonly int size = Unsafe.SizeOf<T>();
-
-	}
 
 
 	#region Util Structs
@@ -99,8 +92,8 @@ namespace Ex {
 			for (int i = 0; i < MAX_LENGTH; i++) { result.Add(this[i]); }
 			return result;
 		}
-		public static InteropFloat64 FromJson(JsonValue value) {
-			InteropFloat64 result = new InteropFloat64();
+		public static InteropFloat32 FromJson(JsonValue value) {
+			InteropFloat32 result = new InteropFloat32();
 			if (value is JsonArray arr) {
 				for (int i = 0; i < MAX_LENGTH; i++) {
 					result[i] = arr.Pull(i, 0f);
@@ -318,7 +311,7 @@ namespace Ex {
 		/// <returns>Object of type T assembled from bytes in source</returns>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static unsafe void FromBytes<T>(byte[] source, out T ret) where T : unmanaged {
-			int sizeOfT = StructInfo<T>.size;
+			int sizeOfT = Info<T>.size;
 			if (sizeOfT != source.Length) {
 				throw new Exception($"Unsafe.FromBytes<{typeof(T)}>(): Source is {source.Length} bytes, but expected type is {sizeOfT} bytes in size.");
 			}
@@ -449,44 +442,44 @@ namespace Ex {
 			// Most of these should not change per platform, unless .net fundamentally changes...
 			// Haha, cool, they also line up, I didn't even know they would!
 			//Unsafe.SizeOf<int>().ShouldBe(4); 
-			//StructInfo<int>.size.ShouldBe(4);
+			//Unsafe.Info<int>.size.ShouldBe(4);
 
 			Unsafe.SizeOf<byte>().ShouldBe(1);  // DUURRRR
-			StructInfo<byte>.size.ShouldBe(1);
+			Unsafe.Info<byte>.size.ShouldBe(1);
 			Unsafe.SizeOf<sbyte>().ShouldBe(1);  
-			StructInfo<sbyte>.size.ShouldBe(1); 
+			Unsafe.Info<sbyte>.size.ShouldBe(1); 
 			Unsafe.SizeOf<bool>().ShouldBe(1);  
-			StructInfo<bool>.size.ShouldBe(1); 
+			Unsafe.Info<bool>.size.ShouldBe(1); 
 
 			Unsafe.SizeOf<short>().ShouldBe(2);  
-			StructInfo<short>.size.ShouldBe(2);
+			Unsafe.Info<short>.size.ShouldBe(2);
 			Unsafe.SizeOf<ushort>().ShouldBe(2);
-			StructInfo<ushort>.size.ShouldBe(2);
+			Unsafe.Info<ushort>.size.ShouldBe(2);
 			Unsafe.SizeOf<char>().ShouldBe(2);  // Yes, seriously. char is a short (Unicode-16 endpoint)
-			StructInfo<char>.size.ShouldBe(2);
+			Unsafe.Info<char>.size.ShouldBe(2);
 
 			Unsafe.SizeOf<int>().ShouldBe(4); 
-			StructInfo<int>.size.ShouldBe(4);
+			Unsafe.Info<int>.size.ShouldBe(4);
 			Unsafe.SizeOf<uint>().ShouldBe(4); 
-			StructInfo<uint>.size.ShouldBe(4);
+			Unsafe.Info<uint>.size.ShouldBe(4);
 			Unsafe.SizeOf<float>().ShouldBe(4); 
-			StructInfo<float>.size.ShouldBe(4);
+			Unsafe.Info<float>.size.ShouldBe(4);
 
 			Unsafe.SizeOf<long>().ShouldBe(8);
-			StructInfo<long>.size.ShouldBe(8);
+			Unsafe.Info<long>.size.ShouldBe(8);
 			Unsafe.SizeOf<ulong>().ShouldBe(8);
-			StructInfo<ulong>.size.ShouldBe(8);
+			Unsafe.Info<ulong>.size.ShouldBe(8);
 			Unsafe.SizeOf<double>().ShouldBe(8);
-			StructInfo<double>.size.ShouldBe(8);
+			Unsafe.Info<double>.size.ShouldBe(8);
 
 			Unsafe.SizeOf<Vector3>().ShouldBe(12);
-			StructInfo<Vector3>.size.ShouldBe(12);
+			Unsafe.Info<Vector3>.size.ShouldBe(12);
 			Unsafe.SizeOf<Vector3Int>().ShouldBe(12);
-			StructInfo<Vector3Int>.size.ShouldBe(12);
+			Unsafe.Info<Vector3Int>.size.ShouldBe(12);
 			Unsafe.SizeOf<TestBlah>().ShouldBe(12);
-			StructInfo<TestBlah>.size.ShouldBe(12);
+			Unsafe.Info<TestBlah>.size.ShouldBe(12);
 			Unsafe.SizeOf<FourBytes>().ShouldBe(4);
-			StructInfo<FourBytes>.size.ShouldBe(4);
+			Unsafe.Info<FourBytes>.size.ShouldBe(4);
 		}
 
 		public static void Reverse(byte[] bytes) {
@@ -603,8 +596,8 @@ namespace Ex {
 
 		public static void TestInteropFloatArrays() {
 			{ 
-				StructInfo<InteropFloat32>.size.ShouldBe(32 * sizeof(float));
-				StructInfo<InteropFloat64>.size.ShouldBe(64 * sizeof(float));
+				Unsafe.Info<InteropFloat32>.size.ShouldBe(32 * sizeof(float));
+				Unsafe.Info<InteropFloat64>.size.ShouldBe(64 * sizeof(float));
 
 				InteropFloat32 floats;
 				for (int i = 0; i < 32; i++) { floats[i] = i * 10f; }
@@ -643,8 +636,8 @@ namespace Ex {
 
 		public static void TestInteropStrings() {
 			{
-				StructInfo<InteropString32>.size.ShouldBe(32 * sizeof(char));
-				StructInfo<InteropString256>.size.ShouldBe(256 * sizeof(char));
+				Unsafe.Info<InteropString32>.size.ShouldBe(32 * sizeof(char));
+				Unsafe.Info<InteropString256>.size.ShouldBe(256 * sizeof(char));
 
 				InteropString32 str = "a short string";
 				string converted = str;
@@ -680,7 +673,7 @@ namespace Ex {
 		public static void TestDeserializeInteropString() {
 			{
 				StringAndStuff s = new StringAndStuff(123, "omg wtf lol bbq", 123.456f);
-				StructInfo<StringAndStuff>.size.ShouldBe(sizeof(int) + StructInfo<InteropString32>.size + sizeof(float) );
+				Unsafe.Info<StringAndStuff>.size.ShouldBe(sizeof(int) + Unsafe.Info<InteropString32>.size + sizeof(float) );
 				s.x = 123;
 				s.y = 123.456f;
 				s.str = "omg wtf lol bbq";

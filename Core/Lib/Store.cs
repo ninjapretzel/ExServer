@@ -260,49 +260,6 @@ namespace Ex.Utils {
 
 	}
 
-	public static class StoreKV_Tests {
-		public enum Keys { A, B, C, D }
-
-		public static void TestBasics() {
-			Store<Keys, int> store = new Store<Keys, int>();
-			store[Keys.A] = 1;
-			store[Keys.B] = 2;
-			store[Keys.C] = 3;
-			store[Keys.D] = 4;
-
-			store["A"].ShouldBe(1);
-			store["B"].ShouldBe(2);
-			store["C"].ShouldBe(3);
-			store["D"].ShouldBe(4);
-		}
-
-		public static void TestOperators() {
-			Store<Keys, int> a = new Store<Keys, int>(1, 2, 3, 4);
-			Store<Keys, int> b = new Store<Keys, int>(5, 6, 7, 8);
-
-			var c = -a;
-			c.ShouldEqual(new Store<Keys, int>(-1, -2, -3, -4));
-			var d = a + b;
-			d.ShouldEqual(new Store<Keys, int>(6, 8, 10, 12));
-			var e = a - b;
-			e.ShouldEqual(new Store<Keys, int>(-4, -4, -4, -4));
-			var f = a * b;
-			f.ShouldEqual(new Store<Keys, int>(5, 12, 21, 32));
-			var g = b / a;
-			g.ShouldEqual(new Store<Keys, int>(5, 3, 2, 2));
-		}
-
-		public static void TestCombine() {
-			Store<Keys, float> a = new Store<Keys, float>(.50f, 1f/3f, .25f, .20f);
-			Store<Keys, float> b = new Store<Keys, float>(.20f, .10f, .20f, .20f);
-
-			var result = Store<Keys, float>.Combine(a, b);
-			result.ShouldEqual(new Store<Keys, float>(.6f, .4f, .4f, .36f));
-
-		}
-
-	}
-
 	/// <summary> Stores floats by <see cref="Enum"/> keys, easily reflectable into <see cref="JsonObject"/> </summary>
 	/// <typeparam name="K"> Key type. Holds a value for each key defined in its enum definition. </typeparam>
 	public class Store<K> where K : Enum {
@@ -501,6 +458,49 @@ namespace Ex.Utils {
 			return result;
 		}
 		#endregion
+
+	}
+
+	public static class StoreKV_Tests {
+		public enum Keys { A, B, C, D }
+
+		public static void TestBasics() {
+			Store<Keys, int> store = new Store<Keys, int>();
+			store[Keys.A] = 1;
+			store[Keys.B] = 2;
+			store[Keys.C] = 3;
+			store[Keys.D] = 4;
+
+			store["A"].ShouldBe(1);
+			store["B"].ShouldBe(2);
+			store["C"].ShouldBe(3);
+			store["D"].ShouldBe(4);
+		}
+
+		public static void TestOperators() {
+			Store<Keys, int> a = new Store<Keys, int>(1, 2, 3, 4);
+			Store<Keys, int> b = new Store<Keys, int>(5, 6, 7, 8);
+
+			var c = -a;
+			c.ShouldEqual(new Store<Keys, int>(-1, -2, -3, -4));
+			var d = a + b;
+			d.ShouldEqual(new Store<Keys, int>(6, 8, 10, 12));
+			var e = a - b;
+			e.ShouldEqual(new Store<Keys, int>(-4, -4, -4, -4));
+			var f = a * b;
+			f.ShouldEqual(new Store<Keys, int>(5, 12, 21, 32));
+			var g = b / a;
+			g.ShouldEqual(new Store<Keys, int>(5, 3, 2, 2));
+		}
+
+		public static void TestCombine() {
+			Store<Keys, float> a = new Store<Keys, float>(.50f, 1f/3f, .25f, .20f);
+			Store<Keys, float> b = new Store<Keys, float>(.20f, .10f, .20f, .20f);
+
+			var result = Store<Keys, float>.Combine(a, b);
+			result.ShouldEqual(new Store<Keys, float>(.6f, .4f, .4f, .36f));
+
+		}
 
 	}
 

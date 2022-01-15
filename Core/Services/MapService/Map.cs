@@ -1,4 +1,4 @@
-#if UNITY_2017_1_OR_NEWER
+﻿#if UNITY_2017_1_OR_NEWER
 #define UNITY
 #endif
 #if UNITY
@@ -66,8 +66,9 @@ namespace Ex {
 
 		/// <summary>  Global entity list. 
 		/// These are visible for all connected clients, regardless of position. 
-		/// Used for some background objects, terrain, and 'bosses'. </summary>
-		public List<Guid> globalEntities { get; private set; }
+		/// Used for some background objects, terrain, and maybe 'bosses'. </summary>
+		public List<Guid> globalIds { get; private set; }
+		public List<Entity> globalEntities { get; private set; }
 		
 		public EntityService entityService { get { return service.GetService<EntityService>(); } }
 
@@ -114,7 +115,8 @@ namespace Ex {
 			cells = new Dictionary<Vector3Int, Cell>();
 			entities = new Dictionary<Guid, Entity>();
 			//idsInMap = new List<Guid>();
-			globalEntities = new List<Guid>();
+			globalIds = new List<Guid>();
+			globalEntities = new List<Entity>();
 			toSpawn = new ConcurrentQueue<Guid>();
 			toDespawn = new ConcurrentQueue<Guid>();
 			toMove = new ConcurrentQueue<EntityMoveRequest>();
@@ -158,7 +160,8 @@ namespace Ex {
 				}
 
 				if (entityInfo.global) {
-					globalEntities.Add(id);
+					globalIds.Add(id);
+					globalEntities.Add(entity);
 				} else {
 					RequireCell(CellPositionFor(spawnInfo.position)).AddEntity(id);
 				}
@@ -413,7 +416,7 @@ namespace Ex {
 				Log.Debug($"Map {identity} \\jspawn of entity {id}");
 
 				if (client != null) {
-					foreach (var e in globalEntities) {
+					foreach (var e in globalIds) {
 						entityService.Subscribe(client, e);
 					}
 				}
@@ -441,7 +444,7 @@ namespace Ex {
 				Log.Warning($"Map.OnDespawn: Map {identity} \\odespawn of entity {id}");
 
 				if (client != null) {
-					foreach (var e in globalEntities) {
+					foreach (var e in globalIds) {
 						entityService.Unsubscribe(client, e);
 					}
 				}
@@ -467,13 +470,54 @@ namespace Ex {
 
 		}
 
+		/// <summary> Get a snapshot of non-global entities that have a given component </summary>
+		/// <typeparam name="T"> Type of component to search for </typeparam>
+		/// <returns> Snapshot <see cref="IEnumerable{T}"/> of components of the given type 
+		/// for all entities that exist on the current map that have the given component </returns>
+		public IEnumerable<T> Entities<T>() where T : Comp {
+			return entities.Select(it => it.Value.GetComponent<T>())
+				.Where(it => it != null);
+			// return entityService.GetEntities<T>() as IEnumerable<T>;
+		}
+
+
+		/// <summary> Get a snapshot of global entities that have a given component </summary>
+		/// <typeparam name="T"> Type of component to search for </typeparam>
+		/// <returns> Snapshot <see cref="IEnumerable{T}"/> of components of the given type 
+		/// for all entities that exist on the current map that have the given component </returns>
+		public IEnumerable<T> Globals<T>() where T : Comp {
+			return globalEntities.Select(it => it.GetComponent<T>())
+				.Where(it => it != null);
+		}
+
 		/// <summary> Get a snapshot of all entities that have a given component </summary>
 		/// <typeparam name="T"> Type of component to search for </typeparam>
-		/// <returns> Snapshot IEnumerable of components of the given type for all entities that exist </returns>
-		public IEnumerable<T> All<T>() where T : Comp {
-			return entityService.GetEntities<T>() as IEnumerable<T>;
+		/// <returns> Snapshot IEnumerable of components of the given type for all entities that exist on the current map </returns>
+		/// <returns> Snapshot <see cref="IEnumerable{T}"/> of components of the given type 
+		/// for all entities that exist on the current map that have the given component </returns>
+		public IEnumerable<T> All<T>() where T : Comp { return Entities<T>().Concat(Globals<T>()); }
+
+		/// <summary> Get a snapshot of non-global entities that have the given components </summary>
+		/// <typeparam name="T1"> Type of component to search for </typeparam>
+		/// <typeparam name="T2"> Type of component to search for </typeparam>
+		/// <returns> Snapshot <see cref="IEnumerable{T}"/> of component pairs of the given types 
+		/// for all non-global entities that exist on the current map that have both components </returns>
+		public IEnumerable<(T1 a, T2 b)> Entities<T1, T2>() where T1 : Comp where T2 : Comp {
+			return entities.Select(it => (it.Value.GetComponent<T1>(), it.Value.GetComponent<T2>()))
+				.Where(it => (it.Item1 != null && it.Item2 != null));
 		}
-		
+
+		/// <summary> Get a snapshot of non-global entities that have the given components </summary>
+		/// <typeparam name="T1"> Type of component to search for </typeparam>
+		/// <typeparam name="T2"> Type of component to search for </typeparam>
+		/// <typeparam name="T3"> Type of component to search for </typeparam>
+		/// <returns> Snapshot <see cref="IEnumerable{T}"/> of component triplets of the given types 
+		/// for all non-global entities that exist on the current map that have all 3  components </returns>
+		public IEnumerable<(T1 a, T2 b, T3 c)> Entities<T1, T2, T3>() where T1:Comp where T2:Comp where T3:Comp {
+			return entities.Select(it => (it.Value.GetComponent<T1>(), it.Value.GetComponent<T2>(), it.Value.GetComponent<T3>()))
+				.Where(it => (it.Item1 != null && it.Item2 != null && it.Item3 != null));
+		}
+
 		/// <summary> Get a <see cref="Cell"/> for the given position. Returns null if it does not exist. </summary>
 		/// <param name="cellPosition"> Position of cell to get </param>
 		/// <returns> Cell at given position or null </returns>

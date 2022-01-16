@@ -25,11 +25,13 @@ namespace Ex.Libs {
 			return fixes.ToArray();
 		}
 
+		private static readonly double LOG_1000 = Math.Log(1000);
+
 		public static string Format(double num, int places = 2) {
 
 			if (num < 1000) { return string.Format($"{{0:F{places}}}", num); }
 			
-			double b = Math.Log2(num) / Math.Log2(1000);
+			double b = Math.Log(num) / LOG_1000;;
 			int bn = (int)b ;
 			double p = Math.Pow(1000, bn);
 			string fmt = $"{{0:F{places}}} {fixes[bn]}";

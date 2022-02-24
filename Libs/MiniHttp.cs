@@ -1098,7 +1098,6 @@ namespace MiniHttp {
 	public class MiniHttp_Tests {
 	
 		public static void TestBasic() {
-			bool running = true;
 			List<Middleware> middleware = new List<Middleware>();
 			//middleware.Add(Inspect);
 			middleware.Add(BodyParser);
@@ -1158,7 +1157,6 @@ namespace MiniHttp {
 				}
 			}
 			
-			running = false;
 			Request.onError -= onError;
 
 			testGet(baseUrl, null);

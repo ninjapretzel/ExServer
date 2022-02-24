@@ -65,6 +65,24 @@ namespace Ex.Libs {
 			Incremental.Format(  100_000_000_000_000).ShouldBe("100.00 T");
 			Incremental.Format(1_000_000_000_000_000).ShouldBe("1.00 Qa");
 
+			Incremental.Format(1e15).ShouldBe("1.00 Qa");
+			Incremental.Format(1e18).ShouldBe("1.00 Qt");
+			Incremental.Format(1e21).ShouldBe("1.00 Sx");
+			Incremental.Format(1e24).ShouldBe("1.00 Sp");
+			Incremental.Format(1e27).ShouldBe("1.00 Oc");
+			Incremental.Format(1e30).ShouldBe("1.00 No");
+			
+			Incremental.Format(1e33).ShouldBe("1.00 Dc");
+			Incremental.Format(1e36).ShouldBe("1.00 UDc");
+			Incremental.Format(1e39).ShouldBe("1.00 DDc");
+			Incremental.Format(1e42).ShouldBe("1.00 TDc");
+			Incremental.Format(1e63).ShouldBe("1.00 Vi");
+			Incremental.Format(1e66).ShouldBe("1.00 UVi");
+			Incremental.Format(1e69).ShouldBe("1.00 DVi");
+			Incremental.Format(1e93).ShouldBe("1.00 Tg");
+
+
+
 		}
 	}
 }

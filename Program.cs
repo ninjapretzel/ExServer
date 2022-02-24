@@ -72,6 +72,7 @@ namespace Ex {
 				try {
 					if (copySources) {
 						//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Eternus/Assets/Plugins/ExClient/Core");
+						//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Eternus/Assets/Plugins/ExClient/Shared");
 						
 						//Macros.CopySourceFiles((SourceFileDirectory() + "/Core").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Core");
 						//Macros.CopySourceFiles((SourceFileDirectory() + "/Game/Shared").Replace('\\', '/'), "D:/Development/Unity/Infinigrinder/Assets/Plugins/ExClient/Game/Shared");
@@ -139,27 +140,25 @@ namespace Ex {
 			// Application.SetCompatibleTextRenderingDefault(false);
 			// mainForm = new MainForm();
 
-			Action logStuff = () => {
+			void logStuff() {
 				Log.Verbose("VERBOSE VERBOSE VERBOSE");
 				Log.Debug("Debug. Debug.");
 				Log.Info("Information.");
 				Log.Warning("!!!!ATCHUNG!!!!");
-				Log.Error("Oh Shi-");
+				Log.Error("Oh noes");
 			};
 			// logStuff();
 
-			Action logColors = () => {
+			void logColors() {
 				Log.Info("Color Test." +
 					"\n\\qq\\ww\\ee\\rr\\tt\\yy\\uu\\ii\\oo\\pp"
 					+ "\n\\aa\\ss\\dd\\ff\\gg\\hh\\jj\\kk\\ll"
 					+ "\n\\zz\\xx\\cc\\vv\\bb\\nn\\mm"
-					+ "\n\\1\\2\\3\\4\\5\\6\\7\\8\\9\\0");
-
+					+ "\n\\11\\22\\33\\44\\55\\66\\77\\88\\99\\00");
 			};
 
-			logStuff();
+			//logStuff();
 			logColors();
-			// mainForm.FormClosed += (s, e) => { server.Stop(); };
 
 			Log.Info($"Working Directory: {Directory.GetCurrentDirectory().Replace('\\', '/') }");
 			SetupExServer();
@@ -286,15 +285,11 @@ namespace Ex {
 			if (config.Has<JsonArray>("httpHost")) {
 				string[] hostnames = config.Get<string[]>("httpHost");
 				Log.Info($"HTTP Listening at:\n\t{string.Join("\n\t", hostnames)}");
-				
 				httpTask = HttpServer.Watch(hostnames, ()=>running, 1000, middleware.ToArray());
-
 			} else {
 				string hostname = config["httpHost"].stringVal;
-
+				Log.Info($"HTTP Listening at {hostname}");
 				httpTask = HttpServer.Watch(hostname, ()=>running, middleware.ToArray());
-
-				Console.WriteLine($"HTTP Listening at {hostname}");
 			}
 
 		}

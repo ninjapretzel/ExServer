@@ -1152,7 +1152,10 @@ namespace MiniHttp {
 
 			foreach (var t in tasks) {
 				t.Wait();
-				if (t.Exception != null) { throw t.Exception; }
+				if (t.Exception != null) {
+					Request.onError -= onError;
+					throw t.Exception; 
+				}
 			}
 			
 			running = false;
